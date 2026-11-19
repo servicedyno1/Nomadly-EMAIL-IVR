@@ -13,7 +13,7 @@ const { validUsCa, quietWait, hourOpen } = require('./tz')
 const DEFAULTS = {
   defaultDailyLimit: 20000, maxCustomerLimit: 20000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 0, oneGuardNumbers: 10, oneGuardSimilar: 5, oneGuardSlowMin: 10, oneGuardDailyFree: 300, oneGuardNewDays: 3, swapUndelivered: 5, swapUndeliveredTo: 3,
   platformPerMin: 30, rateMargin: 2, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
-  minVolume: 500, maxVolume: 20000, pricePlain: 0.10, priceLink: 0.10, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 0, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
+  minVolume: 500, validatedMinVolume: 100, maxVolume: 20000, pricePlain: 0.10, priceLink: 0.10, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 0, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, testerRenumberDaily: true, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 0, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
   esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: false, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, reorderProviderFails: false, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 50, warmStaleMin: 60, warmLeadMin: 15, apiFailsToReplace: 3, platformPerMinAuto: true,
@@ -726,7 +726,8 @@ async function createBooking(cid, { date, hour, volume, type = 'paid', campaignI
   if (cu?.status !== 'active') return E('err_suspended')
   if (cp) { const k = checkContent(cp.content, cp.withLinks, cp.optOut); if (k.error) return k; if (cp.testedHash && contentHash(cp) !== cp.testedHash) return E('err_content_changed'); if ((cp.blockedVersions || []).length >= cp.content.length) return E('err_link_flagged_all') } // the stored text must still match the paid type and the tested text
   const fee = cp?.replies && type !== 'free' ? c.replyFee : 0
-  if (!(v >= c.minVolume && v <= c.maxVolume)) return E('err_volume', c.minVolume, c.maxVolume)
+  const minV = cp?.validated ? c.validatedMinVolume ?? 100 : c.minVolume
+  if (!(v >= minV && v <= c.maxVolume)) return E('err_volume', minV, c.maxVolume)
   if (v > limit) return E('err_allowance_over', limit)
   if (type === 'free' && (!c.freeBookings || v > c.freeVolume)) return E('err_free')
   if (!(await capacity(date, c)).perHour) { await unmet(cid, date, v); return E('err_no_lines') }
@@ -740,11 +741,40 @@ async function createBooking(cid, { date, hour, volume, type = 'paid', campaignI
     // and the engine auto-orders lines while it sends, so a batch bigger than today's capacity is never refused.
     const alloc = now ? (allocate(slots, Number(hour), v, dayFree) || {}) : allocate(slots, Number(hour), v, dayFree)
     if (!now && !alloc) { if (v > dayFree) await unmet(cid, date, v); return E('err_slot') }
-    const pr = priced(c, v, listUnit, startAt)
-    const b = { _id: id('bk'), cid, campaignId: campaignId || null, type, mode: now ? 'now' : 'scheduled', date, hour: Number(hour), startAt, estimatedCompletion: Object.keys(alloc).length ? new Date(`${Object.keys(alloc).pop()}:59:59Z`) : new Date(startAt.getTime() + 6 * HOUR), volume: v, unitPrice: pr.unit, listUnit, discountPct: pr.pct, listPrice: Math.round((pr.list + fee) * 100) / 100, replyFee: fee, allocation: alloc, price: type === 'free' ? 0 : Math.round((pr.price + fee) * 100) / 100, status: 'awaiting_payment', paymentStatus: type === 'free' ? 'free' : 'unpaid', holdUntil: new Date(Date.now() + c.holdMinutes * MIN), history: [{ status: 'awaiting_payment', at: new Date() }], createdAt: new Date() }
+    const pr = priced(c, v, listUnit, startAt), vf = type === 'paid' && cp?.validate && !cp.validatedAt ? cp.valFee || 0 : 0
+    const b = { _id: id('bk'), cid, campaignId: campaignId || null, type, mode: now ? 'now' : 'scheduled', date, hour: Number(hour), startAt, estimatedCompletion: Object.keys(alloc).length ? new Date(`${Object.keys(alloc).pop()}:59:59Z`) : new Date(startAt.getTime() + 6 * HOUR), volume: v, unitPrice: pr.unit, listUnit, discountPct: pr.pct, listPrice: Math.round((pr.list + fee + vf) * 100) / 100, replyFee: fee, valFee: vf, allocation: alloc, price: type === 'free' ? 0 : Math.round((pr.price + fee + vf) * 100) / 100, status: 'awaiting_payment', paymentStatus: type === 'free' ? 'free' : 'unpaid', holdUntil: new Date(Date.now() + c.holdMinutes * MIN), history: [{ status: 'awaiting_payment', at: new Date() }], createdAt: new Date() }
     await C('bsBookings').insertOne(b); await C('bsDemand').deleteOne({ _id: `${cid}:${date}` }).catch(() => {}); return { booking: b }
   } finally { await unlock(`book:${date}`) }
 }
+const VAL_RATE = () => Number(process.env.RATE_LEAD_VALIDATOR)
+// After the one checkout: keep only numbers that passed validation, re-price the booking and say how much goes back
+// to the wallet. `valid` = E.164 numbers. Returns { refund, removed, saved, n } or an error (too few → full refund).
+async function applyValidation(bid, valid, paid) {
+  const b = await C('bsBookings').findOne({ _id: bid }), cp = b?.campaignId && await C('bsCampaigns').findOne({ _id: b.campaignId })
+  if (!cp?.validate) return E('err_not_found')
+  const c = await cfg(), ok = new Set(valid), all = [...cp.contacts, ...(cp.skipped || [])], keep = all.filter(p => ok.has(p))
+  const min = c.validatedMinVolume ?? 100
+  if (keep.length < min) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { validatedAt: new Date(), valRemoved: all.length - keep.length } }); return { ...E('ho_few', min, keep.length), refund: paid, n: keep.length } }
+  const k = checkContent(cp.content, cp.withLinks, cp.optOut); let total = 0
+  keep.forEach((_, i) => { total += k.segs[i % k.parts.length] })
+  const pr = priced(c, total, b.listUnit, b.startAt), price = Math.round((pr.price + (b.replyFee || 0) + (b.valFee || 0)) * 100) / 100
+  const { slots, dayFree } = await availability(b.date), alloc = b.mode === 'now' ? (allocate(slots, b.hour, total, dayFree) || {}) : (allocate(slots, b.hour, total, dayFree) || b.allocation)
+  const removed = all.length - keep.length, refund = Math.max(0, Math.round((paid - price) * 100) / 100), saved = Math.round((refund - (b.valFee || 0)) * 100) / 100
+  const sk = new Set(cp.skipped || [])
+  await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { contacts: keep.filter(p => !sk.has(p)), skipped: keep.filter(p => sk.has(p)), parts: total, volume: keep.length, validated: true, validatedAt: new Date(), valRemoved: removed, valSaved: saved, valFee: b.valFee || 0, 'stats.skipped': keep.filter(p => sk.has(p)).length } })
+  await C('bsBookings').updateOne({ _id: bid }, { $set: { volume: total, price, unitPrice: pr.unit, listPrice: Math.round((pr.list + (b.replyFee || 0) + (b.valFee || 0)) * 100) / 100, allocation: alloc, valRefund: refund } })
+  await saveList(cp.cid, keep, 'checkout')
+  audit('validation_applied', { bookingId: bid, campaignId: cp._id, before: all.length, after: keep.length, refund })
+  return { refund, removed, saved, n: keep.length, price }
+}
+// Customers' validated lists: the last 5, kept 30 days, reusable without uploading or validating again.
+async function saveList(cid, numbers, source) {
+  if (!numbers?.length) return
+  await C('bsLists').insertOne({ _id: id('vl'), cid, numbers: [...new Set(numbers)], n: new Set(numbers).size, source, at: new Date(), expireAt: new Date(Date.now() + 30 * DAY) })
+  const old = await C('bsLists').find({ cid }).sort({ at: -1 }).skip(5).project({ _id: 1 }).toArray()
+  if (old.length) await C('bsLists').deleteMany({ _id: { $in: old.map(x => x._id) } })
+}
+const savedLists = (cid) => C('bsLists').find({ cid, expireAt: { $gt: new Date() } }).sort({ at: -1 }).limit(5).toArray()
 const setBooking = (bid, status, extra = {}) => C('bsBookings').updateOne({ _id: bid }, { $set: { status, ...extra, updatedAt: new Date() }, $push: { history: { status, at: new Date() } } })
 // Payment confirmed by the bot (wallet / crypto / bank already collected). Expired holds are re-checked for capacity.
 async function confirmBooking(bid, { method, amount, ref } = {}) {
@@ -997,15 +1027,18 @@ async function linkSweep() {
   }
 }
 // Every uploaded number is billed; numbers in `skip` (failed the number check) are billed but never texted.
-async function createCampaign(cid, { name, content, contacts, withLinks, optOut = true, replies = false, consent = false, uploadId = null, skip = [], linksUnchecked = false }) {
+// Lists that went through paid validation may be smaller (validatedMinVolume).
+// validate: numbers are validated after the one checkout (fee added to the booking, unused texting refunded to the wallet).
+async function createCampaign(cid, { name, content, contacts, withLinks, optOut = true, replies = false, consent = false, uploadId = null, skip = [], linksUnchecked = false, validated = false, validate = false }) {
   const c = await cfg(), k = checkContent(content, withLinks, optOut); if (k.error) return k
   if (!consent) return E('err_consent')
   let total = 0, n = 0
   for (; n < contacts.length; n++) { const s = k.segs[n % k.parts.length]; if (total + s > c.maxVolume) break; total += s }
-  if (total < c.minVolume) return E('err_few', c.minVolume, total)
+  const min = validated ? c.validatedMinVolume ?? 100 : c.minVolume
+  if (total < min) return E('err_few', min, total)
   const kept = contacts.slice(0, n), sk = new Set(skip), send = kept.filter(p => !sk.has(p)), skipped = kept.filter(p => sk.has(p))
   if (!send.length) return E('err_no_mobile')
-  const doc = { _id: id('cp'), cid, name: String(name || 'Campaign').slice(0, 60), content: k.parts, withLinks: k.withLinks, optOut: k.optOut, replies: !!replies, consentAt: new Date(), contacts: send, skipped, linksUnchecked: !!(linksUnchecked && k.withLinks), dropped: contacts.length - n, parts: total, uploadId, volume: n, status: 'draft', testsUsed: 0, stats: { queued: 0, sent: 0, failed: 0, rejected: 0, replies: 0, optOuts: 0, skipped: skipped.length }, createdAt: new Date() }
+  const doc = { _id: id('cp'), cid, name: String(name || 'Campaign').slice(0, 60), content: k.parts, withLinks: k.withLinks, optOut: k.optOut, replies: !!replies, consentAt: new Date(), validated: !!validated, ...(validate && !validated ? { validate: true, valFee: Math.round(n * VAL_RATE() * 100) / 100 } : {}), contacts: send, skipped, linksUnchecked: !!(linksUnchecked && k.withLinks), dropped: contacts.length - n, parts: total, uploadId, volume: n, status: 'draft', testsUsed: 0, stats: { queued: 0, sent: 0, failed: 0, rejected: 0, replies: 0, optOuts: 0, skipped: skipped.length }, createdAt: new Date() }
   await C('bsCampaigns').insertOne(doc); return { campaign: doc }
 }
 // Paid replies (+cfg.replyFee at booking): only then are replies to this campaign's texts forwarded to the customer.
@@ -1528,7 +1561,7 @@ async function finishCampaigns() {
         }
       }
     }
-    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const refunded = await refundUnsent(cp), r = await report(cp._id); const sb = await skipBreakdown((await C('bsCampaigns').findOne({ _id: cp._id }, { projection: { skipped: 1 } }))?.skipped || []), allReplies = r.replies + (r.kept || 0); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected + (r.blocked || 0), allReplies, r.skipped, refunded || 0, sb.landline], { campaignId: cp._id }); alert(`✅ <b>Campaign completed</b>\n👤 ${await userTag(cp.cid)} (${cp.cid})\n📋 ${cp.name}\n📥 ${r.sent + r.failed + r.rejected + (r.blocked || 0) + r.skipped} numbers${r.skipped ? ` · 🚫 ${r.skipped} skipped (${[['landline', 'landlines'], ['voip', 'VoIP'], ['invalid', 'invalid'], ['other', 'other']].filter(([k]) => sb[k]).map(([k, l]) => `${sb[k]} ${l}`).join(', ')})` : ''}\n📊 ${r.sent} sent · ${r.failed} failed · ${allReplies} replies${r.kept ? ` (${r.kept} not forwarded — replies off)` : ''} · ⛔ ${r.optOuts} opt-outs\n💵 cost $${r.cost}${r.costPerReply != null ? ` · $${r.costPerReply}/reply` : ''}${refunded ? `\n↩️ $${refunded} refunded` : ''}`); await C('bsReviews').insertOne({ _id: `cpr_${cp._id}`, kind: 'campaign', cid: cp.cid, campaignId: cp._id, name: cp.name, status: 'waiting', at: new Date(), dueAt: new Date() }).catch(() => {}) }
+    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const refunded = await refundUnsent(cp), r = await report(cp._id); const sb = await skipBreakdown((await C('bsCampaigns').findOne({ _id: cp._id }, { projection: { skipped: 1 } }))?.skipped || []), allReplies = r.replies + (r.kept || 0); if (cp.valRemoved) await notify(cp.cid, 'campaign', 'n_saved', [cp.valRemoved, cp.valSaved || 0, cp.valFee || 0], { campaignId: cp._id }); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected + (r.blocked || 0), allReplies, r.skipped, refunded || 0, sb.landline], { campaignId: cp._id }); alert(`✅ <b>Campaign completed</b>\n👤 ${await userTag(cp.cid)} (${cp.cid})\n📋 ${cp.name}\n📥 ${r.sent + r.failed + r.rejected + (r.blocked || 0) + r.skipped} numbers${r.skipped ? ` · 🚫 ${r.skipped} skipped (${[['landline', 'landlines'], ['voip', 'VoIP'], ['invalid', 'invalid'], ['other', 'other']].filter(([k]) => sb[k]).map(([k, l]) => `${sb[k]} ${l}`).join(', ')})` : ''}\n📊 ${r.sent} sent · ${r.failed} failed · ${allReplies} replies${r.kept ? ` (${r.kept} not forwarded — replies off)` : ''} · ⛔ ${r.optOuts} opt-outs${cp.valRemoved ? `\n✅ validation removed ${cp.valRemoved} numbers · saved the customer $${cp.valSaved || 0}` : ''}\n💵 cost $${r.cost}${r.costPerReply != null ? ` · $${r.costPerReply}/reply` : ''}${refunded ? `\n↩️ $${refunded} refunded` : ''}`); await C('bsReviews').insertOne({ _id: `cpr_${cp._id}`, kind: 'campaign', cid: cp.cid, campaignId: cp._id, name: cp.name, status: 'waiting', at: new Date(), dueAt: new Date() }).catch(() => {}) }
   }
 }
 // Spenza tells each account's real SMS limit in X-RateLimit-* headers: adopt a changed limit as that account's rate (so capacity,
@@ -1835,7 +1868,7 @@ function init({ db, log = console.log, notifyAdmin }) {
   return ready.then(() => {
     MW.addStore(C('bsHeld')); C('bsHeld').createIndex({ groupKey: 1 }, { unique: true, sparse: true }).catch(() => {})
     C('bsMessages').createIndex({ status: 1, priority: -1, nextAt: 1 }).catch(() => {}); C('bsMessages').createIndex({ campaignId: 1, status: 1 }).catch(() => {}); C('bsMessages').createIndex({ cid: 1, createdAt: -1 }).catch(() => {}); C('bsMessages').createIndex({ fp: 1, createdAt: -1 }, { sparse: true }).catch(() => {})
-    C('bsSessions').createIndex({ esimId: 1, to: 1, status: 1 }).catch(() => {}); C('bsSuppression').createIndex({ cid: 1, phone: 1 }, { unique: true }).catch(() => {}); C('bsNotify').createIndex({ brand: 1, sent: 1 }).catch(() => {}); C('bsEsims').createIndex({ msisdn: 1 }).catch(() => {}); C('bsEsimDaily').createIndex({ day: 1 }).catch(() => {}); C('bsTests').createIndex({ esimId: 1, type: 1, result: 1 }).catch(() => {})
+    C('bsSessions').createIndex({ esimId: 1, to: 1, status: 1 }).catch(() => {}); C('bsLists').createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 }).catch(() => {}); C('bsLists').createIndex({ cid: 1, at: -1 }).catch(() => {}); C('bsSuppression').createIndex({ cid: 1, phone: 1 }, { unique: true }).catch(() => {}); C('bsNotify').createIndex({ brand: 1, sent: 1 }).catch(() => {}); C('bsEsims').createIndex({ msisdn: 1 }).catch(() => {}); C('bsEsimDaily').createIndex({ day: 1 }).catch(() => {}); C('bsTests').createIndex({ esimId: 1, type: 1, result: 1 }).catch(() => {})
     if (process.env.BULK_ESIM_WORKER === 'false') return
     if (!configured()) { log('[BulkESIM] needs SPENZA_BULK_API_KEY/SECRET and BULK_ESIM_MONGO_URL (shared DB) — engine idle'); return }
     const every = (ms, fn, name) => setInterval(async () => { try { if (await leader()) await fn() } catch (e) { log(`[BulkESIM] ${name}: ${e.message}`) } }, ms)
@@ -1851,4 +1884,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { orderOrQueue, processLineQueue, replaceEsim, altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, singleTextMode, savePendingText, clearPendingText, duePendingTexts, claimPendingText, releasePendingText, dueWinbacks, winbackTake, winbackGive, WINBACK, SINGLE_TEXT_PRICE, SINGLE_TEXT_MIN_BALANCE, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
+module.exports = { applyValidation, saveList, savedLists, VAL_RATE, orderOrQueue, processLineQueue, replaceEsim, altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, singleTextMode, savePendingText, clearPendingText, duePendingTexts, claimPendingText, releasePendingText, dueWinbacks, winbackTake, winbackGive, WINBACK, SINGLE_TEXT_PRICE, SINGLE_TEXT_MIN_BALANCE, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
