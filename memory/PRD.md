@@ -789,3 +789,10 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Cause: stray CHANNEL_ADS_TARGETS override (@CloudIVRNet=14:00,22:00;@Hostbay=18:00) live Nov 18 10:15–21:58Z; now removed, default 3/day Hostbay + 1/day CloudIVRNet active
 - Catch-up posts sent 08:2xZ Nov 19: @Hostbay #1605, @CloudIVRNet #39
 - js/channel-ads.js: DEFAULT_TARGETS constant + loud startup warning when an override is active (needs Save to Github → deploy)
+
+### 2026-11-19 — Channel ads: 4/day per channel, per-slot brand, Nomadlybot videos
+- Schedule (UTC): @Hostbay 10/16/22 Nomadlybot + 13:00 CloudIVR; @CloudIVRNet 10/16/22 CloudIVR + 13:00 Nomadlybot (DEFAULT_TARGETS "HH:MM/brand")
+- Nomadlybot ads: bot products only, support @onarrival1 (CHANNEL_ADS_NOMADLY_SUPPORT), CTA t.me/Nomadlybot?start=open_<hub>; never CloudIVR contact
+- New js/channel-ads-botchat.js: premium animated Telegram chat of @Nomadlybot (real menu labels) recorded 780x1688 → framed 1080x1350 MP4 (~15s); 65% botclip / 35% AI art
+- Bot: "/start channel_*" → /start; new hub open_esim
+- Dry-run verified all 3 combos locally; NOT yet deployed — user must Save to Github

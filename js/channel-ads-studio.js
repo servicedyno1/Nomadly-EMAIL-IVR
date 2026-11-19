@@ -211,10 +211,10 @@ async function shots(screen) {
 }
 
 // AI artwork with the owner's own OpenAI keys; tries each key × model, null when all fail.
-async function artwork(scene, theme, chat) {
+async function artwork(scene, theme, brand) {
   const keys = [...new Set([process.env.APP_OPEN_API_KEY, process.env.OPEN_API_KEY].filter(Boolean))]
   const models = [...new Set([process.env.CHANNEL_ADS_IMAGE_MODEL, 'gpt-image-1.5', 'gpt-image-1-mini'].filter(Boolean))]
-  const hb = /hostbay/i.test(chat || '')
+  const hb = brand === 'nomadly'
   const brandDesc = hb
     ? 'an all-in-one online business platform (hosting, domains, VPS, phone systems, SMS, digital products)'
     : 'a cloud business phone system'
@@ -233,9 +233,9 @@ async function artwork(scene, theme, chat) {
 
 const uri = (buf, mime = 'image/jpeg') => (buf ? `data:${mime};base64,${buf.toString('base64')}` : '')
 
-function html({ v, headline, sub, desk, phone, art, w, h, clipBox, chat }) {
+function html({ v, headline, sub, desk, phone, art, w, h, clipBox, brand }) {
   const t = THEMES[v.theme]
-  const hb = /hostbay/i.test(chat || '')
+  const hb = brand === 'nomadly'
   const brandName = hb ? 'Nomadly' : 'CloudIVR'
   const brandUrl = hb ? '@Nomadlybot' : 'cloudivr.net'
   const deskBarUrl = hb ? 'nomadly.bot' : 'cloudivr.net'
@@ -245,7 +245,7 @@ function html({ v, headline, sub, desk, phone, art, w, h, clipBox, chat }) {
   if (v.layout === 'desk') body = `<h1 style="max-width:1320px;font-size:66px">${esc(headline)}</h1>${deskEl(170 + v.jx, 330 + v.jy, 1260, 760)}`
   if (v.layout === 'duo') body = `<h1 style="max-width:560px;font-size:60px;top:150px">${esc(headline)}</h1>${sub ? `<p class="sub" style="top:${headline.length > 28 ? 420 : 350}px">${esc(sub)}</p>` : ''}${deskEl(700 + v.jx, 120 + v.jy, 1080, 680)}${phoneEl(560 + v.jx, 300, 290, 620, phone)}`
   if (v.layout === 'art') body = `<div class="art" style="background-image:url(${uri(art, 'image/png')})"></div><h1 style="max-width:620px;font-size:62px;top:150px">${esc(headline)}</h1>${sub ? `<p class="sub" style="top:${headline.length > 28 ? 420 : 350}px;max-width:560px">${esc(sub)}</p>` : ''}${phone ? phoneEl(1210 + Math.round(v.jx / 2), 290, 280, 600, phone) : ''}`
-  if (v.layout === 'clip') body = `<h1 style="left:70px;top:128px;max-width:940px;font-size:62px">${esc(headline)}</h1>${phoneEl(clipBox.x - 14, clipBox.y - 14, clipBox.w + 28, clipBox.h + 60, null)}`
+  if (v.layout === 'clip') body = `<h1 style="left:70px;top:128px;max-width:940px;font-size:62px">${esc(headline)}</h1>${phoneEl(clipBox.x - 14, clipBox.y - 14, clipBox.w + 28, clipBox.h + 60, null)}${hb ? `<div class="chip" style="left:${clipBox.x + clipBox.w + 50}px;top:${clipBox.y + 120}px">Everything<br>in one bot</div><div class="chip" style="left:${clipBox.x + clipBox.w + 50}px;top:${clipBox.y + 330}px">Pay with<br>crypto</div><div class="chip" style="left:${clipBox.x + clipBox.w + 50}px;top:${clipBox.y + 540}px">Ready in<br>minutes</div>` : ''}`
   return `<!doctype html><html><head><link rel="preconnect" href="https://fonts.gstatic.com"><link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(v.font)}:wght@600;800&display=block" rel="stylesheet"><style>
 *{margin:0;box-sizing:border-box}body{width:${w}px;height:${h}px;overflow:hidden;position:relative;background:${t.bg};color:${t.ink};font-family:'${v.font}',sans-serif}
 .g{position:absolute;width:760px;height:760px;border-radius:50%;background:${t.glow};filter:blur(150px);opacity:.38;left:${v.glow[0]}%;top:${v.glow[1]}%;transform:translate(-50%,-50%)}
@@ -262,6 +262,7 @@ h1{position:absolute;left:80px;top:118px;line-height:1.04;font-weight:800;letter
 .phone{position:absolute;border-radius:48px;background:#050505;padding:12px;box-shadow:0 40px 90px -20px rgba(0,0,0,.7),0 0 0 2px ${t.soft}33;z-index:2}
 .phone img{width:100%;height:100%;object-fit:cover;object-position:top;border-radius:37px;display:block}
 .phone .notch{position:absolute;top:22px;left:50%;transform:translateX(-50%);width:96px;height:26px;border-radius:14px;background:#050505}
+.chip{position:absolute;padding:18px 22px;border-radius:22px;background:${t.glow}1f;border:1px solid ${t.glow}55;backdrop-filter:blur(12px);font-size:24px;line-height:1.2;font-weight:800;color:${t.ink};box-shadow:0 20px 50px -20px ${t.glow}88}
 .art{position:absolute;top:0;right:0;width:1100px;height:100%;background-size:cover;background-position:center}
 .art:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,${t.bg} 0%,${t.bg}cc 22%,transparent 60%)}
 </style></head><body><div class="g"></div><div class="dots"></div><div class="brand"><i></i>${brandName}</div>${body}<div class="url">${v.step ? `<span class="step">${esc(v.step)}</span>` : esc(brandUrl)}</div></body></html>`
@@ -294,19 +295,32 @@ async function liveWebm(item) {
   return webm
 }
 
-async function frameClip(webm, v, headline, speed = 1) {
+async function frameClip(webm, v, headline, speed = 1, brand, maxSecs = 55) {
   const id = `${path.basename(webm, '.webm')}-${Date.now()}`
   const bg = path.join(WORK(), `${id}.png`), mp4 = path.join(WORK(), `${id}.mp4`)
   const box = { x: 300, y: 330, w: 480, h: 1040 }
-  const { full, thumb } = await render(html({ v, headline, w: 1080, h: 1350, clipBox: box }), 1080, 1350, true)
+  const { full, thumb } = await render(html({ v, headline, w: 1080, h: 1350, clipBox: box, brand }), 1080, 1350, true)
   fs.writeFileSync(bg, full)
   try {
-    await ffmpeg(['-loop', '1', '-i', bg, '-i', webm, '-filter_complex', `[1:v]setpts=PTS/${speed},scale=${box.w}:-2,crop=${box.w}:${box.h - 30}:0:0,fps=24[c];[0:v][c]overlay=${box.x}:${box.y}:shortest=1,format=yuv420p`, '-an', '-c:v', 'libx264', '-crf', '24', '-movflags', '+faststart', '-t', '55', mp4])
+    await ffmpeg(['-loop', '1', '-i', bg, '-i', webm, '-filter_complex', `[1:v]setpts=PTS/${speed},scale=${box.w}:-2,crop=${box.w}:${box.h - 30}:0:0,fps=24[c];[0:v][c]overlay=${box.x}:${box.y}:shortest=1,format=yuv420p`, '-an', '-c:v', 'libx264', '-crf', '24', '-movflags', '+faststart', '-t', String(maxSecs), mp4])
   } finally { fs.rmSync(bg, { force: true }) }
   if (fs.statSync(mp4).size < 30000) throw new Error('clip too short')
   return { file: mp4, thumb }
 }
 
+// Records the animated @Nomadlybot chat for a Nomadly product on a phone-size page.
+async function botWebm(id, theme) {
+  const bc = require('./channel-ads-botchat')
+  const steps = bc.flowFor(id)
+  const webm = path.join(WORK(), `bot-${id}-${Date.now()}.webm`)
+  const { page, done } = await openPage({ width: 780, height: 1688, deviceScaleFactor: 1 })
+  try {
+    await page.setContent(bc.chatHtml(steps, theme, true), { waitUntil: 'load', timeout: 30000 })
+    const rec = await page.screencast({ path: webm, crop: { x: 0, y: 0, width: 780, height: 1688 } })
+    try { await page.evaluate(() => window.__play && window.__play()); await wait(bc.duration(steps)) } finally { await rec.stop() }
+  } finally { await done() }
+  return webm
+}
 const demoWebm = (id) => path.join(SRC, `${id}.webm`)
 const demoShots = (id) => { try { return JSON.parse(fs.readFileSync(path.join(SRC, `${id}.json`), 'utf8')).map((label, i) => ({ label, buf: fs.readFileSync(path.join(SRC, `${id}-${i + 1}.jpg`)) })) } catch (_) { return null } }
 
@@ -323,7 +337,7 @@ async function liveStages(demo) {
 }
 
 // Album of 3–4 framed steps (same look across the album, new look every post).
-async function series(demo, kind, chat) {
+async function series(demo, kind, brand) {
   let stages = null, live = true
   if (DEMO()) stages = await liveStages(demo).catch(() => null)
   if (!stages) { stages = demoShots(demo.id); live = false }
@@ -331,18 +345,27 @@ async function series(demo, kind, chat) {
   const v = { ...variant('screen'), kind, layout: 'desk' }
   const files = [], thumbs = []
   for (const [i, s] of stages.entries()) {
-    const { full, thumb } = await render(html({ v: { ...v, step: `Step ${i + 1} of ${stages.length}` }, headline: s.label, desk: s.buf, w: 1600, h: 1000, chat }), 1600, 1000)
+    const { full, thumb } = await render(html({ v: { ...v, step: `Step ${i + 1} of ${stages.length}` }, headline: s.label, desk: s.buf, w: 1600, h: 1000, brand }), 1600, 1000)
     const file = path.join(WORK(), `${demo.id}-${i + 1}-${Date.now()}.jpg`); fs.writeFileSync(file, full); files.push(file); thumbs.push(thumb)
   }
   return { type: 'album', files, file: null, thumb: thumbs[0], v, live }
 }
 
 // One finished visual for a post. kind: 'screen' | 'art' | 'clip'. Falls back to a screen image.
-async function make({ kind, screen, clip, demo, headline, sub, scene, chat }) {
+async function make({ kind, screen, clip, demo, headline, sub, scene, brand = 'cloudivr' }) {
   {
     let v = variant(kind)
+    if (kind === 'botclip') {
+      let webm = null
+      try {
+        webm = await botWebm(screen.id, THEMES[v.theme])
+        const secs = Math.ceil(require('./channel-ads-botchat').duration(require('./channel-ads-botchat').flowFor(screen.id)) / 1000) + 1
+        const c = await frameClip(webm, { ...v, layout: 'clip' }, headline, 1, 'nomadly', secs)
+        return { type: 'video', ...c, v: { ...v, layout: 'clip' }, live: true }
+      } catch (e) { v = { ...variant('art'), fallback: `botclip: ${e.message}` } } finally { if (webm) fs.rmSync(webm, { force: true }) }
+    }
     if (kind === 'series') {
-      try { return await series(demo, kind, chat) } catch (e) { v = { ...variant('screen'), fallback: `series: ${e.message}` } }
+      try { return await series(demo, kind, brand) } catch (e) { v = { ...variant('screen'), fallback: `series: ${e.message}` } }
     }
     if (kind === 'clip' || kind === 'demo') {
       const item = kind === 'demo' ? demo : clip
@@ -351,7 +374,7 @@ async function make({ kind, screen, clip, demo, headline, sub, scene, chat }) {
         if (!item.login || DEMO()) webm = await liveWebm(item).catch(() => null)
         if (!webm && kind === 'demo' && fs.existsSync(demoWebm(item.id))) { webm = demoWebm(item.id); live = false }
         if (!webm) throw new Error('no recording')
-        const c = await frameClip(webm, { ...v, layout: 'clip' }, headline, kind === 'demo' ? 0.6 : 1)
+        const c = await frameClip(webm, { ...v, layout: 'clip' }, headline, kind === 'demo' ? 0.6 : 1, brand)
         return { type: 'video', ...c, v: { ...v, layout: 'clip' }, live }
       } catch (e) { v = { ...variant('screen'), fallback: `${kind}: ${e.message}` } } finally { if (webm && live) fs.rmSync(webm, { force: true }) }
     }
@@ -360,9 +383,9 @@ async function make({ kind, screen, clip, demo, headline, sub, scene, chat }) {
     if (nomadlyForceArt && v.kind !== 'art') v = { ...variant('art') }
     const s = nomadlyForceArt ? { desktop: null, phone: null, live: false } : await shots(screen)
     let art = null
-    if (v.kind === 'art' || nomadlyForceArt) { art = await artwork(scene || screen.title, THEMES[v.theme], chat); if (!art && !nomadlyForceArt) { v = { ...variant('screen'), fallback: 'art unavailable' } } }
+    if (v.kind === 'art' || nomadlyForceArt) { art = await artwork(scene || screen.title, THEMES[v.theme], brand); if (!art && !nomadlyForceArt) { v = { ...variant('screen'), fallback: 'art unavailable' } } }
     if (!s.desktop && v.layout !== 'art') throw new Error(`no screen for ${screen.id}`)
-    const { full, thumb } = await render(html({ v, headline, sub, desk: s.desktop, phone: s.phone, art, w: 1600, h: 1000, chat }), 1600, 1000)
+    const { full, thumb } = await render(html({ v, headline, sub, desk: s.desktop, phone: s.phone, art, w: 1600, h: 1000, brand }), 1600, 1000)
     const file = path.join(WORK(), `${screen.id}-${Date.now()}.jpg`)
     fs.writeFileSync(file, full)
     return { type: 'photo', file, thumb, v, live: s.live }

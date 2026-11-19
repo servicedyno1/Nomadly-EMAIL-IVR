@@ -15534,6 +15534,8 @@ All verified numbers generated during sourcing.`))
   // "/menu → 🎟️ Daily Coupon" instruction that never worked). Existing users
   // are routed straight to the hub; brand-new users fall through to normal
   // /start onboarding below.
+  // Older channel-ad links ("/start channel_<topic>") → normal /start instead of "Unrecognized".
+  if (typeof message === 'string' && /^\/start channel_/.test(message)) { log(`[DeepLink] ${chatId} came from a channel ad: ${message.slice(7)}`); message = '/start' }
   if (typeof message === 'string' && message.startsWith('/start open_') && info?.userLanguage) {
     const _hub = message.slice('/start open_'.length).trim()
     bot?.sendChatAction?.(chatId, 'typing').catch(() => {})
@@ -15563,6 +15565,7 @@ All verified numbers generated during sourcing.`))
       marketplace: () => _synthMenuTap(user.marketplace),
       shortener: () => _synthMenuTap(user.urlShortenerMain),
       bulksms: () => _synthMenuTap(user.bulkSmsNew),
+      esim: () => _synthMenuTap(user.esimMain),
       emailval: () => _synthMenuTap(user.emailValidation),
       emailblast: () => _synthMenuTap(user.emailBlast),
       refer: () => _synthMenuTap(user.referEarn),
