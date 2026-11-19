@@ -1,0 +1,45 @@
+// Get a Plan (bot): plan list with texting/fax/help → country → numbers right away (type/area buttons under the list) → one-screen pay.
+require('dotenv').config({ path: '/app/backend/.env' })
+const axios = require('axios'), { MongoClient } = require('mongodb'), fs = require('fs')
+const CHAT = 990000131, LOG = '/var/log/supervisor/nodejs.out.log'
+let pass = 0, fail = 0; const ok = (c, m, x = '') => { c ? pass++ : fail++; console.log(`${c ? '✓' : '✗'} ${m}${x ? ` — ${x}` : ''}`) }
+const tg = (text, wait = 3000) => axios.post('http://localhost:5000/telegram/webhook', { update_id: Date.now(), message: { message_id: Date.now() % 1e6, from: { id: CHAT, is_bot: false, first_name: 'Qa' }, chat: { id: CHAT, type: 'private' }, date: Math.floor(Date.now() / 1000), text } }).then(() => new Promise(r => setTimeout(r, wait)))
+const last = (n = 1) => fs.readFileSync(LOG, 'utf8').split('\n').filter(l => l.includes(`[tg-out] {"chat":"${CHAT}"`)).slice(-n).join('\n')
+;(async () => {
+  const cl = await MongoClient.connect(process.env.MONGO_URL), db = cl.db(process.env.DB_NAME)
+  const st = (o) => db.collection('state').updateOne({ _id: String(CHAT) }, { $set: o }, { upsert: true })
+  const act = async () => (await db.collection('state').findOne({ _id: String(CHAT) }))?.action
+  await st({ action: 'submenu5', userLanguage: 'en' })
+  await tg('🛒 Get a Plan')
+  let o = last()
+  ok(await act() === 'cpSelectPlan', 'Get a Plan opens the plan list directly (no "What is it for" step)', await act())
+  ok(/Step 1 of 4/.test(o) && /Fax only/.test(o), 'plan list shows Step 1 of 4 and the Fax only line')
+  ok(/Basic/.test(o) && /Help me choose/.test(o) && /📠 Fax only/.test(o), 'plan keyboard: plans + Fax only + Help me choose')
+  await tg('🤔 Help me choose')
+  o = last(); ok(/Which plan fits/.test(o) && await act() === 'cpSelectPlan', 'Help me choose explains plans and stays on the plan step')
+  await st({ action: 'submenu5' }); await tg('🛒 Get a Number')
+  ok(await act() === 'cpSelectPlan', 'old "Get a Number" keyboard still opens the plan list')
+  const plan = (o.match(/"(💡 Basic[^"]*)"/) || [])[1] || '💡 Basic — $50/mo'
+  const planBtn = (last().match(/(💡 Basic — [^"\]]+?)"/) || [])[1] || plan
+  await tg(planBtn)
+  o = last(); ok(await act() === 'cpSelectCountry' && /Step 2 of 4/.test(o), 'plan picked → Step 2 country', `${await act()} ${planBtn}`)
+  const country = (o.match(/"(🇺🇸[^"]*)"/) || [])[1]
+  ok(!!country, 'USA in the country list', country)
+  await tg(country, 12000)
+  o = last(2)
+  ok(await act() === 'cpSelectNumber', 'country → numbers right away (no type/area question)', await act())
+  ok(/Step 3 of 4/.test(o), 'numbers screen is Step 3 of 4')
+  ok(/Search by Area Code/.test(o) && /Toll-Free Number/.test(o), 'list offers Search by Area Code + Toll-Free switch')
+  await tg('📞 Toll-Free Number', 12000)
+  o = last(2); ok(await act() === 'cpSelectNumber' && /Local Number/.test(o), 'toll-free switch shows toll-free numbers with a Local switch back', await act())
+  await tg('↩️ Back')
+  ok(await act() === 'cpSelectCountry', 'Back from numbers → country list', await act())
+  await tg('↩️ Back')
+  ok(await act() === 'cpSelectPlan', 'Back from country → plan list', await act())
+  await tg('📠 Fax only')
+  ok(/^fxn/.test(await act() || ''), 'Fax only from the plan list opens fax numbers', await act())
+  await st({ action: 'submenu5', userLanguage: 'fr' }); await tg('🛒 Choisir un forfait')
+  ok(await act() === 'cpSelectPlan' && /Aidez-moi à choisir/.test(last()), 'fr: new label opens the plan list with help button')
+  await db.collection('state').deleteOne({ _id: String(CHAT) }); await cl.close()
+  console.log(`${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)
+})().catch(e => { console.error(e.message); process.exit(1) })

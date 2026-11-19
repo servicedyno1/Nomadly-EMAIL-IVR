@@ -4,6 +4,7 @@ const rest = require('./rest')
 const voice = require('./voice')
 const ib = require('../infobip')
 const mt = require('../multitel')
+const rt = require('../retell')
 const ce = require('../callengine')
 const bird = require('../bird')
 const aws = require('../aws')
@@ -81,6 +82,8 @@ function wrap(t) {
     // Softphones sign in to our own SIP server only, so they're rung from our call engine — never a SignalWire retry
     // (it can't reach them: it only ever answered "No valid devices" / queue full).
     if (/^sip:/i.test(String(to))) {
+      // A call that came in on Infobip can only be joined to another Infobip call, so it rings the softphone itself.
+      if (ib.isIb(options.ringFor) && ib.sipTrunk()) return ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)
       if (!ce.enabled() || !ce.connected()) return { error: 'call engine not connected', status: 503, _provider: 'callengine' }
       const r = await ce.createOutboundCall(from, to, webhookUrl, connectionId, options)
       if (r.error) log(`ring ${to} via CallEngine refused (${r.error}) — not retried elsewhere`)
@@ -177,6 +180,12 @@ function wrap(t) {
   // New numbers: Infobip (default for local numbers) → Telnyx SIP → SignalWire → Infobip → Telnyx old account.
   // Only providers listed in NUMBER_PROVIDERS sell new numbers (owned numbers keep working).
   w.searchNumbers = async (countryCode, numberType, areaCode, limit = 5) => {
+    // Retell sells US/CA (local + US toll-free) when listed in NUMBER_PROVIDERS; no area-code hit → other areas, flagged.
+    if (rt.selling() && rt.sellsType(String(countryCode || 'US').toUpperCase(), numberType || 'local')) {
+      const r = await rt.searchNumbers(countryCode, numberType || 'local', areaCode, limit)
+      if (r.length || !areaCode) return r
+      return (await rt.searchNumbers(countryCode, numberType || 'local', null, limit)).map(n => ({ ...n, _areaFallback: true, _requestedAreaCode: String(areaCode), _fallbackRegion: null }))
+    }
     // Least paperwork, then cheapest (number-catalog): MultiTEL leads where it wins, e.g. US/CA without an area code.
     if (mt.enabled() && require('../number-catalog').best(String(countryCode || 'US').toUpperCase(), numberType || 'local')?.provider === 'multitel') { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
     const up = (p) => !require('../provider-health').isDown(p)
@@ -205,6 +214,9 @@ function wrap(t) {
   }
 
   w.buyNumber = async (phoneNumber, connectionId, messagingProfileId, retrySearch = null) => {
+    if (rt.isRtSearched(phoneNumber)) return rt.buyNumber(phoneNumber)
+    if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber) && rt.selling() && /^\+1\d{10}$/.test(String(phoneNumber))) { rt.remember(phoneNumber); return rt.buyNumber(phoneNumber) }
+    if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber)) await ib.recall(phoneNumber).catch(() => false)
     if (txs.isTxSearched(phoneNumber) && sells('telnyx')) {
       let r = await txs.buyNumber(phoneNumber)
       if (!r && retrySearch) {
@@ -236,7 +248,7 @@ function wrap(t) {
     return t.getNumberCapabilities(phoneNumber)
   }
   w.updateNumber = (id, updates) => (txs.isTx(id) ? Promise.resolve(true) : voice.isSw(id) ? rest.configureNumber(String(id).slice(3)) : t.updateNumber(id, updates))
-  w.releaseNumber = (id) => (txs.isTx(id) ? txs.releaseNumber(id) : voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : mt.isMt(id) ? mt.releaseNumber(id) : bird.isBird(id) ? bird.releaseNumber(id) : t.releaseNumber(id))
+  w.releaseNumber = (id) => (rt.isRt(id) ? rt.releaseNumber(id) : txs.isTx(id) ? txs.releaseNumber(id) : voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : mt.isMt(id) ? mt.releaseNumber(id) : bird.isBird(id) ? bird.releaseNumber(id) : t.releaseNumber(id))
   w.releaseByPhoneNumber = async (phoneNumber) => {
     if (txs.enabled() && await txs.releaseByPhoneNumber(String(phoneNumber).replace(/[^+\d]/g, '')).catch(() => false)) return true
     if (swOn()) { const r = await rest.releaseByPhoneNumber(String(phoneNumber).replace(/[^+\d]/g, '')); if (r !== null) return r }
@@ -244,6 +256,7 @@ function wrap(t) {
   }
   w.listNumbers = async () => [...(swOn() ? await rest.listNumbers() : []), ...((await t.listNumbers().catch(() => [])) || [])]
   w.assignNumberToCallControlApp = async (phoneNumber, appId) => {
+    if (rt.owns(phoneNumber)) return true // forwards to its Infobip landing number
     if (ib.enabled() && (await ib.refreshOwned()).includes(phoneNumber)) return true // routed to our calls config when bought
     if (mt.enabled() && (await mt.refreshOwned()).includes(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } // SIP URI to our server
     if (txs.enabled()) { await txs.refreshOwned(); if (txs.ownsNumber(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } }

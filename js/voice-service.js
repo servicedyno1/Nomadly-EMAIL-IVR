@@ -2565,18 +2565,20 @@ async function handleCallInitiated(payload) {
   // Bird is calling one of our numbers armed for caller-ID verification: answer, record its spoken code, hang up.
   if (direction === 'incoming' && _db && require('./bird').enabled()) {
     try {
+      // A Retell number reaches us on its landing number: Bird's calls are matched to the customer number.
+      const vTo = (await _phoneNumbersOf?.findOne({ 'val.numbers.landingNumber': to }, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.landingNumber': 1 } }).catch(() => null))?.val?.numbers?.find(n => n.landingNumber === to)?.phoneNumber || to
       // Proof call for the Bird caller-ID test: note which caller ID arrived, then decline.
-      if (await _db.collection('birdProofWatch').findOne({ _id: to, until: { $gt: new Date() } })) {
-        await _db.collection('birdProofCalls').insertOne({ to, from, at: new Date() })
-        log(`[Voice] Bird proof call arrived on ${to} showing ${from}`)
+      if (await _db.collection('birdProofWatch').findOne({ _id: vTo, until: { $gt: new Date() } })) {
+        await _db.collection('birdProofCalls').insertOne({ to: vTo, from, at: new Date() })
+        log(`[Voice] Bird proof call arrived on ${vTo} showing ${from}`)
         await _telnyxApi.rejectCall(callControlId).catch(() => {})
         delete activeCalls[callControlId]
         return
       }
       // Only Bird's verification line is intercepted — real callers to an armed customer number are handled normally.
-      if (await birdVerify().isArmed(to)) {
-        log(`[Voice] Bird verification call ${from} → ${to}: answering and recording the code`)
-        activeCalls[callControlId] = { chatId: null, from, to, startedAt: new Date(), phase: 'bird_verify', direction: 'incoming' }
+      if (await birdVerify().isArmed(vTo)) {
+        log(`[Voice] Bird verification call ${from} → ${vTo}: answering and recording the code`)
+        activeCalls[callControlId] = { chatId: null, from, to: vTo, startedAt: new Date(), phase: 'bird_verify', direction: 'incoming' }
         await _telnyxApi.answerCall(callControlId)
         await _telnyxApi.startRecording(callControlId, 'single', 'mp3')
         setTimeout(async () => {
@@ -2614,6 +2616,10 @@ async function handleCallInitiated(payload) {
   // eSIM set to "Ring in CloudIVR" (Spenza SIP gateway): the call runs the menu of the calling number the owner picked.
   const esimLine = _db && /^\+1\d{10}$/.test(to) ? await _db.collection('esimLines').findOne({ phoneNumber: to, status: 'active', callsTo: 'browser', ivrNumber: { $ne: null } }).catch(() => null) : null
   if (esimLine) log(`[Voice] eSIM ${to} → menu of ${esimLine.ivrNumber}`)
+  // A number bought elsewhere (e.g. Retell) forwards to a landing number of ours: run the bought number's setup.
+  const landed = !esimLine && _phoneNumbersOf ? await _phoneNumbersOf.findOne({ 'val.numbers': { $elemMatch: { landingNumber: to, status: { $in: ['active', 'suspended'] } } } }).catch(() => null) : null
+  const landedNum = landed?.val?.numbers?.find(n => n.landingNumber === to)
+  if (landedNum) { log(`[Voice] Landing ${to} → ${landedNum.phoneNumber}`); to = landedNum.phoneNumber }
   // Lookup number owner — get FRESH data from DB
   const owner = await findNumberOwner(esimLine ? esimLine.ivrNumber : to)
   if (esimLine && owner.chatId && String(owner.chatId) !== String(esimLine.chatId)) owner.chatId = null
@@ -2814,7 +2820,8 @@ async function handleCallInitiated(payload) {
   }
 
   // Only do unanswered SIP ring if: has SIP, no IVR, no forward-always (those need answered call), and the number is not off
-  if (hasSip && !hasIvr && !hasForwardAlways && !sessionRef.offHours) {
+  // Landed (Retell-forwarded) calls: Retell doesn't pass a caller hang-up on while unanswered, so answer and ring with ringback.
+  if (hasSip && !hasIvr && !hasForwardAlways && !sessionRef.offHours && !landedNum) {
     sessionRef.phase = 'ringing_sip'
     const sipUser = num.telnyxSipUsername || num.sipUsername
     const sipUri = `sip:${sipUser}@sip.telnyx.com`
@@ -2824,7 +2831,7 @@ async function handleCallInitiated(payload) {
     require('./sip-presence').noteIfOffline({ db: _db, bot: _bot, chatId, num, from: formatPhone(from), web: require('./cloudivr-web/notify.js').isWebChatId(chatId), log }).catch(e => log(`[SipPresence] ${e.message}`))
 
     try {
-      const newCall = await _telnyxApi.createOutboundCall(from, sipUri)
+      const newCall = await _telnyxApi.createOutboundCall(from, sipUri, null, null, { ringFor: callControlId })
       // Pass original caller's number as 'from' so SIP device shows correct caller ID
       if (newCall?.callControlId) {
         activeBridgeTransfers[newCall.callControlId] = {
@@ -3558,7 +3565,7 @@ async function handleOutboundSipCall(payload) {
   const trunkOpt = viaEngine && num.provider === 'multitel' && process.env.CALLER_ID_PASSTHROUGH_TRUNK ? { trunk: process.env.CALLER_ID_PASSTHROUGH_TRUNK } : {}
   // MultiTEL / Infobip numbers whose softphone call reached us over Telnyx (e.g. the free SIP test login) are
   // placed the same way — the test shows our test caller ID, otherwise the number's own.
-  const viaTelnyx = num.provider === 'telnyx' || ['multitel', 'infobip'].includes(num.provider) || (!!lookupResult?.isTestCall && num.provider !== 'twilio')
+  const viaTelnyx = num.provider === 'telnyx' || ['multitel', 'infobip', 'retell'].includes(num.provider) || (!!lookupResult?.isTestCall && num.provider !== 'twilio')
   if (viaTelnyx || viaEngine) {
     const callerDisplay = num.phoneNumber || 'TEST-SIP'
     log(`[Voice] Outbound SIP (Telnyx): ${callerDisplay} → ${destination} — routing to PSTN`)
@@ -4184,20 +4191,27 @@ async function telnyxDidSync() {
   const all = [...nums, ...zdNums, ...await multitelNumbers()]
   if (all.length) await require('./callengine').setDidApps(all)
 }
+// New numbers are linked within minutes: a failed try is retried every 15 min, 6 times, then the admin is alerted.
+const BIRD_LINK_RETRY_MS = 15 * 60000, BIRD_LINK_ROUNDS = 6
 async function birdAutoLinkTick() {
   if (!_db || !require('./bird').enabled()) return
   // Only Infobip and MultiTEL numbers are linked to Bird (Telnyx / SignalWire / Zadarma caller IDs were removed on request).
   const ib = require('./infobip'), mt = require('./multitel')
   // Bird-only outbound: system caller IDs + every MultiTEL/Infobip number on a customer account are linked on Bird.
   const ibNums = [...(ib.enabled() ? await ib.refreshOwned() : []), ...(mt.enabled() ? await mt.refreshOwned() : [])]
-  if (!ibNums.length) return
   const sw = new Set(ibNums)
   const numbers = new Set()
   for (const n of require('./ivr-outbound').SYSTEM_CALLERS()) if (sw.has(n)) numbers.add(n)
-  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1, 'val.numbers.capabilities': 1 } }).toArray())
-    for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && n.capabilities?.voice !== false && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
+  // Retell numbers are customer numbers too (bought on Retell, so not in the Infobip/MultiTEL lists).
+  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1, 'val.numbers.capabilities': 1, 'val.numbers.provider': 1 } }).toArray())
+    for (const n of d.val?.numbers || []) if ((sw.has(n.phoneNumber) || n.provider === 'retell') && n.capabilities?.voice !== false && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
   const wanted = [...require('./signalwire').birdWanted].filter(n => sw.has(n))
-  const r = await birdVerify().autoLinkTick({ numbers: [...new Set([...wanted, ...numbers])] })
+  const onGiveUp = (n, why) => {
+    const msg = `🚨 [Bird] ${n} still can't show as caller ID on outgoing calls after ${BIRD_LINK_ROUNDS} tries (${why || 'no code'}). Calls in work; calls out show "pending". Check Bird → Verified numbers.`
+    log(`[BirdVerify] gave up on ${n}: ${why}`)
+    if (process.env.TELEGRAM_ADMIN_CHAT_ID) _bot?.sendMessage(process.env.TELEGRAM_ADMIN_CHAT_ID, msg).catch(() => {})
+  }
+  const r = await birdVerify().autoLinkTick({ numbers: [...new Set([...wanted, ...numbers])], retryMs: BIRD_LINK_RETRY_MS, maxRounds: BIRD_LINK_ROUNDS, onGiveUp })
   if (r.armed || r.error) log(`[BirdVerify] auto-link: ${JSON.stringify(r)}`)
   if (r.armed) require('./bird').forgetCallerIds()
 }
@@ -4390,15 +4404,15 @@ async function handleCallAnswered(payload) {
     log(`[Voice] Ringing SIP device (answered path): ${sipUri} for ${num.phoneNumber} (timeout: ${ringTimeout}s)`)
     require('./sip-presence').noteIfOffline({ db: _db, bot: _bot, chatId, num, from: formatPhone(from), web: require('./cloudivr-web/notify.js').isWebChatId(chatId), log }).catch(e => log(`[SipPresence] ${e.message}`))
 
-    // Play ringback tone to the CALLER while the SIP device rings
-    _telnyxApi.playbackStart(callControlId, RINGBACK_URL, { loop: 'infinity' }).catch(e => {
+    // Play ringback tone to the CALLER while the SIP device rings (tracked so a ring that fails at once stops it first)
+    holdPlayback[callControlId] = _telnyxApi.playbackStart(callControlId, RINGBACK_URL, { loop: 'infinity' }).catch(e => {
       log(`[Voice] Ringback playback failed: ${e.message}`)
-    })
+    }).finally(() => setTimeout(() => delete holdPlayback[callControlId], 60000))
 
     try {
       // Use Call Control App ID — POST /v2/calls only accepts Call Control Apps, not SIP Connection IDs
       // The SIP device registered on the credential connection is reachable via its SIP URI
-      const newCall = await _telnyxApi.createOutboundCall(from, sipUri)
+      const newCall = await _telnyxApi.createOutboundCall(from, sipUri, null, null, { ringFor: callControlId })
       // Pass original caller's number as 'from' so SIP device shows correct caller ID
       if (newCall?.callControlId) {
         // Track as SIP ring bridge — handleBridgeTransferAnswered/Hangup handles the rest
@@ -4413,6 +4427,7 @@ async function handleCallAnswered(payload) {
           num,
           phase: 'ringing',
         }
+        session.sipRingCallControlId = newCall.callControlId // caller hang-up stops the ring
 
         const lang = await _getUserLang(chatId)
         const msg = _trans('vs.incomingCall', lang, formatPhone(from), formatPhone(to))
@@ -4501,8 +4516,8 @@ async function ringOwnDevices(id, session, o, ivrL) {
   const sipUri = `sip:${num.telnyxSipUsername || num.sipUsername}@sip.telnyx.com`
   const ringSecs = Math.min(60, Math.max(10, Number(o.ringSecs) || 25))
   session.phase = 'ringing_sip'
-  _telnyxApi.playbackStart(id, RINGBACK_URL, { loop: 'infinity' }).catch(() => {})
-  const leg = await _telnyxApi.createOutboundCall(session.from, sipUri).catch(e => { log(`[Voice] IVR devices ring failed: ${e.message}`); return null })
+  holdPlayback[id] = _telnyxApi.playbackStart(id, RINGBACK_URL, { loop: 'infinity' }).catch(() => {}).finally(() => setTimeout(() => delete holdPlayback[id], 60000))
+  const leg = await _telnyxApi.createOutboundCall(session.from, sipUri, null, null, { ringFor: id }).catch(e => { log(`[Voice] IVR devices ring failed: ${e.message}`); return null })
   if (!leg?.callControlId) { await _telnyxApi.playbackStop(id).catch(() => {}); return ivrKeyNoAnswer(id, session, o, ivrL) }
   activeBridgeTransfers[leg.callControlId] = { originalCallControlId: id, forwardTo: sipUri, fromNumber: session.to, type: 'sip_ring', vmConfig: null, fwdConfig: null, chatId, num, phase: 'ringing', ivrKey: o, createdAt: new Date() }
   session.sipRingCallControlId = leg.callControlId
@@ -5476,6 +5491,7 @@ async function handleCallHangup(payload) {
       log(`[Voice] Caller hung up during SIP ring — hanging up SIP ring leg ${session.sipRingCallControlId}`)
       await _telnyxApi.hangupCall(session.sipRingCallControlId).catch(() => {})
       delete activeBridgeTransfers[session.sipRingCallControlId]
+      session._neverAnswered = true // missed while ringing → not billed
     }
   }
 

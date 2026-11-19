@@ -9,9 +9,12 @@ const base = () => `https://${String(process.env.INFOBIP_BASE_URL || 'api.infobi
 const enabled = () => !!process.env.INFOBIP_API_KEY && String(process.env.INFOBIP_ENABLED || 'true').toLowerCase() !== 'false'
 // NUMBER_PROVIDERS (comma list: multitel, infobip) picks who sells NEW numbers; owned numbers keep working.
 const selling = () => enabled() && String(process.env.NUMBER_PROVIDERS || 'multitel,infobip').toLowerCase().split(',').map(x => x.trim()).includes('infobip')
+// INFOBIP_SELL_COUNTRIES (comma list, e.g. US) limits where Infobip sells new numbers; unset = every Infobip country.
+const sellsIn = (cc) => { const l = String(process.env.INFOBIP_SELL_COUNTRIES || '').toUpperCase().split(',').map(x => x.trim()).filter(Boolean); return !l.length || l.includes(String(cc || 'US').toUpperCase()) }
 const makeHttp = () => axios.create({ baseURL: base(), headers: { Authorization: `App ${process.env.INFOBIP_API_KEY}` }, timeout: 15000 })
 const configId = () => process.env.INFOBIP_CALLS_CONFIG_ID || `${String(process.env.CHAT_BOT_BRAND || 'nomadly').toLowerCase().replace(/[^a-z0-9]/g, '')}${process.env.BOT_ENVIRONMENT === 'production' ? '' : '-dev'}`
 const errOf = (e) => { const x = e.response?.data?.requestError?.serviceException; return String(x?.text || x?.messageId || e.response?.data?.description || e.message) }
+const sipTrunk = () => process.env.INFOBIP_SIP_TRUNK_ID || ''
 const isIb = (id) => String(id || '').startsWith('ib:')
 const raw = (id) => String(id).slice(3)
 const e164 = (n) => (n && !String(n).startsWith('+') && /^\d+$/.test(String(n)) ? `+${n}` : String(n || ''))
@@ -122,11 +125,16 @@ const isCallAlive = async (id) => !!live(id)
 const speakOnCall = async (id, text, voice, language) => (live(id) ? post(`/calls/1/calls/${raw(id)}/say`, { text: String(text || ''), language: lang2(language), preferences: voicePrefs(voice) }) : null)
 async function playbackStart(id, audioUrl, options = {}) {
   const l = live(id); if (!l) return null
-  l.stopped = false; l.gathering = false
+  l.stopped = false; l.gathering = false; l.playAt = Date.now()
   const loopCount = String(options.loop) === 'infinity' ? 1000 : Math.max(1, Number(options.loop) || 1)
   return post(`/calls/1/calls/${raw(id)}/play`, { content: { type: 'URL', fileUrl: audioUrl }, loopCount })
 }
-async function playbackStop(id) { const l = live(id); if (!l) return null; l.stopped = true; return post(`/calls/1/calls/${raw(id)}/stop-play`, {}) }
+// Infobip starts a play a moment after accepting it: a stop sent right away is lost and the loop then blocks what follows.
+async function playbackStop(id) {
+  const l = live(id); if (!l) return null
+  const wait = 2500 - (Date.now() - (l.playAt || 0)); if (wait > 0) await new Promise(r => setTimeout(r, wait))
+  l.stopped = true; return post(`/calls/1/calls/${raw(id)}/stop-play`, {})
+}
 async function gather(id, { text, voice, language, audioUrl, minDigits = 1, maxDigits = 1, timeout = 15000, interDigitTimeout = 5000, validDigits, terminator = '#' }) {
   const l = live(id); if (!l) return null
   l.gather = { minDigits, validDigits }; l.gathering = true; l.stopped = false
@@ -154,10 +162,13 @@ async function transferCall(id, toNumber, fromNumber, options = {}) {
 async function bridgeCalls(aId, bId) { const r = await post('/calls/1/connect', { callIds: [raw(aId), raw(bId)] }); if (r) { emit('call.bridged', legs.get(aId)); emit('call.bridged', legs.get(bId)) } return r ? { success: true } : null }
 
 async function createOutboundCall(from, to, webhookUrl, connectionId, options = {}) {
-  if (/^sip:/i.test(String(to))) return { error: 'Infobip SIP dialing not set up', status: 422, _provider: 'infobip' }
+  const sip = /^sip:/i.test(String(to)) ? String(to).replace(/^sip:/i, '').split('@')[0] : null
+  if (sip && !sipTrunk()) return { error: 'Infobip SIP dialing not set up', status: 422, _provider: 'infobip' }
   const amd = options.answering_machine_detection && options.answering_machine_detection !== false
+  // Softphones: through our SIP trunk to our SIP server, which rings the signed-in apps.
+  const endpoint = sip ? { type: 'SIP', username: sip, sipTrunkId: sipTrunk(), customHeaders: { 'X-Nomadly-Key': process.env.SIP_SERVER_SECRET || '', 'X-Nomadly-User': sip } } : { type: 'PHONE', phoneNumber: digits(to) }
   try {
-    const r = (await M.http().post('/calls/1/calls', { endpoint: { type: 'PHONE', phoneNumber: digits(to) }, from: digits(from), callsConfigurationId: configId(), connectTimeout: options.timeout_secs || 30, ...(amd ? { machineDetection: { enabled: true } } : {}) })).data
+    const r = (await M.http().post('/calls/1/calls', { endpoint, from: digits(from), callsConfigurationId: configId(), connectTimeout: options.timeout_secs || 30, ...(amd ? { machineDetection: { enabled: true } } : {}) })).data
     if (r.state === 'FAILED') return { error: 'Infobip refused the call', status: 422, _provider: 'infobip' }
     const leg = track({ id: `ib:${r.id}`, from, to, direction: 'outgoing', connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'infobip-app', clientState: options.client_state })
     return { callControlId: leg.id, callLegId: leg.id, callSessionId: leg.session }
@@ -166,14 +177,26 @@ async function createOutboundCall(from, to, webhookUrl, connectionId, options = 
 
 // ── Numbers ──
 const searched = new Map() // e164 → numberKey
+// Infobip ignores area codes and rate-limits hard, so its list is fetched at most once a minute per country and filtered here.
+const avail = new Map()
+async function available(params) {
+  const k = `${params.country}|${params.capabilities}`, c = avail.get(k)
+  if (c && Date.now() - c.at < 60000) return c.list
+  try {
+    const list = (await M.http().get('/numbers/1/numbers/available', { params })).data?.numbers || []
+    avail.set(k, { at: Date.now(), list })
+    return list
+  } catch (e) { if (c) return c.list; throw e }
+}
 async function searchNumbers(countryCode, numberType, areaCode, limit = 5, { sms = false } = {}) {
-  if (!selling()) return []
+  // Infobip sells local numbers only (it ignores the type, so a toll-free search would return local numbers).
+  if (!selling() || !sellsIn(countryCode) || (numberType && numberType !== 'local')) return []
   try {
     const cc = String(countryCode || 'US').toUpperCase()
-    const params = { country: cc, limit: areaCode ? 100 : Math.max(limit, 10), capabilities: sms ? 'SMS' : 'VOICE' }
+    const params = { country: cc, limit: 100, capabilities: sms ? 'SMS' : 'VOICE' }
     // Infobip ignores area codes, so filter here (US/CA: 1 + area code; elsewhere: digits appear in the number).
     const inArea = (num) => !areaCode || (['US', 'CA', 'PR'].includes(cc) ? String(num).startsWith(`1${areaCode}`) : String(num).includes(String(areaCode)))
-    const list = ((await M.http().get('/numbers/1/numbers/available', { params })).data?.numbers || []).filter(n => !n.additionalSetupRequired && inArea(n.number) && !require('../pending-orders').isHeld(e164(n.number))).slice(0, limit)
+    const list = (await available(params)).filter(n => !n.additionalSetupRequired && inArea(n.number) && !require('../pending-orders').isHeld(e164(n.number))).slice(0, limit)
     return list.map(n => {
       const num = e164(n.number); searched.set(num, n.numberKey)
       const caps = n.capabilities || []
@@ -184,6 +207,19 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5, { sms
   } catch (e) { log('search:', errOf(e)); return [] }
 }
 const isIbSearched = (n) => searched.has(String(n || ''))
+// After a restart/deploy (or a slow crypto payment) the search is forgotten: find the number in Infobip's list again.
+async function recall(phoneNumber) {
+  const num = String(phoneNumber || '')
+  if (searched.has(num)) return true
+  if (!selling() || !num.startsWith('+1') || !sellsIn('US')) return false
+  try {
+    avail.delete('US|VOICE')
+    const list = await available({ country: 'US', limit: 100, capabilities: 'VOICE' })
+    const hit = list.find(n => e164(n.number) === num && !n.additionalSetupRequired)
+    if (hit) searched.set(num, hit.numberKey)
+    return !!hit
+  } catch (e) { log('recall:', errOf(e)); return false }
+}
 const searchedMeta = (n) => (searched.has(n) ? { numberKey: searched.get(n) } : null)
 const remember = (n, meta) => { if (meta?.numberKey) searched.set(n, meta.numberKey) }
 // Resale note (end user's name + address) put on the number right after it is bought.
@@ -205,6 +241,7 @@ async function buyNumber(phoneNumber) {
     if (!n.capabilities || (n.capabilities || []).includes('VOICE')) await M.http().post(`/numbers/2/numbers/${n.numberKey || key}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: configId() } })
     if ((n.capabilities || []).includes('SMS')) await routeSms(n.numberKey || key)
     searched.delete(phoneNumber)
+    for (const c of avail.values()) c.list = c.list.filter(n => e164(n.number) !== phoneNumber)
     log(`Bought ${phoneNumber} → calls config ${configId()}`)
     const note = notes.get(phoneNumber); notes.delete(phoneNumber)
     if (note) await saveNote(n.numberKey || key, note)
@@ -255,7 +292,7 @@ async function sendSms(from, to, text) {
 }
 
 const M = module.exports = {
-  enabled, selling, isIb, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
+  enabled, selling, sellsIn, isIb, sipTrunk, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
   voice: { ingest, setSink, _legs: legs, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall },
-  searchNumbers, isIbSearched, searchedMeta, remember, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,
+  searchNumbers, isIbSearched, recall, searchedMeta, remember, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,
 }

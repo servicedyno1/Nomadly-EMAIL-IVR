@@ -1491,7 +1491,7 @@ const isTelnyxIntl = (provider, cc) => provider === 'telnyx' && !['US', 'CA'].in
  * Returns null on failure → caller refunds exactly as before.
  */
 // Which provider an order came from (MultiTEL ids 'mt:', Infobip 'ib:'); used so each number routes through its own provider.
-const providerOfOrder = (o) => o?._provider || (String(o?.id || '').startsWith('mt:') ? 'multitel' : String(o?.id || '').startsWith('ib:') ? 'infobip' : 'telnyx')
+const providerOfOrder = (o) => o?._provider || (String(o?.id || '').startsWith('rt:') ? 'retell' : String(o?.id || '').startsWith('mt:') ? 'multitel' : String(o?.id || '').startsWith('ib:') ? 'infobip' : 'telnyx')
 async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
   // MultiTEL / Infobip numbers: their own instant buy (with provider backup), never the Telnyx paperwork flow.
   if (require('./multitel').isMtSearched(selectedNumber) || require('./infobip').isIbSearched(selectedNumber)) return telnyxApi.buyNumber(selectedNumber, null, null, { countryCode: ctx.countryCode || 'US', numberType: ctx.numberType || 'local', areaCode: ctx.areaCode || null })
@@ -14828,7 +14828,7 @@ Enter new value:`), bc)
         const numberDoc = {
           phoneNumber: selectedNumber,
           telnyxOrderId: orderResult.id,
-          provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
+          provider: providerOfOrder(orderResult), ...(orderResult?._landingNumber ? { landingNumber: orderResult._landingNumber } : {}), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
           country: countryCode,
           countryName: countryName,
           type: info?.cpNumberType || 'local',
@@ -26532,18 +26532,61 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return goto.submenu5()
   }
 
+  // Get a Plan: one plan list (calls plans, Calls + texting, Fax only), then country, then numbers right away, then pay.
+  const cpPlanKb = () => {
+    const pc = phoneConfig.getBtn(info?.userLanguage || 'en'), KN = botKinds.T(info?.userLanguage || 'en'), rows = []
+    for (const [key, b] of [['starter', pc.starterPlan], ['standard', pc.standardPlan], ['pro', pc.proPlan], ['business', pc.businessPlan]]) if (phoneConfig.isPlanAvailable(key)) rows.push([b])
+    if (botKinds.textingCountries(phoneConfig).length) rows.push([KN.texting])
+    if (cpFaxSells()) rows.push([KN.fax])
+    rows.push([KN.helpBtn])
+    return k.of(rows)
+  }
+  const cpFaxSells = () => require('./multitel/fax').enabled() && require('./multitel').selling()
+  const cpAskPlanFirst = async () => {
+    for (const key of ['cpIsSubNumber', 'cpTexting']) { saveInfo(key, false); if (info) info[key] = false }
+    for (const key of ['cpSubParentNumber', 'cpSubParentPlan', 'cpSubParentPlanPrice', 'cpSubParentExpiresAt', 'cpSelectedNumber', 'cpPrice', 'cpCountryCode', 'cpCountryName', 'cpProvider', 'cpPlanKey', 'cpCountryTypes']) { saveInfo(key, null); if (info) info[key] = null }
+    await set(state, chatId, 'action', a.cpSelectPlan)
+    const pMsg = phoneConfig.getMsg(info?.userLanguage || 'en'), KN = botKinds.T(info?.userLanguage || 'en')
+    return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business, phoneConfig.plans.standard.price, phoneConfig.plans.standard.minutes, phoneConfig.SUB_NUMBER_LIMITS.standard) + KN.plansExtra(botKinds.textingCountries(phoneConfig).length > 0, cpFaxSells()), cpPlanKb())
+  }
+  const cpAskCountry = async () => {
+    const lang = info?.userLanguage || 'en', pc = phoneConfig.getBtn(lang), rows = []
+    if (info?.cpTexting) {
+      await set(state, chatId, 'action', 'cpTextCountry')
+      const names = botKinds.textingCountries(phoneConfig).map(c => c.name)
+      for (let i = 0; i < names.length; i += 2) rows.push(names.slice(i, i + 2))
+      return send(chatId, botKinds.T(lang).pickCountry(phoneConfig.plans.starter.price), { parse_mode: 'HTML', ...k.of(rows) })
+    }
+    await set(state, chatId, 'action', a.cpSelectCountry)
+    const names = phoneConfig.allCountries.map(c => c.name)
+    for (let i = 0; i < names.length; i += 2) rows.push(names.slice(i, i + 2))
+    if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
+    const planLabel = { starter: '💡 Basic', standard: '🧩 Plus', pro: '⭐ Pro', business: '👑 Business' }[info?.cpPlanKey] || '💡 Basic'
+    return send(chatId, trans('t.cp_232', planLabel), k.of(rows))
+  }
+  const cpTypeBtns = () => { const pc = phoneConfig.getBtn(info?.userLanguage || 'en'); return { local: pc.localNumber, mobile: pc.mobileNumber || '📱 Mobile Number', national: pc.nationalNumber || '🌐 National Number', toll_free: pc.tollFreeNumber } }
+  const cpTypeOf = (m) => Object.entries(cpTypeBtns()).find(([, b]) => b === m)?.[0] || null
+  // Under the number list: search by area code (US local) or switch to the country's other number types.
+  const cpNumberExtras = (type) => {
+    const pc = phoneConfig.getBtn(info?.userLanguage || 'en'), btns = cpTypeBtns()
+    return [...((info?.cpCountryCode || 'US') === 'US' && type === 'local' ? [[pc.searchByArea]] : []), ...(info?.cpCountryTypes || []).filter(t => t !== type && btns[t]).map(t => [btns[t]])]
+  }
+
   // ── BUY FLOW: what is the number for? Calls → plans, Calls + texting → texting countries, Fax only → fax numbers.
-  let cpPurposeDone = false
-  if (action === 'cpPurpose' || action === 'cpTextCountry') {
+  if (action === 'cpPurpose' || action === 'cpTextCountry' || (action === a.cpSelectPlan && (botKinds.kindOf(message) || botKinds.isHelp(message)))) {
     const lang = info?.userLanguage || 'en', KN = botKinds.T(lang), pcK = phoneConfig.getBtn(lang)
-    const askPurpose = async () => { await set(state, chatId, 'action', 'cpPurpose'); return send(chatId, KN.ask, { parse_mode: 'HTML', ...k.of(botKinds.keyboard(lang)) }) }
+    const askPurpose = cpAskPlanFirst
     const textCountries = botKinds.textingCountries(phoneConfig)
-    if (action === 'cpPurpose') {
+    if (action !== 'cpTextCountry') {
       if (isBackPress(message) || isCancelPress(message)) return goto.submenu5()
+      if (botKinds.isHelp(message)) {
+        const hide = [...(botKinds.textingCountries(phoneConfig).length ? [] : [KN.texting]), ...(cpFaxSells() ? [] : [KN.fax])].map(x => x.slice(2).trim())
+        return send(chatId, KN.help.split('\n').filter(l => !hide.some(h => l.includes(h))).join('\n'), { parse_mode: 'HTML', ...cpPlanKb() })
+      }
       const kind = botKinds.kindOf(message)
       if (kind === 'fax') return botFaxHandle(chatId, botFax.T(lang).menu, info, action)
       if (kind === 'texting') {
-        if (!textCountries.length) return send(chatId, KN.none, k.of(botKinds.keyboard(lang)))
+        if (!textCountries.length) return send(chatId, KN.none, cpPlanKb())
         await saveInfo('cpPlanKey', 'starter')
         await saveInfo('cpPlanBasePrice', phoneConfig.plans.starter.price)
         await set(state, chatId, 'action', 'cpTextCountry')
@@ -26551,57 +26594,23 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         for (let i = 0; i < names.length; i += 2) rows.push(names.slice(i, i + 2))
         return send(chatId, KN.pickCountry(phoneConfig.plans.starter.price), { parse_mode: 'HTML', ...k.of(rows) })
       }
-      if (kind !== 'calls') return askPurpose()
-      action = a.submenu5; message = pcK.buyPhoneNumber; cpPurposeDone = true
+      return askPurpose()
     } else {
       if (isBackPress(message) || isCancelPress(message)) return askPurpose()
       const c = textCountries.find(x => x.name === message)
       if (!c) return send(chatId, phoneConfig.getMsg(lang).selectValidCountry)
-      for (const [key, v] of [['cpCountryCode', c.code], ['cpCountryName', c.name], ['cpProvider', c.provider || 'telnyx'], ['cpCanSearchBoth', false], ['cpTexting', true]]) { await saveInfo(key, v); if (info) info[key] = v }
+      for (const [key, v] of [['cpCountryCode', c.code], ['cpCountryName', c.name], ['cpProvider', c.provider || 'telnyx'], ['cpCanSearchBoth', false], ['cpTexting', true], ['cpCountryTypes', [c.type]]]) { await saveInfo(key, v); if (info) info[key] = v }
       // Texting numbers have one type per country: skip the type question and search straight away.
       action = a.cpSelectType
       message = { local: pcK.localNumber, mobile: pcK.mobileNumber || '📱 Mobile Number', national: pcK.nationalNumber || '🌐 National Number', toll_free: pcK.tollFreeNumber }[c.type]
     }
   }
 
-  // Plan first, then country and number: every new-number purchase in the bot starts here.
-  const cpAskPlanFirst = async () => {
-    const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    // Step 1: Select Plan FIRST — reset stale phone purchase state
-    saveInfo('cpIsSubNumber', false)
-    saveInfo('cpSubParentNumber', null)
-    saveInfo('cpSubParentPlan', null)
-    saveInfo('cpSubParentPlanPrice', null)
-    saveInfo('cpSubParentExpiresAt', null)
-    saveInfo('cpSelectedNumber', null)
-    saveInfo('cpPrice', null)
-    saveInfo('cpCountryCode', null)
-    saveInfo('cpCountryName', null)
-    saveInfo('cpProvider', null)
-    saveInfo('cpPlanKey', null)
-    await set(state, chatId, 'action', a.cpSelectPlan)
-    const availablePlanBtns = []
-    if (phoneConfig.isPlanAvailable('starter')) availablePlanBtns.push([pc.starterPlan])
-    if (phoneConfig.isPlanAvailable('standard')) availablePlanBtns.push([pc.standardPlan])
-    if (phoneConfig.isPlanAvailable('pro')) availablePlanBtns.push([pc.proPlan])
-    if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
-    const pMsg = phoneConfig.getMsg(info?.userLanguage || 'en')
-    return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business, phoneConfig.plans.standard.price, phoneConfig.plans.standard.minutes, phoneConfig.SUB_NUMBER_LIMITS.standard), k.of(availablePlanBtns))
-  }
-
   if (action === a.submenu5) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const buyLabel = pc.buyPhoneNumber
     if (isBackPress(message) || isCancelPress(message) || message === pc.cancel) return send(chatId, t.userPressedBtn(message), trans('o'))
-    if (phoneConfig.btnKeyOf(message) === 'buyPhoneNumber' && !cpPurposeDone) {
-      await set(state, chatId, 'action', 'cpPurpose')
-      await saveInfo('cpTexting', false)
-      const lang = info?.userLanguage || 'en'
-      return send(chatId, botKinds.T(lang).ask, { parse_mode: 'HTML', ...k.of(botKinds.keyboard(lang)) })
-    }
-    if (phoneConfig.btnKeyOf(message) === 'buyPhoneNumber') {
-      return cpAskPlanFirst()
-    }
+    if (phoneConfig.btnKeyOf(message) === 'buyPhoneNumber') return cpAskPlanFirst()
     if (message === pc.myNumbers) {
       const userData = await get(phoneNumbersOf, chatId)
       const numbers = (userData?.numbers || []).filter(n => n.status === 'active' || n.status === 'suspended' || n.status === 'inactive_released')
@@ -30163,16 +30172,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── BUY FLOW: Select Country ──
   if (action === a.cpSelectCountry) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message)) {
-      // Go back to plan selection
-      await set(state, chatId, 'action', a.cpSelectPlan)
-      const availablePlanBtns = []
-      if (phoneConfig.isPlanAvailable('starter')) availablePlanBtns.push([pc.starterPlan])
-      if (phoneConfig.isPlanAvailable('standard')) availablePlanBtns.push([pc.standardPlan])
-      if (phoneConfig.isPlanAvailable('pro')) availablePlanBtns.push([pc.proPlan])
-      if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
-      return send(chatId, trans('t.cp_225'), k.of(availablePlanBtns))
-    }
+    if (isBackPress(message)) return cpAskPlanFirst()
     // Handle "More Countries" button — a plan's own number: USA/Canada/UK, Business also Netherlands/France/Spain (instant, no ID).
     const planCountries = phoneConfig.BOT_CATALOG() ? phoneConfig.botPlanCountries(info?.cpPlanKey) : phoneConfig.moreCountries
     if (message === pc.moreCountries) {
@@ -30193,49 +30193,26 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     // Check if this country supports dual-provider search (Telnyx countries can also search Twilio)
     const canSearchBoth = (nativeProvider === 'telnyx') && phoneConfig.isTwilioEnabled() && require('./signalwire').sells('twilio') // Telnyx countries (US, CA) — search both
     await saveInfo('cpCanSearchBoth', canSearchBoth)
-    await set(state, chatId, 'action', a.cpSelectType)
-    // Show available types for this country
     const types = countryEntry?.types || ['local', 'toll_free']
-    const typeBtns = []
-    if (types.includes('local')) typeBtns.push([pc.localNumber])
-    if (types.includes('mobile')) typeBtns.push([pc.mobileNumber])
-    if (types.includes('national')) typeBtns.push([pc.nationalNumber])
-    if (types.includes('toll_free')) typeBtns.push([pc.tollFreeNumber])
-    return send(chatId, cpTxt.selectType(message, types), k.of(typeBtns))
+    await saveInfo('cpCountryTypes', types)
+    if (info) Object.assign(info, { cpCountryCode: countryCode, cpCountryName: message, cpProvider: nativeProvider, cpCanSearchBoth: canSearchBoth, cpCountryTypes: types })
+    // No type question: numbers show right away (local first); the list has buttons to switch type or search by area.
+    action = a.cpSelectType
+    message = cpTypeBtns()[['local', 'mobile', 'national', 'toll_free'].find(t => types.includes(t))]
   }
 
   // ── BUY FLOW: Select Type ──
-  if (action === a.cpSelectType) {
+  if (action === a.cpSelectType || ((action === a.cpSelectNumber || action === a.cpSelectArea) && cpTypeOf(message))) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message)) {
-      await set(state, chatId, 'action', a.cpSelectCountry)
-      const countryBtns = phoneConfig.allCountries.map(c => c.name)
-      const rows = []
-      for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
-      if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
-      return send(chatId, cpTxt.selectCountry, k.of(rows))
-    }
-    let numberType = null
-    if (message === pc.localNumber) numberType = 'local'
-    if (message === pc.tollFreeNumber) numberType = 'toll_free'
-    if (message === (pc.mobileNumber || '📱 Mobile Number')) numberType = 'mobile'
-    if (message === (pc.nationalNumber || '🌐 National Number')) numberType = 'national'
+    if (isBackPress(message)) return cpAskCountry()
+    const numberType = cpTypeOf(message)
     if (!numberType) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectLocalOrTollFree, k.of([[pc.localNumber], [pc.tollFreeNumber], [pc.back]]))
     await saveInfo('cpNumberType', numberType)
+    if (info) Object.assign(info, { cpNumberType: numberType, cpAreaCode: null, cpAreaName: null })
 
     const cc = info?.cpCountryCode || 'US'
     const provider = info?.cpProvider || 'telnyx'
-
-    // If US + local, show area codes (both Telnyx and Twilio support area code search)
-    if (cc === 'US' && numberType === 'local') {
-      await set(state, chatId, 'action', a.cpSelectArea)
-      const areaBtns = phoneConfig.usAreaCodes.map(a => `${a.city} (${a.code})`)
-      const rows = []
-      for (let i = 0; i < areaBtns.length; i += 2) rows.push(areaBtns.slice(i, i + 2))
-      rows.push([pc.searchByArea])
-      return send(chatId, cpTxt.selectArea, k.of(rows))
-    }
-    // Non-US or toll-free: search directly with the appropriate provider
+    // Search straight away (US local: any area first; "Search by Area Code" sits under the list)
     await saveInfo('cpAreaCode', null)
     await saveInfo('cpAreaName', null)
     await set(state, chatId, 'action', a.cpSelectNumber)
@@ -30265,7 +30242,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       })
     }
 
-    if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
+    if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([...cpNumberExtras(numberType), [pc.back]]))
     await saveInfo('cpSearchResults', results)
     const location = info?.cpCountryName || cc
     // Build tagged number display
@@ -30273,16 +30250,13 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return numLine(r, i, cc, numberType)
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
-    return send(chatId, trans('t.cp_227', location, numberLines), k.of([...numBtns, [pc.showMore]]))
+    return send(chatId, trans('t.cp_227', location, numberLines), k.of([...numBtns, [pc.showMore], ...cpNumberExtras(numberType)]))
   }
 
   // ── BUY FLOW: Select Area ──
   if (action === a.cpSelectArea) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message)) {
-      await set(state, chatId, 'action', a.cpSelectType)
-      return send(chatId, cpTxt.selectType(info?.cpCountryName || ''), k.of([[pc.localNumber], [pc.tollFreeNumber]]))
-    }
+    if (isBackPress(message)) return cpAskCountry()
     if (message === pc.searchByArea) {
       await set(state, chatId, 'action', a.cpEnterAreaCode)
       return send(chatId, cpTxt.enterAreaCode)
@@ -30322,7 +30296,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
-    return send(chatId, trans('t.cp_228', message, numberLines), k.of([...numBtns, [pc.showMore]]))
+    return send(chatId, trans('t.cp_228', message, numberLines), k.of([...numBtns, [pc.showMore], ...cpNumberExtras(info?.cpNumberType || 'local')]))
   }
 
   // ── BUY FLOW: Enter Area Code ──
@@ -30371,24 +30345,20 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
-    return send(chatId, trans('t.cp_229', areaCode, numberLines), k.of([...numBtns, [pc.showMore]]))
+    return send(chatId, trans('t.cp_229', areaCode, numberLines), k.of([...numBtns, [pc.showMore], ...cpNumberExtras(info?.cpNumberType || 'local')]))
   }
 
   // ── BUY FLOW: Select Number ──
   if (action === a.cpSelectNumber) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message)) {
-      const cc = info?.cpCountryCode || 'US'
-      if (cc === 'US' && info?.cpNumberType === 'local') {
-        await set(state, chatId, 'action', a.cpSelectArea)
-        const areaBtns = phoneConfig.usAreaCodes.map(a => `${a.city} (${a.code})`)
-        const rows = []
-        for (let i = 0; i < areaBtns.length; i += 2) rows.push(areaBtns.slice(i, i + 2))
-        rows.push([pc.searchByArea])
-        return send(chatId, cpTxt.selectArea, k.of(rows))
-      }
-      await set(state, chatId, 'action', a.cpSelectType)
-      return send(chatId, cpTxt.selectType(info?.cpCountryName || ''), k.of([[pc.localNumber], [pc.tollFreeNumber]]))
+    if (isBackPress(message)) return cpAskCountry()
+    if (message === pc.searchByArea) {
+      await set(state, chatId, 'action', a.cpSelectArea)
+      const areaBtns = phoneConfig.usAreaCodes.map(a => `${a.city} (${a.code})`)
+      const rows = []
+      for (let i = 0; i < areaBtns.length; i += 2) rows.push(areaBtns.slice(i, i + 2))
+      rows.push([pc.searchByArea])
+      return send(chatId, cpTxt.selectArea, k.of(rows))
     }
     if (message === pc.showMore) {
       send(chatId, cpTxt.searching)
@@ -30421,7 +30391,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
       }).join('\n')
       const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
-      return send(chatId, trans('t.cp_230', location, numberLines), k.of([...numBtns, [pc.showMore]]))
+      return send(chatId, trans('t.cp_230', location, numberLines), k.of([...numBtns, [pc.showMore], ...cpNumberExtras(info?.cpNumberType || 'local')]))
     }
     const results = info?.cpSearchResults || []
     const _dg = String(message || '').replace(/\D/g, '')
@@ -30450,7 +30420,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const countryCode = info?.cpCountryCode || 'US'
     let surcharge = getNumberSurcharge(countryCode, numberType)
     // MultiTEL / Infobip numbers: same add-on price as the web checkout.
-    if (['multitel', 'infobip'].includes(selectedProvider)) surcharge = require('./number-addons').get(countryCode, numberType)
+    if (['multitel', 'infobip', 'retell'].includes(selectedProvider)) surcharge = require('./number-addons').get(countryCode, numberType)
     let verifyNote = null
     // Telnyx international: live cost + tell the user BEFORE paying what verification follows
     if (isTelnyxIntl(selectedProvider, countryCode)) {
@@ -30507,29 +30477,13 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message)) return goto.submenu5()
 
     const planKey = phoneConfig.planByButton[message]
-    if (!planKey) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectPlan)
-
-    // Check if plan is available
-    if (!phoneConfig.isPlanAvailable(planKey)) {
-      const availBtns = []
-      if (phoneConfig.isPlanAvailable('starter')) availBtns.push([pc.starterPlan])
-      if (phoneConfig.isPlanAvailable('standard')) availBtns.push([pc.standardPlan])
-      if (phoneConfig.isPlanAvailable('pro')) availBtns.push([pc.proPlan])
-      if (phoneConfig.isPlanAvailable('business')) availBtns.push([pc.businessPlan])
-      return send(chatId, trans('t.cp_231'), k.of(availBtns))
-    }
+    if (!planKey) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectPlan, cpPlanKb())
+    if (!phoneConfig.isPlanAvailable(planKey)) return send(chatId, trans('t.cp_231'), cpPlanKb())
 
     await saveInfo('cpPlanKey', planKey)
     await saveInfo('cpPlanBasePrice', phoneConfig.plans[planKey].price)
-
-    // Now go to country selection
-    await set(state, chatId, 'action', a.cpSelectCountry)
-    const countryBtns = phoneConfig.allCountries.map(c => c.name)
-    const rows = []
-    for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
-    if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
-    const planLabel = planKey === 'starter' ? '💡 Basic' : planKey === 'standard' ? '🧩 Plus' : planKey === 'pro' ? '⭐ Pro' : '👑 Business'
-    return send(chatId, trans('t.cp_232', planLabel), k.of(rows))
+    if (info) info.cpPlanKey = planKey
+    return cpAskCountry()
   }
 
   // ── BUY FLOW: Order Summary (legacy screen — kept for stale keyboards; new
@@ -41387,7 +41341,7 @@ const bankApis = {
       type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
       purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
       autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
-      sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
+      sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(orderResult?._landingNumber ? { landingNumber: orderResult._landingNumber } : {}), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
       messagingProfileId: telnyxResources.messagingProfileId,
       connectionId: telnyxResources.sipConnectionId, smsUsed: 0, minutesUsed: 0,
       features: { sms: !!info?.cpTexting, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -42419,7 +42373,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(orderResult?._landingNumber ? { landingNumber: orderResult._landingNumber } : {}), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: !!info?.cpTexting, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -47770,7 +47724,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(orderResult?._landingNumber ? { landingNumber: orderResult._landingNumber } : {}), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: !!info?.cpTexting, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },

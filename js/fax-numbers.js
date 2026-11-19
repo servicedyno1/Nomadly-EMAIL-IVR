@@ -7,7 +7,7 @@ const telnyxAcct = require('./telnyx-fax-account')
 const swFax = require('./signalwire/fax')
 const mtFax = require('./multitel/fax')
 // New fax numbers come from MultiTEL only; numbers bought earlier on SignalWire / Telnyx stay where they are.
-const acct = { enabled: () => mtFax.enabled(), searchFax: (...a) => mtFax.searchFax(...a) }
+const acct = { enabled: () => mtFax.enabled() && require('./multitel').selling(), searchFax: (...a) => mtFax.searchFax(...a) }
 const releaseFor = (n) => (n.provider === 'multitel_fax' ? mtFax.releaseFax(n.phoneNumber) : n.provider === 'signalwire_fax' ? swFax.releaseFax(n.phoneNumber) : telnyxAcct.releaseFax(n.phoneNumber))
 const fax = require('./fax-service')
 const { walletOps, round2 } = require('./cloudivr-web/wallet')
