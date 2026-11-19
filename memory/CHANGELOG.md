@@ -3793,3 +3793,7 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Deployed to prod app-main-a (release 20261119T181608Z-abc224b, backup /opt/nomadly/deploy-backups/landed-ringback-20261119T230308Z). Re-test: caller hung up 23:03:52 → browser ring cancelled 23:03:53.
 - User-confirmed earlier: 833 inbound rings browser. Still to confirm: answering → two-way audio; outbound caller ID shows +18337549319.
 - Not in GitHub main yet — a GitHub CI deploy would roll this back; user must Save to GitHub.
+
+## 2026-11-19 23:10Z — Voicemail verified on Retell 833 (landed flow)
+- Temporarily enabled voicemail on +18337549319 (user: test then off), Bird test call with Asterisk playback: answered → ringback + browser ring 25s → greeting → recording 37s → saved + delivered to web/Telegram with transcript; audio verified (Asterisk demo prompt transcribed). Voicemail set back to OFF.
+- Cost note: every leg (Retell toll-free inbound+forward, Infobip landing inbound, Infobip→our SIP trunk leg) stays up for the whole call — no leg is released after connect.
