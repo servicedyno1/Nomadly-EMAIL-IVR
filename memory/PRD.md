@@ -803,3 +803,4 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - auth.js sendMail scrubs subject/html unless recipient is admin / CIVR_ADMIN_EMAIL / MULTITEL_DOCS_EMAIL
 - Hand-fixed copy: Terms §9, LOA preview, caller-ID verify texts (+es/fr keys)
 - Kept on purpose: Telegram bot + admin (user choice), filed hosted-SMS LOA PDF to carrier (names Telnyx), T-Mobile eSIM network, Mollie/crypto payment brands
+- 2026-11-19: Nomadlybot ads are service-only — removed nm-wallet topic/flow + "One wallet" what's-new item; prompt forbids wallet/deposit as subject; "how" posts rotate across all services

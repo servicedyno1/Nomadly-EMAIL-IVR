@@ -28,7 +28,7 @@ const USE_CASES = ['dental or medical clinic', 'real estate agent', 'online shop
 const NOMADLY_USE_CASES = ['affiliate marketer needing bulletproof hosting', 'startup founder who needs a business number and domain', 'digital nomad traveling the US with eSIM', 'agency managing multiple client domains', 'cold-call sales team buying phone leads', 'dropshipper running SMS campaigns', 'remote team needing VPS and cloud phones', 'freelancer building an online presence', 'small business owner who needs everything in one place', 'reseller white-labeling hosting for clients']
 
 const WHATS_NEW = [['Emily sets up menus, calls and campaigns just by chatting', 'landing-ai'], ['AI conversation campaigns: an AI talks with each lead, then hands the interested ones to you', 'ai-campaign'], ['Free "Call me now" test call to hear your AI agent before going live', 'ai-conversations'], ['Ask Emily which plan fits your business', 'pricing'], ['Live "signed in" badges for your softphones and desk phones', 'sip'], ['Renewal dates synced to Google or Apple Calendar', 'renewals'], ['Number search answers in a second or two', 'buy']]
-const NOMADLY_WHATS_NEW = [['Anti-Red hosting that keeps your site clean and online', 'nm-hosting'], ['Bulletproof domains with privacy and DNS management', 'nm-domains'], ['USA eSIM for $50/month — data, calls and texts', 'nm-esim'], ['VPS and RDP servers in minutes, worldwide', 'nm-vps'], ['Targeted phone leads by area code and industry', 'nm-leads'], ['BulkSMS campaigns to US and Canada numbers', 'nm-sms'], ['Digital products: Google Workspace, Cloud accounts, SMTP', 'nm-digital'], ['URL shortener with custom domains and analytics', 'nm-shortener'], ['One wallet for all services — crypto deposits in seconds', 'nm-wallet']]
+const NOMADLY_WHATS_NEW = [['Anti-Red hosting that keeps your site clean and online', 'nm-hosting'], ['Bulletproof domains with privacy and DNS management', 'nm-domains'], ['USA eSIM for $50/month — data, calls and texts', 'nm-esim'], ['VPS and RDP servers in minutes, worldwide', 'nm-vps'], ['Targeted phone leads by area code and industry', 'nm-leads'], ['BulkSMS campaigns to US and Canada numbers', 'nm-sms'], ['Digital products: Google Workspace, Cloud accounts, SMTP', 'nm-digital'], ['URL shortener with custom domains and analytics', 'nm-shortener']]
 
 
 let col = null, token = null, log = console.log, timer = null, busy = false
@@ -52,7 +52,7 @@ function nomadlyFacts() {
     'USA eSIM: $50/month, data + calls + texts on T-Mobile, activate on your phone.',
     'Digital Products: Google Workspace, Google Cloud, Zoho Mail, IONOS SMTP accounts.',
     'URL Shortener: shorten links with custom domains and analytics.',
-    'Wallet: one balance for all services. Crypto deposits (USDT, BTC, ETH, LTC, DOGE) arrive in seconds. First deposit $20+ gets a bonus.',
+    'Payment: services can be paid in crypto (background detail only, never the subject of a post).',
     'All services managed from one Telegram bot: @Nomadlybot. Also available on the web.',
   ].join(' ')
 }
@@ -68,7 +68,7 @@ async function caption(pillar, topic, extra, brand) {
   const fallback = { headline: (pillar === 'new' ? extra : topic.title).slice(0, 70), line: hb ? `Everything your business needs — hosting, domains, numbers, SMS, VPS — in one bot. Start on @Nomadlybot.` : 'Business numbers, keypad menus and AI calling — set up in minutes by chatting with Emily. From $50/month.', scene: hb ? `a person confidently managing their online business from a phone, ${extra || topic.title}` : `a small business owner relaxed while calls are handled for them, ${extra || topic.title}` }
   const keys = [...new Set([process.env.APP_OPEN_API_KEY, process.env.OPEN_API_KEY].filter(Boolean))]
   const systemPrompt = hb
-    ? `You write short premium ad posts for the Nomadly Telegram bot @Nomadlybot (an all-in-one bot for online businesses — anti-red hosting, bulletproof domains, VPS/RDP, phone leads, BulkSMS, digital products, USA eSIM, URL shortener, one crypto wallet). Do not mention CloudIVR. English. Return JSON {"headline","line","scene"}. headline: punchy hook, max 7 words, no emoji, no trailing period. line: 1–2 short sentences, max 150 characters total, concrete benefit, may end with a tiny call to action, at most 1 emoji. scene: one sentence describing an illustration for this post (people/objects/mood, no text, no screens). Never invent prices, numbers, customers or features beyond: ${nomadlyFacts()} ${productCtx} No hashtags, no links.`
+    ? `You write short premium ad posts for the Nomadly Telegram bot @Nomadlybot (an all-in-one bot for online businesses — anti-red hosting, bulletproof domains, VPS/RDP, phone leads, BulkSMS, digital products, USA eSIM, URL shortener). Every post is about one of these services. Never make the wallet, balance or deposits the subject — paying in crypto may be mentioned in passing at most. Do not mention CloudIVR. English. Return JSON {"headline","line","scene"}. headline: punchy hook, max 7 words, no emoji, no trailing period. line: 1–2 short sentences, max 150 characters total, concrete benefit, may end with a tiny call to action, at most 1 emoji. scene: one sentence describing an illustration for this post (people/objects/mood, no text, no screens). Never invent prices, numbers, customers or features beyond: ${nomadlyFacts()} ${productCtx} No hashtags, no links.`
     : `You write short ad posts for the CloudIVR Telegram channel (cloud phone system for businesses: virtual numbers, keypad menus, AI receptionist, AI conversation campaigns, softphones, texting, fax). English. Return JSON {"headline","line","scene"}. headline: punchy hook, max 7 words, no emoji, no trailing period. line: 1–2 short sentences, max 150 characters total, concrete benefit, may end with a tiny call to action, at most 1 emoji. scene: one sentence describing an illustration for this post (people/objects/mood, no text, no screens). Never invent prices, numbers, customers or features beyond: ${facts()} Mention Emily (the in-app setup assistant) only when it fits. No hashtags, no links.`
   for (const key of keys) {
     try {
@@ -90,7 +90,7 @@ async function caption(pillar, topic, extra, brand) {
 // Nomadlybot ads use the Nomadly support handle — never CloudIVR's.
 const SUPPORT = (brand) => (brand === 'nomadly' ? String(process.env.CHANNEL_ADS_NOMADLY_SUPPORT || 'onarrival1') : String(process.env.CHANNEL_ADS_SUPPORT || 'CloudIVRhelp')).replace('@', '')
 // Bot deep link opens the right menu (handled by "/start open_<hub>" in _index.js).
-const HUB = { hosting: 'hosting', reseller: 'hosting', domains: 'domains', vps: 'vps', leads: 'leads', sms: 'bulksms', esim: 'esim', digital: 'digital', shortener: 'shortener', wallet: 'wallet' }
+const HUB = { hosting: 'hosting', reseller: 'hosting', domains: 'domains', vps: 'vps', leads: 'leads', sms: 'bulksms', esim: 'esim', digital: 'digital', shortener: 'shortener' }
 const ctaUrl = (chat, topic, brand) => brand === 'nomadly'
   ? `${BOT_LINK()}${HUB[topic?.product] ? `?start=open_${HUB[topic.product]}` : ''}`
   : `${SITE()}/?utm_source=telegram&utm_medium=channel&utm_campaign=${encodeURIComponent(chat.replace('@', ''))}&utm_content=${topic?.id || ''}`
@@ -128,8 +128,8 @@ async function plan(chat, brand = homeBrand(chat)) {
     const [what, id] = whatsNew[n % whatsNew.length]
     extra = what; screen = allScreens.find(s => s.id === id) || allScreens[0]
   } else {
-    const pool = allScreens.filter(s => (pillar === 'usecase' ? ['usecase', 'feature'] : [pillar]).includes(s.pillar))
-    screen = pool.length ? [...pool].sort((a, b) => lastUse(b.id) - lastUse(a.id) || crypto.randomInt(3) - 1)[0] : allScreens[0]
+    const pool = allScreens.filter(s => (pillar === 'usecase' || (hb && pillar === 'how') ? [pillar, 'feature'] : [pillar]).includes(s.pillar))
+    screen = [...(pool.length ? pool : allScreens)].sort((a, b) => lastUse(b.id) - lastUse(a.id) || crypto.randomInt(3) - 1)[0]
     if (pillar === 'usecase') extra = useCases[(n + ti * 3) % useCases.length]
   }
   // Demos and clips only available for CloudIVR screens (they need live browser interaction)

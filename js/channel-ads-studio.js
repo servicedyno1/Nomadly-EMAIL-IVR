@@ -50,7 +50,6 @@ const NOMADLY_SCREENS = [
   { id: 'nm-esim', title: 'USA eSIM with data, calls and texts', pillar: 'feature', product: 'esim' },
   { id: 'nm-digital', title: 'Google Workspace, Cloud accounts, SMTP', pillar: 'feature', product: 'digital' },
   { id: 'nm-shortener', title: 'URL shortener with custom domains', pillar: 'feature', product: 'shortener' },
-  { id: 'nm-wallet', title: 'One wallet for everything — crypto deposits in seconds', pillar: 'tip', product: 'wallet' },
   { id: 'nm-all-in-one', title: 'Hosting, numbers, domains, SMS — one bot', pillar: 'how', product: 'platform' },
   { id: 'nm-reseller', title: 'White-label hosting for your clients', pillar: 'usecase', product: 'reseller' },
   { id: 'nm-startup', title: 'Everything a startup needs from day one', pillar: 'usecase', product: 'platform' },
