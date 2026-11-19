@@ -1528,7 +1528,7 @@ async function finishCampaigns() {
         }
       }
     }
-    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const refunded = await refundUnsent(cp), r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected + (r.blocked || 0), r.replies, r.skipped, refunded || 0], { campaignId: cp._id }); alert(`✅ <b>Campaign completed</b>\n👤 ${await userTag(cp.cid)} (${cp.cid})\n📋 ${cp.name}\n📊 ${r.sent} sent · ${r.failed} failed · ${r.replies} replies · ⛔ ${r.optOuts} opt-outs\n💵 cost $${r.cost}${r.costPerReply != null ? ` · $${r.costPerReply}/reply` : ''}${refunded ? `\n↩️ $${refunded} refunded` : ''}`); await C('bsReviews').insertOne({ _id: `cpr_${cp._id}`, kind: 'campaign', cid: cp.cid, campaignId: cp._id, name: cp.name, status: 'waiting', at: new Date(), dueAt: new Date() }).catch(() => {}) }
+    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const refunded = await refundUnsent(cp), r = await report(cp._id); const sb = await skipBreakdown((await C('bsCampaigns').findOne({ _id: cp._id }, { projection: { skipped: 1 } }))?.skipped || []), allReplies = r.replies + (r.kept || 0); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected + (r.blocked || 0), allReplies, r.skipped, refunded || 0, sb.landline], { campaignId: cp._id }); alert(`✅ <b>Campaign completed</b>\n👤 ${await userTag(cp.cid)} (${cp.cid})\n📋 ${cp.name}\n📥 ${r.sent + r.failed + r.rejected + (r.blocked || 0) + r.skipped} numbers${r.skipped ? ` · 🚫 ${r.skipped} skipped (${[['landline', 'landlines'], ['voip', 'VoIP'], ['invalid', 'invalid'], ['other', 'other']].filter(([k]) => sb[k]).map(([k, l]) => `${sb[k]} ${l}`).join(', ')})` : ''}\n📊 ${r.sent} sent · ${r.failed} failed · ${allReplies} replies${r.kept ? ` (${r.kept} not forwarded — replies off)` : ''} · ⛔ ${r.optOuts} opt-outs\n💵 cost $${r.cost}${r.costPerReply != null ? ` · $${r.costPerReply}/reply` : ''}${refunded ? `\n↩️ $${refunded} refunded` : ''}`); await C('bsReviews').insertOne({ _id: `cpr_${cp._id}`, kind: 'campaign', cid: cp.cid, campaignId: cp._id, name: cp.name, status: 'waiting', at: new Date(), dueAt: new Date() }).catch(() => {}) }
   }
 }
 // Spenza tells each account's real SMS limit in X-RateLimit-* headers: adopt a changed limit as that account's rate (so capacity,
@@ -1687,6 +1687,16 @@ async function registerWebhook(baseUrl, onlyAccount) {
 }
 
 // ---------- reports + admin ----------
+// Why numbers were skipped before sending (from the number check): { landline, voip, invalid, other }.
+async function skipBreakdown(skipped = []) {
+  const out = { landline: 0, voip: 0, invalid: 0, other: 0 }
+  if (!skipped.length) return out
+  for (const r of await C('bsLookups').aggregate([{ $match: { _id: { $in: skipped } } }, { $group: { _id: '$type', n: { $sum: 1 } } }]).toArray()) {
+    const k = ['fixed line', 'landline'].includes(r._id) ? 'landline' : r._id === 'voip' ? 'voip' : r._id === 'invalid' ? 'invalid' : 'other'; out[k] += r.n
+  }
+  out.other += Math.max(0, skipped.length - Object.values(out).reduce((a, b) => a + b, 0))
+  return out
+}
 async function report(campaignId) {
   const rows = await C('bsMessages').aggregate([{ $match: { campaignId, test: { $ne: true } } }, { $group: { _id: { d: '$direction', s: '$status' }, n: { $sum: 1 } } }]).toArray()
   const g = (d, s) => rows.filter(r => r._id.d === d && (!s || s.includes(r._id.s))).reduce((a, r) => a + r.n, 0)
