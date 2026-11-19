@@ -3743,3 +3743,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Agent-tested (iteration_326). The tester fixed a landing crash (`usd` undefined in AiSection). Not user-confirmed yet.
 - Plan feature labels, Emily setup prompt and plan-suggest rows now say "(pay as you use)" instead of "(per minute)". Node preview restarted to load them.
 - Channel ads: the saved backup screens in js/channel-ads-src (Nov 18, 09:xx) were captured BEFORE the redesign. The pricing captures still point at /#pricing. Both need refreshing after the redesign is published.
+
+## 2026-06 — BulkSMS test step on every new entry point
+- Validation hand-off, lead purchase hand-off, saved-list reuse and Validate-first all reach the original optional "Send a test SMS" step (after the message, before scheduling/payment).
+- Fix: "Change the text" after a test on a Validate-first campaign dropped validation; now kept (bot.js draft restore includes `validate`).
+- Hand-off intro (5 langs) now says the customer can send themselves a test first.
+- Test: js/tests/test_bulk_esim_test_step_entrypoints.js (23/23); guided/ready_gate/numbercheck regressions pass.
