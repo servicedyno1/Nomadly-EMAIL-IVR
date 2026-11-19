@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Flag } from '../Pickers';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Hash, ShoppingCart, ChevronRight, Copy, Plus } from 'lucide-react';
+import { Hash, ShoppingCart, ChevronRight, ChevronDown, SlidersHorizontal, Copy, Plus } from 'lucide-react';
 import { useApi, api, day, money, enc } from '../api';
 import { PageHeader, Spinner, ErrorNote, Empty, statusPill, useSwitch } from '../ui';
 import { cp } from '../paths';
@@ -24,7 +24,7 @@ function QuickSwitch({ num, feature, label, checked, onSaved, testid }) {
   return (
     <button type="button" role="switch" aria-checked={s.value} disabled={s.busy} onClick={() => s.flip(!s.value)} data-testid={testid}
       title={`${label} ${s.value ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[44px] sm:!min-h-[36px] !px-4 cursor-pointer relative z-10 transition-colors ${s.value ? 'civr-pill-on' : 'text-[var(--c-muted,#a1a1aa)] hover:text-[var(--c-text)] hover:border-[var(--c-border-hover,#3f3f46)]'}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${s.value ? 'bg-[var(--c-accent)]' : 'bg-[var(--c-surface-2,#3f3f46)]'}`} />{label}
+      <span className={`w-1.5 h-1.5 rounded-full ${s.value ? 'bg-[var(--c-accent)]' : 'bg-[var(--c-muted)] opacity-50'}`} />{label}
     </button>
   );
 }
@@ -54,7 +54,21 @@ function FaxSwitch({ n, reload, testid }) {
   return (
     <button type="button" role="switch" aria-checked={on} disabled={busy} onClick={flip} data-testid={testid}
       title={`Fax ${on ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[44px] sm:!min-h-[36px] !px-4 cursor-pointer relative z-10 transition-colors ${on ? 'civr-pill-on' : 'text-[var(--c-muted,#a1a1aa)] hover:text-[var(--c-text)] hover:border-[var(--c-border-hover,#3f3f46)]'}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-[var(--c-accent)]' : 'bg-[var(--c-surface-2,#3f3f46)]'}`} />Fax
+      <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-[var(--c-accent)]' : 'bg-[var(--c-muted)] opacity-50'}`} />Fax
+    </button>
+  );
+}
+
+// Collapsed by default so the card stays calm; shows how many switches are on.
+function SwitchesToggle({ n, i, count, open, setOpen }) {
+  const f = n.features || {};
+  const onCount = [n.access?.callForwarding && on(f.callForwarding), n.access?.ivr && on(f.ivr), on(f.hours), n.plan === 'business' && n.status === 'active' && n.capabilities?.fax && f.fax?.line === true].filter(Boolean).length;
+  return (
+    <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} data-testid={`number-card-${i}-switches-toggle`}
+      className="relative z-10 mt-3 self-start inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[32px] text-[13px] text-[var(--c-text-2,var(--c-muted))] hover:text-[var(--c-text)] transition-colors">
+      <SlidersHorizontal className="w-4 h-4" />Quick switches
+      <span className="text-[var(--c-muted)]" data-testid={`number-card-${i}-switches-count`}>· {onCount} of {count} on</span>
+      <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
     </button>
   );
 }
@@ -62,6 +76,7 @@ function FaxSwitch({ n, reload, testid }) {
 function NumberCard({ n, i, caps, pv, onSaved, reload }) {
   const copy = async () => { try { await navigator.clipboard.writeText(n.phoneNumber); toast.success('Number copied'); } catch (_) { toast.error('Couldn’t copy — long-press the number instead.'); } };
   const href = cp(`/app/numbers/${enc(n.phoneNumber)}`);
+  const [open, setOpen] = useState(false);
   const switches = [n.access?.callForwarding, n.access?.ivr, true, n.plan === 'business' && n.status === 'active' && n.capabilities?.fax].filter(Boolean).length;
   return (
     <div className="civr-card p-5 civr-rise flex flex-col" data-testid={`number-card-${i}`}>
@@ -81,7 +96,8 @@ function NumberCard({ n, i, caps, pv, onSaved, reload }) {
         {n.registration?.status === 'pending' && <span className="civr-pill civr-pill-warn" title="The carrier is checking your documents. The number goes live once they approve them." data-testid={`number-card-${i}-registration`}>Awaiting carrier approval</span>}
         {n.features?.texting?.available && !n.features.texting.enabled && <Link to={`${href}?tab=sms`} className="text-[13px] text-[var(--c-accent)] hover:underline relative z-10 ml-1 min-h-[32px] inline-flex items-center" data-testid={`number-card-${i}-add-texting`}>+ Add texting</Link>}
       </div>
-      {switches > 0 && <div className="mt-4 flex flex-wrap items-center gap-1.5" aria-label="Quick switches" data-testid={`number-card-${i}-switches`}>
+      {switches > 0 && <SwitchesToggle n={n} i={i} count={switches} open={open} setOpen={setOpen} />}
+      {switches > 0 && open && <div className="mt-2 flex flex-wrap items-center gap-1.5 civr-rise" aria-label="Quick switches" data-testid={`number-card-${i}-switches`}>
         {n.access?.callForwarding && <QuickSwitch num={n} feature="callForwarding" label="Forwarding" checked={on(n.features.callForwarding)} onSaved={onSaved} testid={`number-card-${i}-switch-forwarding`} />}
         {n.access?.ivr && <QuickSwitch num={n} feature="ivr" label="IVR" checked={on(n.features.ivr)} onSaved={onSaved} testid={`number-card-${i}-switch-ivr`} />}
         <QuickSwitch num={n} feature="hours" label="Hours" checked={on(n.features.hours)} onSaved={onSaved} testid={`number-card-${i}-switch-hours`} />

@@ -97,7 +97,7 @@ export default function Inbox() {
       </PageHeader>
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-6">
         <SearchBox s={s} placeholder="Search messages" testid="inbox-search" className="lg:w-72 shrink-0" />
-        <div className="flex flex-wrap gap-2">{KINDS.map(([k, l]) => <FilterPill key={k || 'all'} k={k} label={l} on={kind === k} count={unreadOf(k)} onPick={setKind} />)}</div>
+        <div className="flex gap-2 overflow-x-auto civr-no-scrollbar -mx-4 px-4 pb-1 lg:mx-0 lg:px-0 lg:flex-wrap [&>*]:shrink-0" data-testid="inbox-filters">{KINDS.map(([k, l]) => <FilterPill key={k || 'all'} k={k} label={l} on={kind === k} count={unreadOf(k)} onPick={setKind} />)}</div>
       </div>
       {(kind === '' || kind === 'call') && <MissedCalls />}
       <ErrorNote error={error} onRetry={reload} className="mb-4" />
