@@ -295,7 +295,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.test_again) { if (await B.testBarred(cid)) return send(chatId, `⚠️ ${say('err_test_guard')}`, kb([[L.cont], [L.back]])); return askTestTo((await B.testOffer(cid)).free) }
     if (message === L.edit || (message === L.use_rewrite && info.bseRewrite)) {
       const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }); if (!cp) return send(chatId, say('err_not_found'), HK)
-      await drafts().updateOne({ _id: cid }, { $set: { contacts: [...cp.contacts, ...(cp.skipped || [])], skip: cp.skipped || [], file: null, validated: !!cp.validated, at: new Date() } }, { upsert: true })
+      await drafts().updateOne({ _id: cid }, { $set: { contacts: [...cp.contacts, ...(cp.skipped || [])], skip: cp.skipped || [], file: null, validated: !!cp.validated, validate: !!cp.validate, at: new Date() } }, { upsert: true })
       await B.db().collection('bsCampaigns').deleteOne({ _id: cp._id, cid, status: 'draft' }) // a new campaign is made from the edited text
       if (message === L.use_rewrite) { info.bseContent = [info.bseRewrite]; await put('bseContent', info.bseContent); info.bseOptOut = cp.optOut !== false; await put('bseOptOut', info.bseOptOut); await put('bseRewrite', null); return finalize([]) }
       await go('bse-content'); return contentAsk()
