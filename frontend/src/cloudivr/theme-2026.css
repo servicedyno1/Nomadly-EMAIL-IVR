@@ -242,7 +242,7 @@ html[data-civr-theme] .civr .civr-side-search:hover {
 html[data-civr-theme] .civr .civr-side-search kbd {
   margin-left: auto;
   font-size: 11px;
-  opacity: .5;
+  color: var(--c-muted);
   font-family: 'JetBrains Mono', monospace;
 }
 html[data-civr-theme] .civr .civr-side-label {
@@ -647,4 +647,11 @@ html[data-civr-theme] .civr .civr-incoming-ring {
 
 /* Accent pills: lighter blue in dark for AA contrast */
 html[data-civr-theme="dark"] .civr .civr-pill-on { color: #93c5fd; }
-html[data-civr-theme="light"] .civr [data-testid^="usage-"] .text-emerald-400, html[data-civr-theme="light"] .civr [data-testid^="usage-"].text-emerald-400 { color: #047857; }
+/* Contrast touch-ups (AA on small text) */
+html[data-civr-theme="light"] .civr .text-emerald-400,
+html[data-civr-theme="light"] .civr .text-emerald-500 { color: #047857; }
+html[data-civr-theme="light"] .civr .civr-wordmark-accent { color: #047857 !important; }
+html[data-civr-theme="light"] .civr .civr-pill-warn { color: #b45309; }
+html[data-civr-theme="light"] .civr .text-\[\#a1a1aa\] { color: #475569 !important; }
+html[data-civr-theme="dark"] .civr .text-\[\#a1a1aa\] { color: var(--c-text-2) !important; }
+html[data-civr-theme="light"] .civr [data-testid="preview-mode-banner"] { color: #b45309; }

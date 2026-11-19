@@ -59,6 +59,18 @@ function FaxSwitch({ n, reload, testid }) {
   );
 }
 
+// Which cards have their switches open, remembered on this device.
+const OPEN_KEY = 'civr.openSwitches';
+const readOpen = () => { try { return JSON.parse(localStorage.getItem(OPEN_KEY)) || []; } catch (_) { return []; } };
+function useOpenSwitches(phone) {
+  const [open, set] = useState(() => readOpen().includes(phone));
+  const setOpen = (v) => {
+    set(v);
+    try { const rest = readOpen().filter(p => p !== phone); localStorage.setItem(OPEN_KEY, JSON.stringify(v ? [...rest, phone] : rest)); } catch (_) { /* private browsing */ }
+  };
+  return [open, setOpen];
+}
+
 // Collapsed by default so the card stays calm; shows how many switches are on.
 function SwitchesToggle({ n, i, count, open, setOpen }) {
   const f = n.features || {};
@@ -76,7 +88,7 @@ function SwitchesToggle({ n, i, count, open, setOpen }) {
 function NumberCard({ n, i, caps, pv, onSaved, reload }) {
   const copy = async () => { try { await navigator.clipboard.writeText(n.phoneNumber); toast.success('Number copied'); } catch (_) { toast.error('Couldn’t copy — long-press the number instead.'); } };
   const href = cp(`/app/numbers/${enc(n.phoneNumber)}`);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useOpenSwitches(n.phoneNumber);
   const switches = [n.access?.callForwarding, n.access?.ivr, true, n.plan === 'business' && n.status === 'active' && n.capabilities?.fax].filter(Boolean).length;
   return (
     <div className="civr-card p-5 civr-rise flex flex-col" data-testid={`number-card-${i}`}>
@@ -159,7 +171,7 @@ export default function Numbers() {
           <div className="civr-seg flex gap-1" role="tablist" aria-label="Show numbers that do" data-testid="numbers-filter">
             {FILTERS.map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={show === id} onClick={() => setParams(id === 'all' ? {} : { show: id }, { replace: true })} data-testid={`numbers-filter-${id}`}
-                className={`civr-seg-btn inline-flex items-center gap-2 min-h-[40px] px-4 rounded-full text-sm font-medium transition-colors ${show === id ? 'civr-seg-on' : 'text-[var(--c-muted)] hover:text-[var(--c-text)]'}`}>{label}<span className="text-xs opacity-70" data-testid={`numbers-filter-${id}-count`}>{count(id)}</span></button>
+                className={`civr-seg-btn inline-flex items-center gap-2 min-h-[40px] px-4 rounded-full text-sm font-medium transition-colors ${show === id ? 'civr-seg-on' : 'text-[var(--c-muted)] hover:text-[var(--c-text)]'}`}>{label}<span className="text-xs" data-testid={`numbers-filter-${id}-count`}>{count(id)}</span></button>
             ))}
           </div>
           <SearchBox s={s} placeholder="Search numbers" testid="numbers-search" className="flex-1 min-w-[200px] max-w-md" />

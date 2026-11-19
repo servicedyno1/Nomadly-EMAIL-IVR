@@ -63,7 +63,7 @@ function NumberTabs({ groups, tab, setTab }) {
       {TABS.filter(([k]) => groups[k].length).map(([k, label]) => (
         <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} data-testid={`dashboard-numbers-tab-${k}`}
           className={`civr-seg-btn px-3.5 text-sm font-medium transition-colors ${tab === k ? 'civr-seg-on' : ''}`}>
-          {label} <span className="opacity-70">{groups[k].length}</span>
+          {label} <span>{groups[k].length}</span>
         </button>
       ))}
     </div>

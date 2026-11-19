@@ -778,3 +778,9 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Dark accent pills lighter blue for contrast; light-mode Usage green amounts darker
 - Tested: iteration_329 (95% frontend pass)
 - Open minor contrast items: ⌘K hint (dark), segmented count opacity, wallet subtitle #a1a1aa, fax "Receiving faxes" emerald-500 (light), logo "IVR" green (light), warn pills amber (light)
+
+### 2026-11-19 — Contrast, remembered switches, theme follows device
+- Theme key moved to `civr.theme.v2`, default 'system' (everyone reset once to follow device; menu pick overrides)
+- Quick switches open state remembered per number on this device (localStorage `civr.openSwitches`)
+- Contrast fixes: ⌘K hint, segmented counts (no opacity), #a1a1aa hardcodes, light emerald text, warn pills + preview banner (#b45309), wordmark IVR (#047857 light)
+- Preview scan: /wallet, /wallet/usage, /wallet/history contain no carrier names (user to verify live after publishing)

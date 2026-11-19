@@ -14,7 +14,7 @@ export function Wordmark({ accent = '#34d399', iconClass = 'w-8 h-8', textClass 
   return (
     <>
       <img src={BRAND.icon} alt="" aria-hidden="true" className={`${iconClass} shrink-0 civr-logo-icon`} />
-      <span className={textClass}>CLOUD<span style={{ color: accent }}>IVR</span></span>
+      <span className={textClass}>CLOUD<span className="civr-wordmark-accent" style={{ color: accent }}>IVR</span></span>
     </>
   );
 }
