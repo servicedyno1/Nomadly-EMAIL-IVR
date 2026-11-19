@@ -1,4 +1,4 @@
-import { Home, Hash, PlusCircle, PhoneOutgoing, Megaphone, Music, Wallet, Settings, KeyRound, Captions, BookOpen, Contact, Radio, Ban, MessageSquareText, Smartphone, MessagesSquare, Printer, Workflow, PhoneForwarded, Headphones, BotMessageSquare, Bot, ScanSearch, Plane, Bell, CalendarDays } from 'lucide-react';
+import { Home, Hash, PlusCircle, PhoneOutgoing, Megaphone, Music, Wallet, Settings, KeyRound, Captions, BookOpen, Contact, Radio, Ban, MessageSquareText, Smartphone, MessagesSquare, Printer, Workflow, PhoneForwarded, Headphones, BotMessageSquare, Bot, ScanSearch, Plane, Bell, CalendarDays, BarChart3 } from 'lucide-react';
 import { cp } from './paths';
 
 // Six areas. Group → [id, label, items]; item → [path, label, Icon, testid, subtitle?].
@@ -20,7 +20,7 @@ export const HUBS = {
   'nav-calls': [['quick-call', 'Quick call', PhoneOutgoing], ['text-call', 'Voice message call', Captions]],
   'nav-campaigns': [['campaigns', 'Campaigns', Megaphone], ['ai-agents', 'AI conversations', Bot], ['live', 'Live activity', Radio]],
   'nav-contacts': [['contacts', 'Contacts', Contact], ['audio', 'Audio library', Music], ['do-not-call', 'Do-not-call list', Ban]],
-  'nav-wallet': [['wallet', 'Wallet', Wallet], ['renewals', 'Renewal calendar', CalendarDays]],
+  'nav-wallet': [['wallet', 'Wallet', Wallet], ['usage', 'Usage', BarChart3], ['renewals', 'Renewal calendar', CalendarDays]],
 };
 
 export const SIDE_ITEMS = NAV.flatMap(([, , items]) => items);

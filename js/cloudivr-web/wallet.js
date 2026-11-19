@@ -79,6 +79,146 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUs
     })
   }))
 
+  // ── Usage report for the current billing cycle ──
+  // Aggregates walletLedger (call charges, AI, campaigns) and phoneTransactions (purchases, SMS, fax, lookups)
+  // per number, with destination country breakdown.
+  router.get('/wallet/usage', h(async (req, res) => {
+    const chatId = req.webChatId
+    const nums = await db.collection('phoneNumbers').find({ chatId, status: { $ne: 'released' } }).project({ phoneNumber: 1, plan: 1, purchaseDate: 1, expiresAt: 1, type: 1, planPrice: 1 }).toArray()
+    // Billing cycle: earliest purchaseDate to latest expiresAt among active numbers, clamped to current month if no numbers.
+    const now = new Date()
+    let cycleStart, cycleEnd
+    if (nums.length) {
+      // Use the most recent purchase/renew cycle boundaries
+      const starts = nums.map(n => new Date(n.purchaseDate || n.expiresAt || now)).filter(d => !isNaN(d))
+      const ends = nums.map(n => new Date(n.expiresAt || now)).filter(d => !isNaN(d))
+      cycleStart = starts.length ? new Date(Math.min(...starts)) : new Date(now.getFullYear(), now.getMonth(), 1)
+      cycleEnd = ends.length ? new Date(Math.max(...ends)) : now
+    } else {
+      cycleStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      cycleEnd = now
+    }
+
+    // Fetch walletLedger entries in the billing cycle (call charges, AI, SIP, campaigns)
+    const ledger = await db.collection('walletLedger').find({
+      chatId: String(chatId),
+      timestamp: { $gte: cycleStart, $lte: cycleEnd },
+    }).sort({ timestamp: -1 }).limit(500).toArray()
+
+    // Fetch phoneTransactions in the billing cycle (purchases, renewals, SMS, upgrades, etc.)
+    const ptx = await db.collection('phoneTransactions').find({
+      chatId,
+      timestamp: { $gte: cycleStart.toISOString(), $lte: cycleEnd.toISOString() },
+    }).sort({ timestamp: -1 }).limit(200).toArray()
+
+    // Fetch transactions (topups, credits, refunds) in the billing cycle
+    const tx = await db.collection('transactions').find({
+      chatId: String(chatId),
+      createdAt: { $gte: cycleStart, $lte: cycleEnd },
+    }).sort({ createdAt: -1 }).limit(100).toArray()
+
+    // Categorize ledger entries
+    const callTypes = {
+      'AutoRoute_SIPOutbound': 'sip', 'SIPOutbound': 'sip', 'TwilioCall': 'outbound', 'TwilioBridge': 'outbound',
+      'Bridge_Transfer': 'forward', 'BulkIVR': 'campaign', 'AIAgent': 'ai_agent', 'AutoRoute_Deferred': 'outbound',
+    }
+    const summary = { calls: 0, callSpend: 0, aiMinutes: 0, aiSpend: 0, campaignMinutes: 0, campaignSpend: 0, smsCount: 0, smsSpend: 0, faxCount: 0, faxSpend: 0, lookupCount: 0, lookupSpend: 0, totalSpend: 0, connectionFees: 0 }
+    const byNumber = {}
+    const byCountry = {}
+    const details = []
+
+    for (const e of ledger) {
+      const amt = Math.abs(e.amount || 0)
+      const cat = callTypes[e.callType] || e.type || 'other'
+      const phone = e.phoneNumber || 'unknown'
+      const dest = e.destination || null
+
+      // Per-number aggregation
+      if (!byNumber[phone]) byNumber[phone] = { calls: 0, spend: 0, ai: 0, campaign: 0, sms: 0, fax: 0, lookup: 0 }
+
+      // Country from destination (simple +1=US, +44=UK, etc.)
+      let country = null
+      if (dest) {
+        const cc = dest.replace(/[^0-9+]/g, '')
+        if (cc.startsWith('+1')) country = 'US/CA'
+        else if (cc.startsWith('+44')) country = 'GB'
+        else if (cc.startsWith('+61')) country = 'AU'
+        else if (cc.startsWith('+49')) country = 'DE'
+        else if (cc.startsWith('+33')) country = 'FR'
+        else if (cc.startsWith('+91')) country = 'IN'
+        else if (cc.startsWith('+86')) country = 'CN'
+        else if (cc.startsWith('+81')) country = 'JP'
+        else if (cc.startsWith('+52')) country = 'MX'
+        else if (cc.startsWith('+55')) country = 'BR'
+        else if (cc.startsWith('+34')) country = 'ES'
+        else if (cc.startsWith('+39')) country = 'IT'
+        else if (cc.startsWith('+31')) country = 'NL'
+        else if (cc.startsWith('+')) country = 'Other'
+      }
+
+      if (cat === 'ai_agent') {
+        summary.aiSpend += amt; byNumber[phone].ai += amt
+        // Estimate minutes from the per-minute charge ($0.10/min for AI receptionist, $0.30/min for AI campaigns)
+        if (e.type === 'ai_agent_call') { summary.aiMinutes += amt / 0.30; summary.campaignMinutes += amt / 0.30; summary.campaignSpend += amt; byNumber[phone].campaign += amt }
+        else { summary.aiMinutes += amt / 0.10 }
+      } else if (cat === 'campaign') {
+        summary.campaignMinutes += amt > 0 ? 1 : 0; summary.campaignSpend += amt; byNumber[phone].campaign += amt
+      } else if (e.type === 'connection_fee') {
+        summary.connectionFees += amt
+      } else if (cat === 'sip' || cat === 'outbound' || cat === 'forward') {
+        summary.calls += 1; summary.callSpend += amt; byNumber[phone].calls += 1; byNumber[phone].spend += amt
+      }
+
+      if (country) {
+        if (!byCountry[country]) byCountry[country] = { calls: 0, spend: 0, minutes: 0 }
+        byCountry[country].calls += 1; byCountry[country].spend += amt
+      }
+
+      details.push({ id: String(e._id), at: e.timestamp, type: e.type || cat, callType: e.callType, phone, destination: dest, country, amount: e.amount, description: e.description })
+    }
+
+    // Add phoneTransactions (SMS, fax, lookups, purchases)
+    for (const t of ptx) {
+      const amt = Math.abs(Number(t.amount) || 0)
+      const phone = t.phoneNumber || 'unknown'
+      if (!byNumber[phone]) byNumber[phone] = { calls: 0, spend: 0, ai: 0, campaign: 0, sms: 0, fax: 0, lookup: 0 }
+
+      if (t.action === 'sms_reply' || t.action === 'hosted-sms-text') {
+        summary.smsCount += 1; summary.smsSpend += amt; byNumber[phone].sms += 1
+      } else if (t.action === 'fax-number' || t.action === 'fax-number-renewal') {
+        summary.faxCount += 1; summary.faxSpend += amt; byNumber[phone].fax += 1
+      }
+      details.push({ id: String(t._id), at: t.timestamp, type: t.action, phone, amount: -amt, description: `${LABEL[t.action] || HOSTED[t.action] || t.action} · ${phone}` })
+    }
+
+    // Add wallet transactions (lookups, topups, credits)
+    for (const t of tx) {
+      const amt = Math.abs(Number(t.amount) || 0)
+      if (HOSTED[t.type]) {
+        if (t.type === 'number-lookup' || t.type === 'cnam-lookup' || t.type === 'email-check') {
+          summary.lookupCount += (t.metadata?.count || 1); summary.lookupSpend += amt
+        }
+        details.push({ id: String(t._id), at: t.createdAt, type: t.type, phone: t.metadata?.phoneNumber || null, amount: -amt, description: `${HOSTED[t.type]}${t.metadata?.phoneNumber ? ` · ${t.metadata.phoneNumber}` : ''}` })
+      } else if (CREDITS[t.type]) {
+        details.push({ id: String(t._id), at: t.createdAt, type: t.type, phone: null, amount: amt, description: CREDITS[t.type] })
+      }
+    }
+
+    // Compute combined total spend across all categories
+    summary.totalSpend = round2(summary.callSpend + summary.aiSpend + summary.campaignSpend + summary.smsSpend + summary.faxSpend + summary.lookupSpend + summary.connectionFees)
+
+    details.sort((a, b) => String(b.at).localeCompare(String(a.at)))
+
+    res.json({
+      cycle: { start: cycleStart.toISOString(), end: cycleEnd.toISOString() },
+      numbers: nums.map(n => ({ phone: n.phoneNumber, plan: n.plan, type: n.type, planPrice: n.planPrice, purchaseDate: n.purchaseDate, expiresAt: n.expiresAt })),
+      summary: { ...summary, callMinutes: round2(summary.callSpend > 0 ? summary.calls : 0), aiMinutes: round2(summary.aiMinutes), campaignMinutes: round2(summary.campaignMinutes) },
+      byNumber: Object.entries(byNumber).map(([phone, d]) => ({ phone, ...d })).sort((a, b) => b.spend - a.spend),
+      byCountry: Object.entries(byCountry).map(([country, d]) => ({ country, ...d })).sort((a, b) => b.spend - a.spend),
+      details: details.slice(0, 200),
+    })
+  }))
+
   router.post('/wallet/topup', h(async (req, res) => {
     const amountUsd = round2(req.body.amountUsd)
     const coin = String(req.body.coin || '')
