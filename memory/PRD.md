@@ -804,3 +804,4 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Hand-fixed copy: Terms §9, LOA preview, caller-ID verify texts (+es/fr keys)
 - Kept on purpose: Telegram bot + admin (user choice), filed hosted-SMS LOA PDF to carrier (names Telnyx), T-Mobile eSIM network, Mollie/crypto payment brands
 - 2026-11-19: Nomadlybot ads are service-only — removed nm-wallet topic/flow + "One wallet" what's-new item; prompt forbids wallet/deposit as subject; "how" posts rotate across all services
+- 2026-11-19: BulkSMS AI variants fix — prod has EMERGENT_LLM_KEY but no Python helper on :8001 (ECONNREFUSED); bulk-esim/core.js aiVariants now falls back to direct OpenAI (OPENAI_API_KEY, gpt-4o-mini) when the helper/Claude fails; alert only if both fail. Prod OpenAI key verified working (HTTP 200).
