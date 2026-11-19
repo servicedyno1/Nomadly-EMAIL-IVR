@@ -13,7 +13,7 @@ const { validUsCa, quietWait, hourOpen } = require('./tz')
 const DEFAULTS = {
   defaultDailyLimit: 20000, maxCustomerLimit: 20000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 0, oneGuardNumbers: 10, oneGuardSimilar: 5, oneGuardSlowMin: 10, oneGuardDailyFree: 300, oneGuardNewDays: 3, swapUndelivered: 5, swapUndeliveredTo: 3,
   platformPerMin: 30, rateMargin: 2, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
-  minVolume: 500, maxVolume: 20000, pricePlain: 0.10, priceLink: 0.10, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 0, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
+  minVolume: 500, validatedMinVolume: 100, maxVolume: 20000, pricePlain: 0.10, priceLink: 0.10, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 0, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, testerRenumberDaily: true, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 0, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
   esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: false, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, reorderProviderFails: false, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 50, warmStaleMin: 60, warmLeadMin: 15, apiFailsToReplace: 3, platformPerMinAuto: true,
@@ -726,7 +726,8 @@ async function createBooking(cid, { date, hour, volume, type = 'paid', campaignI
   if (cu?.status !== 'active') return E('err_suspended')
   if (cp) { const k = checkContent(cp.content, cp.withLinks, cp.optOut); if (k.error) return k; if (cp.testedHash && contentHash(cp) !== cp.testedHash) return E('err_content_changed'); if ((cp.blockedVersions || []).length >= cp.content.length) return E('err_link_flagged_all') } // the stored text must still match the paid type and the tested text
   const fee = cp?.replies && type !== 'free' ? c.replyFee : 0
-  if (!(v >= c.minVolume && v <= c.maxVolume)) return E('err_volume', c.minVolume, c.maxVolume)
+  const minV = cp?.validated ? c.validatedMinVolume ?? 100 : c.minVolume
+  if (!(v >= minV && v <= c.maxVolume)) return E('err_volume', minV, c.maxVolume)
   if (v > limit) return E('err_allowance_over', limit)
   if (type === 'free' && (!c.freeBookings || v > c.freeVolume)) return E('err_free')
   if (!(await capacity(date, c)).perHour) { await unmet(cid, date, v); return E('err_no_lines') }
@@ -997,15 +998,17 @@ async function linkSweep() {
   }
 }
 // Every uploaded number is billed; numbers in `skip` (failed the number check) are billed but never texted.
-async function createCampaign(cid, { name, content, contacts, withLinks, optOut = true, replies = false, consent = false, uploadId = null, skip = [], linksUnchecked = false }) {
+// Lists that went through paid validation may be smaller (validatedMinVolume).
+async function createCampaign(cid, { name, content, contacts, withLinks, optOut = true, replies = false, consent = false, uploadId = null, skip = [], linksUnchecked = false, validated = false }) {
   const c = await cfg(), k = checkContent(content, withLinks, optOut); if (k.error) return k
   if (!consent) return E('err_consent')
   let total = 0, n = 0
   for (; n < contacts.length; n++) { const s = k.segs[n % k.parts.length]; if (total + s > c.maxVolume) break; total += s }
-  if (total < c.minVolume) return E('err_few', c.minVolume, total)
+  const min = validated ? c.validatedMinVolume ?? 100 : c.minVolume
+  if (total < min) return E('err_few', min, total)
   const kept = contacts.slice(0, n), sk = new Set(skip), send = kept.filter(p => !sk.has(p)), skipped = kept.filter(p => sk.has(p))
   if (!send.length) return E('err_no_mobile')
-  const doc = { _id: id('cp'), cid, name: String(name || 'Campaign').slice(0, 60), content: k.parts, withLinks: k.withLinks, optOut: k.optOut, replies: !!replies, consentAt: new Date(), contacts: send, skipped, linksUnchecked: !!(linksUnchecked && k.withLinks), dropped: contacts.length - n, parts: total, uploadId, volume: n, status: 'draft', testsUsed: 0, stats: { queued: 0, sent: 0, failed: 0, rejected: 0, replies: 0, optOuts: 0, skipped: skipped.length }, createdAt: new Date() }
+  const doc = { _id: id('cp'), cid, name: String(name || 'Campaign').slice(0, 60), content: k.parts, withLinks: k.withLinks, optOut: k.optOut, replies: !!replies, consentAt: new Date(), validated: !!validated, contacts: send, skipped, linksUnchecked: !!(linksUnchecked && k.withLinks), dropped: contacts.length - n, parts: total, uploadId, volume: n, status: 'draft', testsUsed: 0, stats: { queued: 0, sent: 0, failed: 0, rejected: 0, replies: 0, optOuts: 0, skipped: skipped.length }, createdAt: new Date() }
   await C('bsCampaigns').insertOne(doc); return { campaign: doc }
 }
 // Paid replies (+cfg.replyFee at booking): only then are replies to this campaign's texts forwarded to the customer.

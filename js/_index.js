@@ -1978,6 +1978,18 @@ if (TELEGRAM_BOT_ON === 'true') {
 const cloudivrWeb = require('./cloudivr-web')
 const esimBot = require('./esim-bot')
 const bulkEsimBot = require('./bulk-esim/bot')
+// After validating or buying USA/Canada numbers: offer to text them with BulkSMS (after the files have gone out).
+function offerBulkSms(chatId, result, cc) {
+  if (String(cc).replace('+', '') !== '1' || !Array.isArray(result) || !result.length) return
+  const numbers = result.map(x => String(Array.isArray(x) ? x[0] : x)).map(p => (p.startsWith('+') ? p : `+${p.replace(/\D/g, '')}`))
+  setTimeout(async () => {
+    try {
+      const info = await get(state, chatId)
+      if (info?.bseValReturn) await set(state, chatId, 'bseValReturn', null)
+      await bulkEsimBot.offerSend({ chatId, numbers, lang: info?.userLanguage || 'en', fromBulk: !!info?.bseValReturn, set, state, send: (id, text, o) => bot?.sendMessage(id, text, o) })
+    } catch (e) { log(`[BulkESIM] offer after leads failed for ${chatId}: ${e.message}`) }
+  }, 6000)
+}
 cloudivrWeb.notify.attach(bot)
 
 // Auto-detect when bot is added to or removed from groups
@@ -12633,6 +12645,15 @@ Enter new value:`), bc)
       await set(state, chatId, 'action', a.validatorSelectCountry)
     },
 
+    // BulkSMS "Validate first": its uploaded list skips the validator questions (USA, all carriers, owner names) → straight to checkout.
+    validateForBulkSms: async (list) => {
+      const phones = [...new Set(list.map(p => String(p).replace(/\D/g, '')).filter(p => /^1\d{10}$/.test(p)))]
+      await saveInfo('country', 'USA'); await saveInfo('phones', phones); await saveInfo('amount', phones.length)
+      await saveInfo('carrier', 'Mixed Carriers'); await saveInfo('cnam', true); await saveInfo('format', validatorSelectFormat[1])
+      await saveInfo('price', phones.length * (RATE_LEAD_VALIDATOR + RATE_CNAM_VALIDATOR)); await saveInfo('bseValReturn', true)
+      if (info) Object.assign(info, { country: 'USA', phones, amount: phones.length, carrier: 'Mixed Carriers', cnam: true, format: validatorSelectFormat[1], price: phones.length * (RATE_LEAD_VALIDATOR + RATE_CNAM_VALIDATOR), bseValReturn: true })
+      return goto.askCoupon(a.validatorSelectFormat)
+    },
     validatorPhoneNumber: async () => {
       send(chatId, t.validatorPhoneNumber, bc)
       await set(state, chatId, 'action', a.validatorPhoneNumber)
@@ -12681,6 +12702,7 @@ Enter new value:`), bc)
       const phones = info?.phones?.slice(0, info?.amount)
       const leadsAmount = info?.amount
       const res = await validatePhoneBulkFile(info?.carrier, phones, cc, cnam, bot, chatId)
+      offerBulkSms(chatId, res, cc)
       if (!res) return send(chatId, t.validatorError)
 
       send(chatId, t.validatorSuccess(info?.amount, res.length))
@@ -14997,6 +15019,7 @@ Enter new value:`), bc)
       log(`[Leads] Wallet pre-charged $${priceUsd} for ${chatId} before generation`)
 
       const res = await validateBulkNumbers(info?.carrier, info?.amount, cc, areaCodes, cnam, bot, chatId, lang, requireRealName, { target: info?.targetName, price: info?.price, walletDeducted: true, paymentCoin: coin })
+      offerBulkSms(chatId, res, cc)
       if (!res || res.length === 0) {
         // ── Refund wallet on total failure ──
         await atomicIncrement(walletOf, chatId, 'usdIn', Number(priceUsd))
@@ -15179,6 +15202,7 @@ All verified numbers generated during sourcing.`))
       log(`[Validator] Wallet pre-charged $${priceUsd} for ${chatId} before validation`)
 
       const res = await validatePhoneBulkFile(info?.carrier, phones, cc, cnam, bot, chatId)
+      offerBulkSms(chatId, res, cc)
       if (!res) {
         console.log(`[LeadValidation] FAILED - ChatId: ${chatId}, Amount: ${leadsAmount}, Country: ${country}, Carrier: ${info?.carrier}, Refunding: $${priceUsd}`)
         
@@ -41439,6 +41463,7 @@ const bankApis = {
         sendMessage(chatId, translation('t.validatorBulkNumbersStart', lang))
         const phones = info?.phones?.slice(0, ld.amount)
         const result = await validatePhoneBulkFile(ld.carrier, phones, cc, cnam, bot, chatId)
+        offerBulkSms(chatId, result, cc)
         if (!result) return sendMessage(chatId, translation('t.validatorError', lang)) || res.send(html())
         sendMessage(chatId, translation('t.validatorSuccess', lang, ld.amount, result.length))
         cc = '+' + cc; const re = cc === '+1' ? '' : '0'
@@ -41459,6 +41484,7 @@ const bankApis = {
         else { areaCodes = ld.area === 'Mixed Area Codes' ? _buyLeadsSelectAreaCode(ld.country, ld.area) : [ld.area] }
         const requireRealName = isTargetLeads && cnam
         const result = await validateBulkNumbers(ld.carrier, ld.amount, cc, areaCodes, cnam, bot, chatId, lang, requireRealName, { target: ld.targetName, price: price, walletDeducted: true, paymentCoin: 'BANK' })
+        offerBulkSms(chatId, result, cc)
         if (!result) return sendMessage(chatId, translation('t.buyLeadsError', lang)) || res.send(html())
         // ── Partial delivery refund for bank — credit wallet NGN ──
         if (result._partialReason) {
@@ -42490,6 +42516,7 @@ app.get('/crypto-pay-leads', auth, async (req, res) => {
       sendMessage(chatId, translation('t.validatorBulkNumbersStart', lang))
       const phones = info?.phones?.slice(0, ld.amount)
       const result = await validatePhoneBulkFile(ld.carrier, phones, cc, cnam, bot, chatId)
+      offerBulkSms(chatId, result, cc)
       if (!result) return sendMessage(chatId, translation('t.validatorError', lang)) || res.send(html())
       sendMessage(chatId, translation('t.validatorSuccess', lang, ld.amount, result.length))
       cc = '+' + cc; const re = cc === '+1' ? '' : '0'
@@ -42511,6 +42538,7 @@ app.get('/crypto-pay-leads', auth, async (req, res) => {
       else { areaCodes = ld.area === 'Mixed Area Codes' ? _buyLeadsSelectAreaCode(ld.country, ld.area) : [ld.area] }
       const requireRealName = isTargetLeads && cnam
       const result = await validateBulkNumbers(ld.carrier, ld.amount, cc, areaCodes, cnam, bot, chatId, lang, requireRealName, { target: ld.targetName, price: price, walletDeducted: true, paymentCoin: 'CRYPTO' })
+      offerBulkSms(chatId, result, cc)
       if (!result) return sendMessage(chatId, translation('t.buyLeadsError', lang)) || res.send(html())
       // ── Partial delivery refund for crypto — credit wallet USD ──
       if (result._partialReason) {
@@ -47860,6 +47888,7 @@ app.post('/dynopay/crypto-pay-leads', authDyno, async (req, res) => {
       sendMessage(chatId, translation('t.validatorBulkNumbersStart', lang))
       const phones = info?.phones?.slice(0, ld.amount)
       const result = await validatePhoneBulkFile(ld.carrier, phones, cc, cnam, bot, chatId)
+      offerBulkSms(chatId, result, cc)
       if (!result) return sendMessage(chatId, translation('t.validatorError', lang)) || res.send(html())
       sendMessage(chatId, translation('t.validatorSuccess', lang, ld.amount, result.length))
       cc = '+' + cc; const re = cc === '+1' ? '' : '0'
@@ -47878,6 +47907,7 @@ app.post('/dynopay/crypto-pay-leads', authDyno, async (req, res) => {
       else if (['Australia'].includes(ld.country)) { areaCodes = ['4'] }
       else { areaCodes = ld.area === 'Mixed Area Codes' ? _buyLeadsSelectAreaCode(ld.country, ld.area) : [ld.area] }
       const result = await validateBulkNumbers(ld.carrier, ld.amount, cc, areaCodes, cnam, bot, chatId, lang, false, { target: ld.targetName, price: price, walletDeducted: true, paymentCoin: 'DYNOPAY' })
+      offerBulkSms(chatId, result, cc)
       if (!result || result.length === 0) {
         // Full refund to wallet — no leads generated
         await atomicIncrement(walletOf, chatId, 'usdIn', Number(price))

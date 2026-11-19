@@ -805,4 +805,10 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Kept on purpose: Telegram bot + admin (user choice), filed hosted-SMS LOA PDF to carrier (names Telnyx), T-Mobile eSIM network, Mollie/crypto payment brands
 - 2026-11-19: Nomadlybot ads are service-only — removed nm-wallet topic/flow + "One wallet" what's-new item; prompt forbids wallet/deposit as subject; "how" posts rotate across all services
 - 2026-11-19: BulkSMS AI variants fix — prod has EMERGENT_LLM_KEY but no Python helper on :8001 (ECONNREFUSED); bulk-esim/core.js aiVariants now falls back to direct OpenAI (OPENAI_API_KEY, gpt-4o-mini) when the helper/Claude fails; alert only if both fail. Prod OpenAI key verified working (HTTP 200).
-- 2026-11-19: BulkSMS completion — admin alert shows "📥 N numbers · 🚫 X skipped (landlines/VoIP/invalid/other)" via skipBreakdown(bsLookups) and counts replies incl. 'kept' (replies off); customer n_done (5 langs) adds landline count + "not charged". Investigated cp_41a168c11057: 683 uploaded, 332 landlines skipped, 351/351 sent.
+- 2026-11-19: BulkSMS completion — admin alert shows "📥 N numbers · 🚫 X skipped (landlines/VoIP/invalid/other)" via skipBreakdown(bsLookups) and counts replies incl. 'kept' (replies off); customer n_done (5 langs) adds landline count (NOTE: skipped numbers ARE billed — $0.10 × every uploaded number). Investigated cp_41a168c11057: 683 uploaded, 332 landlines skipped, 351/351 sent.
+
+### 2026-11-19 — Validate ↔ BulkSMS connection (bot)
+- After any USA/Canada validation (5 pay paths) or leads purchase (4 pay paths): offerBulkSms() → bulk-esim offerSend: "🚀 Text them now / 🗓 Schedule for later (cheaper) / 📥 Just the file"; list kept in bsHandoff, buttons work from any screen (label routing)
+- Hand-off skips Step 1 → consent screen with "✅ Validated list"; validated campaigns allowed from 100 (cfg validatedMinVolume); "Schedule" puts 📅 first on the when screen
+- BulkSMS Step 1: tip (every number billed $0.10; validating $0.03 = lead+CNAM) + "✅ Validate my numbers first"; after upload "✅ Validate these first" + savings line when numbers are skipped → goto.validateForBulkSms (USA, Mixed Carriers, CNAM, skips to coupon/checkout, any size 500–20k) → returns with ho_intro_bulk
+- Fixed wrong n_done claim: skipped numbers ARE billed
