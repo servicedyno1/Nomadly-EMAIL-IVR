@@ -3763,3 +3763,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Back: numbers → country → plans. Checkout was already one screen (Step 4 of 4 Review & pay).
 - Files: _index.js (cpPlanKb/cpAskPlanFirst/cpAskCountry/cpTypeOf/cpNumberExtras), bot-number-kinds.js, phone-config.js, ai-support.js.
 - Test: js/tests/test_bot_get_a_plan_journey.js (15/15) + manual run to the pay screen.
+
+## 2026-06 — Investigation: MultiTEL "Purchase not allowed" (no code change)
+- Alert: multitel couldn't sell +18774892734 (US toll-free), fallback +18447655842 also refused; customer 1005284399 refunded $120 to wallet (2026-11-19 15:52 UTC).
+- Root cause: MultiTEL account `dynopt` has purchasing disabled. `rentnumber` returns body code 403 "Purchase not allowed - please contact support" for toll-free AND local (live test 1 TF + 1 local: both refused, $0 charged, balance $87.61).
+- Catalog is correct (6 TF blocks 833/844/855/866/877/888, one price each, no restrictions) and identical to earlier successful buys. Search shows stock only, not account permission.
+- Last successful buy 2026-11-18 22:40 UTC. Owned: 48 numbers (24 toll-free); calls/texts unaffected.
+- User decision: leave sales as-is (no auto-pause); user to contact MultiTEL support.
