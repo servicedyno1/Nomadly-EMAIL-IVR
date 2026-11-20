@@ -27,10 +27,10 @@ async function enqueue({ chatId, phoneNumber, order, amount, email = null, lang 
   await col.insertOne({ _id: order.id, kind, chatId, phoneNumber, provider: order._provider, meta: order._meta, amount: Number(amount) || 0, email, lang, status: 'waiting', createdAt: new Date() })
   if (!order._meta?.orderPrefix) held.add(phoneNumber)
   D.notifyAdmin?.(`⏳ Order waiting on ${order._provider} (top-up or outage): ${phoneNumber} for ${chatId} ($${Number(amount || 0).toFixed(2)} paid). It completes automatically once the supplier works again; refunded after 24 h.`)
-  D.adminEmail?.(`Order waiting for ${order._provider} top-up`, `<p><b>${phoneNumber}</b> was paid ($${Number(amount || 0).toFixed(2)}) but ${order._provider} balance is too low to buy it.</p><p>Top up and it completes automatically. Unfinished orders are refunded after 48 hours.</p>`)
+  D.adminEmail?.(`Order waiting for ${order._provider} top-up`, `<p><b>${phoneNumber}</b> was paid ($${Number(amount || 0).toFixed(2)}) but ${order._provider} balance is too low to buy it.</p><p>Top up and it completes automatically. Unfinished orders are refunded after 24 hours.</p>`)
 }
 
-const pendingMsg = (phone) => `⏳ <b>Payment received — setting up ${phone}</b>\nYour number is being provisioned. We'll message and email you as soon as it's ready (usually within a few hours).`
+const pendingMsg = (phone, kind = 'number') => `⏳ <b>Payment received — setting up ${phone}</b>\nWe're reserving it with the carrier and try again every ${RETRY_MS / 60000} minutes on our own. ${kind === 'fax' ? 'Once it\'s reserved, receiving works straight away and sending in about 5 minutes.' : 'Once it\'s reserved, calls in work straight away and calls out in about 5 minutes.'} We'll message and email you when it's ready — if it isn't within 24 hours, you're refunded.`
 
 async function tell(o, text, subject) {
   D.send?.(o.chatId, text)

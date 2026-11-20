@@ -39,6 +39,8 @@ const B = {
   welcome: (d, c, f, x) => ({ ...head(c.welcome, d, f), t: 'brand',
     body: P(c.welcome.intro(d, f)) + L.steps(c.welcome.steps) + L.button(c.welcome.cta(d), x.app('/app/buy')) + L.small(c.welcome.ps) }),
 
+  welcomeBack: (d, c, f, x) => ({ ...head(c.welcomeBack, d, f), t: 'brand',
+    body: P(c.welcomeBack.intro(d, f)) + L.button(c.welcomeBack.cta(d), x.app(d.tried ? '/app/buy' : '/app/quick-call')) + L.small(c.welcomeBack.ps) }),
   tryNudge: (d, c, f, x) => ({ ...head(c.tryNudge, d, f), t: 'brand',
     body: P(c.tryNudge.intro(d, f)) + L.steps(c.tryNudge.steps) + L.button(c.tryNudge.cta(d), x.app('/app/quick-call')) + L.small(c.tryNudge.ps) }),
   depositNudge: (d, c, f, x) => ({ ...head(c.depositNudge, d, f), t: 'brand',

@@ -35,12 +35,26 @@ const { createEmails } = require('./emails')
 const { createOffers } = require('./offers')
 const { scrubProviderNames } = require('../sanitize-provider')
 
-// API messages (top level, and per-call errors in results / calls lists) never name the carrier or registrar.
+// API text never names a carrier, registrar or server software. Customer routes: every human-readable field at any
+// depth (messages, labels, descriptions, notes…). Admin routes keep raw names except in the top-level message.
+// Message bodies the customer sent or received ("text"/"body") are left as they are.
 const MSG_KEYS = ['message', 'error', 'detail']
-function scrubBody(b) {
-  if (!b || typeof b !== 'object' || Array.isArray(b)) return b
+const TEXT_KEYS = new Set([...MSG_KEYS, 'note', 'notes', 'label', 'title', 'description', 'desc', 'summary', 'reason', 'hint', 'help', 'tip', 'info', 'warning', 'caption', 'headline', 'subtitle', 'line', 'lines', 'bullets', 'steps', 'status_text', 'statusText', 'explanation', 'why', 'heading', 'cta', 'blurb', 'answer', 'question', 'details'])
+function deepScrub(v, depth = 0) {
+  if (depth > 12 || !v || typeof v !== 'object') return v
+  if (Array.isArray(v)) { for (const x of v) deepScrub(x, depth + 1); return v }
+  for (const [k, x] of Object.entries(v)) {
+    if (typeof x === 'string') { if (TEXT_KEYS.has(k)) v[k] = scrubProviderNames(x) }
+    else if (Array.isArray(x) && TEXT_KEYS.has(k)) v[k] = x.map(y => (typeof y === 'string' ? scrubProviderNames(y) : deepScrub(y, depth + 1)))
+    else if (x && typeof x === 'object' && !(x instanceof Date) && !Buffer.isBuffer(x)) deepScrub(x, depth + 1)
+  }
+  return v
+}
+function scrubBody(b, admin) {
+  if (!b || typeof b !== 'object') return b
+  if (!admin) return deepScrub(b)
+  if (Array.isArray(b)) return b
   for (const k of MSG_KEYS) if (typeof b[k] === 'string') b[k] = scrubProviderNames(b[k])
-  for (const list of [b.results, b.calls]) if (Array.isArray(list)) for (const x of list) if (x && typeof x.error === 'string') x.error = scrubProviderNames(x.error)
   return b
 }
 
@@ -71,7 +85,7 @@ function createCloudIvrWeb(deps) {
         res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'private, max-age=900', 'Content-Disposition': 'inline; filename="renewals.ics"' }).send(out)
       } catch (e) { log(`[CloudIVR-Web] calendar feed error: ${e.message}`); res.sendStatus(500) }
     })
-    r.get('/public/catalog', h(async (req, res) => { const c = numbers.catalog(); res.json({
+    r.get('/public/catalog', h(async (req, res) => { const c = numbers.catalog(); await mollie.warm(req); res.json({
       ...c, cardPayments: c.cardPayments || mollie.cardsLive(req), paymentMethods: await mollie.publicMethods(req).catch(() => []), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
     }) }))
     trycall.routes(r, { ...deps, db, h })
@@ -195,6 +209,7 @@ function createCloudIvrWeb(deps) {
     require('./travel-esim').createTravelEsim({ db, h, walletOps: require('./wallet').walletOps, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log }).routes(r)
     require('../active-slot').singletonInterval('cloudivr-number-docs', () => numberDocs.tick().catch(e => log(`[NumberDocs] tick: ${e.message}`)), 30 * 60000)
     Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile, numberDocs, compliance }))
+    module.exports.numbersApi = numbersApi // the bot's Replace number uses the same flow
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })
@@ -278,12 +293,13 @@ function createCloudIvrWeb(deps) {
   }
   router.use((req, res, next) => {
     const json = res.json.bind(res)
+    const admin = /^\/admin(\/|$)/.test(req.path)
     res.json = (body) => {
       if (res.statusCode === 402 && SHORT_CODES.has(body?.error) && req.webChatId && (body.error === 'insufficient_balance' || /wallet|balance/i.test(body.message || ''))) {
-        withShortfall(req, body).then(b => json(scrubBody(b)), () => json(scrubBody(body)))
+        withShortfall(req, body).then(b => json(scrubBody(b, admin)), () => json(scrubBody(body, admin)))
         return res
       }
-      return json(scrubBody(body))
+      return json(scrubBody(body, admin))
     }
     next()
   })

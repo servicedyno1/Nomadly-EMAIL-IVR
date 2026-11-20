@@ -812,6 +812,8 @@ const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = requi
 const phoneConfig = require('./phone-config.js')
 const botRec = require('./bot-receptionist')
 const botFax = require('./bot-fax-numbers')
+const botReplace = require('./bot-replace-number')
+const setupStatus = require('./setup-status')
 const botKinds = require('./bot-number-kinds')
 const safeUrl = require('./safe-url')
 const planLifecycle = require('./plan-lifecycle.js')
@@ -14909,7 +14911,7 @@ Enter new value:`), bc)
           send(chatId, subMsg, trans('o'))
           notifyGroup(cpTxt.adminSubPurchase(maskName(name), selectedNumber, info?.cpSubParentNumber, price, coin === u.usd ? 'Wallet USD' : 'Wallet USD'), cpTxt.adminSubPurchasePrivate(adminUserTag(name, chatId), selectedNumber, info?.cpSubParentNumber, price, coin === u.usd ? 'Wallet USD' : 'Wallet USD'))
         } else {
-          const activatedMsg = orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
+          const activatedMsg = orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + require('./setup-status').linkNote(orderResult) + 
             `\n\n<b>Transaction ID:</b> <code>${txnId}</code>\n<i>Quote this ID when contacting support</i>`
           send(chatId, activatedMsg, trans('o'))
           postActivationNudge(chatId, selectedNumber, plan.name)
@@ -26657,6 +26659,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       let displayText = ''
       if (numbers.length) {
         displayText += cpTxt.myNumbersList(numbers)
+        displayText += await setupStatus.botBlock(db, chatId, info?.userLanguage).catch(() => '')
       }
       if (userPendingBundles.length) {
         if (numbers.length) displayText += '\n'
@@ -26830,7 +26833,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpMyNumbers)
       await saveInfo('cpNumbers', numbers)
       const numBtns = numbers.map((_, i) => String(i + 1))
-      return send(chatId, cpTxt.myNumbersList(numbers), k.of([numBtns]))
+      return send(chatId, cpTxt.myNumbersList(numbers) + await setupStatus.botBlock(db, chatId, info?.userLanguage).catch(() => ''), k.of([numBtns]))
     }
     // 🧪 Test SIP Free — inside Cloud IVR submenu
     if (phoneConfig.btnKeyOf(message) === 'testSipFree') {
@@ -31463,8 +31466,27 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         : ''
       rows.push([`${_btnLabel}${_suffix}`])
     }
+    if (botReplace.offered(num)) rows.push([botReplace.T(lang).btn])
     rows.push([pc.renewChangePlan, pc.releaseNumber])
     return rows
+  }
+
+  // Replace number (bot-replace-number.js runs the same flow as the web app).
+  function replaceCtx(num, message, action) {
+    return {
+      chatId: String(chatId), message, action, info, lang: info?.userLanguage || 'en', num, db, log,
+      setAction: (v) => set(state, chatId, 'action', v), save: (key, v) => saveInfo(key, v),
+      send: (text, opts = {}) => send(chatId, text, { parse_mode: 'HTML', ...opts }),
+      kb: (rows) => k.of([...rows, ['Back']]),
+      back: async () => { await set(state, chatId, 'action', a.cpManageNumber); return showManageScreen(chatId, num) },
+      open: async (phone) => {
+        const fresh = ((await get(phoneNumbersOf, chatId))?.numbers || []).find(x => x.phoneNumber === phone && x.status !== 'released')
+        await saveInfo('cpActiveNumber', fresh)
+        await set(state, chatId, 'action', a.cpManageNumber)
+        return showManageScreen(chatId, fresh)
+      },
+      wallet: () => require('./cloudivr-web/wallet').walletOps(db).balance(String(chatId)),
+    }
   }
 
   // Helper: Show manage screen with sub-number data
@@ -31481,7 +31503,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const subCount = num.isSubNumber ? 0 : allNumbers.filter(n => n.isSubNumber && n.parentNumber === num.phoneNumber && (n.status === 'active' || n.status === 'suspended')).length
     const subLimit = num.isSubNumber ? 0 : phoneConfig.getSubNumberLimit(num.plan)
     const faxNote = faxService.lineOn(num) ? `\n\n${faxService.t(info?.userLanguage).lineOn(num.phoneNumber)}` : ''
-    return send(chatId, cpTxt.manageNumber(num, subCount, subLimit, allNumbers) + `\n\n📞 <i>${require('./call-flow').callFlow(num)}</i>` + faxNote, k.of(buildManageMenu(num, subCount, subLimit)))
+    const setupNote = await setupStatus.botBlock(db, chatId, info?.userLanguage, num.phoneNumber).catch(() => '')
+    return send(chatId, cpTxt.manageNumber(num, subCount, subLimit, allNumbers) + `\n\n📞 <i>${require('./call-flow').callFlow(num)}</i>` + faxNote + setupNote, k.of(buildManageMenu(num, subCount, subLimit)))
   }
 
   // Fax menu for a Business number (re-reads the record so the fax-line state is current).
@@ -31811,6 +31834,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       })))
       let displayText = ''
       if (numbers.length) displayText += cpTxt.myNumbersList(numbers)
+      displayText += await setupStatus.botBlock(db, chatId, info?.userLanguage).catch(() => '')
       if (userPendingBundles.length) {
         if (numbers.length) displayText += '\n'
         displayText += '⏳ <b>Pending Orders:</b>\n\n'
@@ -31907,11 +31931,16 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   // ━━━ MANAGE NUMBER ━━━
+  if (String(action || '').startsWith('rpn')) {
+    if (isBackPress(message)) { await set(state, chatId, 'action', a.cpManageNumber); return showManageScreen(chatId, info?.cpActiveNumber) }
+    return botReplace.handle(replaceCtx(info?.cpActiveNumber, message, action))
+  }
   if (action === a.cpManageNumber) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
+    if (botReplace.isMenu(message)) return botReplace.start(replaceCtx(num, message, action), num)
     if (botKinds.isTextingOn(message) && num.capabilities?.sms === true) {
       await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'sms', true)
       num.features.sms = true
@@ -31926,7 +31955,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await saveInfo('cpNumbers', numbers)
       await set(state, chatId, 'action', a.cpMyNumbers)
       const numBtns = numbers.map((_, i) => String(i + 1))
-      return send(chatId, cpTxt.myNumbersList(numbers), k.of([numBtns, [pc.buyAnother]]))
+      return send(chatId, cpTxt.myNumbersList(numbers) + await setupStatus.botBlock(db, chatId, info?.userLanguage).catch(() => ''), k.of([numBtns, [pc.buyAnother]]))
     }
 
     // AI Receptionist
@@ -41386,7 +41415,7 @@ const bankApis = {
       log('[Phone] Failed to log transaction (non-blocking):', txErr.message)
     }
     
-    const activatedMsg = orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
+    const activatedMsg = orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + require('./setup-status').linkNote(orderResult) + 
       `\n\n<b>Transaction ID:</b> <code>${txnId}</code>\n<i>Quote this ID when contacting support</i>`
     sendMessage(chatId, activatedMsg)
     // postActivationNudge both sends the "tap SIP Credentials" follow-up AND
@@ -42402,7 +42431,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
   const existing = await get(phoneNumbersOf, chatId)
   await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'crypto_' + coin, timestamp: new Date().toISOString() })
   await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref }, 'blockbee')
-  sendMessage(chatId, orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
+  sendMessage(chatId, orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + require('./setup-status').linkNote(orderResult))
   postActivationNudge(chatId, selectedNumber, plan.name)
   notifyGroup(cpTxt.adminPurchase(maskName(name), selectedNumber, plan.name, price, 'Crypto ' + coin), cpTxt.adminPurchasePrivate(adminUserTag(name, chatId), selectedNumber, plan.name, price, 'Crypto ' + coin))
   webhookTierCheck(chatId, preSpend, lang)
@@ -47753,7 +47782,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
   const existing = await get(phoneNumbersOf, chatId)
   await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'crypto_dynopay_' + coin, timestamp: new Date().toISOString() })
   await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref }, 'dynopay')
-  sendMessage(chatId, orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
+  sendMessage(chatId, orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + require('./setup-status').linkNote(orderResult))
   postActivationNudge(chatId, selectedNumber, plan.name)
   notifyGroup(cpTxt.adminPurchase(maskName(name), selectedNumber, plan.name, price, 'Crypto DynoPay'), cpTxt.adminPurchasePrivate(adminUserTag(name, chatId), selectedNumber, plan.name, price, 'Crypto DynoPay'))
   webhookTierCheck(chatId, preSpend, lang)

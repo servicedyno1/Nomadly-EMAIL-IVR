@@ -12,7 +12,7 @@ const en = {
   foot: { why: (e) => `You're getting this because ${e} has a CloudIVR account.`, settings: 'Email settings', support: 'Message support', off: { weekly: 'Stop weekly summaries', campaigns: 'Stop campaign reports', voicemail: 'Stop voicemail alerts', receptionist: 'Stop AI receptionist messages', missed: 'Stop missed-call alerts' } },
   adds: {
     standard: ['Keypad menu — press 1 for sales', 'Ring groups — ring several phones at once', 'Call recording', 'AI call summaries'],
-    pro: ['Quick IVR & recorded-message campaigns', 'AI conversation campaigns — an AI talks with each lead', 'Code collection with Accept / Decline', 'Scheduled calls & saved presets'],
+    pro: ['Quick IVR & recorded-message campaigns', 'AI conversation campaigns — an AI talks with each lead', 'Verify your customers identity via OTP', 'Scheduled calls & saved presets'],
     business: ['Call from any number (custom caller ID)', 'Text Triggers — a text starts a call', 'Text calls for deaf & hard-of-hearing users', 'Encrypted calls', 'Priority support'],
   },
   upsell: { title: (p) => `Want more firepower? ${p} adds:`, cta: (p) => `See what ${p} adds` },
@@ -37,6 +37,14 @@ const en = {
     intro: (d) => `You started a $${d.amount} ${d.coin} payment${d.phone ? ` for ${d.phone}` : ''} but it hasn’t arrived yet. Open it to see the address and amount again — anything you already sent still lands in your wallet.`,
     cta: (d) => d.phone ? 'Finish my order' : 'Finish my top-up',
     ps: 'Changed your mind? Ignore this email — we won’t remind you again after tomorrow.',
+  },
+  welcomeBack: {
+    subject: (d) => d.tried ? 'Your CloudIVR number is one step away' : 'Your free CloudIVR call is still waiting',
+    preheader: () => 'Hear it on your own phone in under a minute — no number, payment or paperwork.',
+    eyebrow: 'Welcome back', title: (d) => d.tried ? 'Ready for your own number?' : 'Hear CloudIVR on your own phone.',
+    intro: (d) => d.tried ? 'You tried CloudIVR a few days ago. Pick a local number and your calls, menus and AI receptionist are live in minutes.' : 'You created your account a few days ago. Your free test call takes under a minute: type a message, enter your phone number, and we ring you.',
+    cta: (d) => d.tried ? 'Pick my number' : 'Make my free call',
+    ps: 'Questions? Reply to this email or message @CloudIVRhelp on Telegram.',
   },
   tryNudge: {
     subject: () => 'Your free CloudIVR call is waiting',
@@ -217,7 +225,7 @@ const fr = {
   foot: { why: (e) => `Vous recevez cet e-mail car ${e} possède un compte CloudIVR.`, settings: 'Paramètres e-mail', support: 'Contacter le support', off: { weekly: 'Ne plus recevoir le résumé hebdo', campaigns: 'Ne plus recevoir les rapports de campagne', voicemail: 'Ne plus recevoir les alertes de messagerie', receptionist: 'Ne plus recevoir les messages du réceptionniste IA', missed: 'Ne plus recevoir les alertes d’appel manqué' } },
   adds: {
     standard: ['Menu à touches — 1 pour les ventes', 'Groupes de sonnerie', 'Enregistrement d’appels', 'Résumés d’appels IA'],
-    pro: ['Quick IVR et campagnes de messages enregistrés', 'Campagnes de conversations IA — une IA parle avec chaque contact', 'Collecte de codes avec Accepter / Refuser', 'Appels planifiés et préréglages enregistrés'],
+    pro: ['Quick IVR et campagnes de messages enregistrés', 'Campagnes de conversations IA — une IA parle avec chaque contact', 'Vérifiez l’identité de vos clients par OTP', 'Appels planifiés et préréglages enregistrés'],
     business: ['Appeler depuis n’importe quel numéro (caller ID personnalisé)', 'Text Triggers — un SMS déclenche un appel', 'Appels texte pour personnes sourdes et malentendantes', 'Appels chiffrés', 'Support prioritaire'],
   },
   upsell: { title: (p) => `Envie de plus de puissance ? ${p} ajoute :`, cta: (p) => `Voir ce qu’ajoute ${p}` },
@@ -242,6 +250,14 @@ const fr = {
     intro: (d) => `Vous avez commencé un paiement de $${d.amount} en ${d.coin}${d.phone ? ` pour ${d.phone}` : ''}, mais il n’est pas encore arrivé. Ouvrez-le pour revoir l’adresse et le montant — tout ce que vous avez déjà envoyé arrive dans votre portefeuille.`,
     cta: (d) => d.phone ? 'Finaliser ma commande' : 'Finaliser ma recharge',
     ps: 'Vous avez changé d’avis ? Ignorez cet e-mail — nous ne vous le rappellerons plus après demain.',
+  },
+  welcomeBack: {
+    subject: (d) => d.tried ? 'Votre numéro CloudIVR est à une étape' : 'Votre appel CloudIVR gratuit vous attend',
+    preheader: () => 'Écoutez-le sur votre propre téléphone en moins d’une minute — sans numéro, paiement ni formalités.',
+    eyebrow: 'Bon retour', title: (d) => d.tried ? 'Prêt pour votre propre numéro ?' : 'Écoutez CloudIVR sur votre téléphone.',
+    intro: (d) => d.tried ? 'Vous avez essayé CloudIVR il y a quelques jours. Choisissez un numéro local : appels, menus et réceptionniste IA sont en ligne en quelques minutes.' : 'Vous avez créé votre compte il y a quelques jours. Votre appel test gratuit prend moins d’une minute : tapez un message, entrez votre numéro, et nous vous appelons.',
+    cta: (d) => d.tried ? 'Choisir mon numéro' : 'Faire mon appel gratuit',
+    ps: 'Des questions ? Répondez à cet e-mail ou écrivez à @CloudIVRhelp sur Telegram.',
   },
   tryNudge: {
     subject: () => 'Votre appel CloudIVR gratuit vous attend',
@@ -447,6 +463,14 @@ const es = {
     intro: (d) => `Empezaste un pago de $${d.amount} en ${d.coin}${d.phone ? ` para ${d.phone}` : ''}, pero aún no ha llegado. Ábrelo para ver de nuevo la dirección y el importe — lo que ya enviaste llega igualmente a tu monedero.`,
     cta: (d) => d.phone ? 'Terminar mi pedido' : 'Terminar mi recarga',
     ps: '¿Cambiaste de idea? Ignora este correo — no volveremos a recordártelo después de mañana.',
+  },
+  welcomeBack: {
+    subject: (d) => d.tried ? 'Tu número CloudIVR está a un paso' : 'Tu llamada gratis de CloudIVR te espera',
+    preheader: () => 'Escúchalo en tu propio teléfono en menos de un minuto — sin número, pago ni papeleo.',
+    eyebrow: 'Bienvenido de nuevo', title: (d) => d.tried ? '¿Listo para tu propio número?' : 'Escucha CloudIVR en tu propio teléfono.',
+    intro: (d) => d.tried ? 'Probaste CloudIVR hace unos días. Elige un número local y tus llamadas, menús y recepcionista IA funcionan en minutos.' : 'Creaste tu cuenta hace unos días. Tu llamada de prueba gratis tarda menos de un minuto: escribe un mensaje, pon tu número y te llamamos.',
+    cta: (d) => d.tried ? 'Elegir mi número' : 'Hacer mi llamada gratis',
+    ps: '¿Preguntas? Responde a este correo o escribe a @CloudIVRhelp en Telegram.',
   },
   tryNudge: {
     subject: () => 'Tu llamada gratis de CloudIVR te espera',

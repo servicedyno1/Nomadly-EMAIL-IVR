@@ -191,7 +191,7 @@ const SCREENS = {
       ringTimeout: [int(10, 60), 'seconds to ring before forwarding, 10-60'],
       backups: [phoneCsv(4), 'backup phones, comma separated'],
       holdMusic: [bool, 'hold music while connecting'],
-      showCallerId: [bool, 'true = forwarded phone sees the caller\'s number (US), false = sees the business number'],
+      showCallerId: [bool, 'true = forwarded phone sees the caller\'s number (US; only if LIVE STATUS allows it, else always false), false = sees the business number'],
     },
   },
   ringgroup: {
@@ -222,7 +222,7 @@ const SCREENS = {
 
 // How CloudIVR works end to end, so the assistant can explain, suggest and catch mistakes on any screen.
 const KNOWLEDGE = `HOW CLOUDIVR WORKS (audited from the product — rely on this, don't guess beyond it)
-PLANS (per number): Basic, Plus, Pro, Business. Basic: forwarding, voicemail, browser phone, softphone (SIP), AI receptionist (per minute). Plus adds keypad menu (IVR), ring group, call recording, AI call summaries. Pro adds Quick IVR calls, Bulk IVR campaigns, AI conversation campaigns, OTP code collection, scheduling Quick calls, presets, one saved voice, SMS to email/webhook. Business adds custom caller ID (call from any number), Text Triggers, redial, own OTP confirm/reject sentences, text calls, encrypted calls. If the owner wants something their plan can't do, say which plan it needs (upgrade is in the number's Billing tab).
+PLANS (per number): Basic, Plus, Pro, Business. Basic: forwarding, voicemail, browser phone, softphone (SIP), AI receptionist (pay as you use). Plus adds keypad menu (IVR), ring group, call recording, AI call summaries. Pro adds Quick IVR calls, Bulk IVR campaigns, AI conversation campaigns, verifying your customers identity via OTP, scheduling Quick calls, presets, one saved voice, SMS to email/webhook. Business adds custom caller ID (call from any number), Text Triggers, redial, own OTP confirm/reject sentences, text calls, encrypted calls. If the owner wants something their plan can't do, say which plan it needs (upgrade is in the number's Billing tab).
 INBOUND — what answers a call, first match wins: 1) forwarding set to "always" (beats everything, even the AI agent) 2) AI voice agent 3) ring group 4) keypad menu — while the menu is on, busy/no-answer forwarding, browser ring and voicemail don't run except through its keys 5) forwarding when busy / not answered (rings the browser phone/softphone first) 6) browser phone / softphone 7) voicemail. The Hours schedule applies on top: when closed, callers go to voicemail (Starter+), hear a closed message and are hung up, or are forwarded to up to 5 backup numbers (~20 s each). The schedule has its own on/off switch.
 KEYPAD MENU (IVR, Plus+): greeting (typed text read in the app's language, or an audio file / AI voice), then the caller presses ONE key 0-9 (up to 10 keys). Wrong or no key: they hear "invalid option" once, then goodbye. Key actions:
 - forward: rings a phone (with country code); billed per minute from the wallet (US/Canada cheaper than international); blocked if the wallet can't cover a minute. Hold music follows the Forwarding tab's setting.
@@ -246,7 +246,7 @@ KEYPAD MENU (IVR, Plus+): greeting (typed text read in the app's language, or an
 - afterHours: a separate menu used outside the number's Hours schedule (instead of the closed message), e.g. "We're closed. Press 1 to leave a message, press 2 for emergencies." Needs the Hours schedule on (account info hoursOn).
 - submenu: more levels of keys with their own greeting (may nest up to 3 levels deep).
 The menu must be saved AND switched on (switch at the top). Switching it on turns the AI agent off on that number.
-FORWARDING: always / when busy / when not answered after 10-60 s; up to 4 backups ring one after another; forwarded phone sees the business number or, US only, the caller's number. Minutes bill from the wallet.
+FORWARDING: always / when busy / when not answered after 10-60 s; up to 4 backups ring one after another; forwarded phone sees the business number (showing the caller's number instead only when LIVE STATUS doesn't list it as not available). Minutes bill from the wallet.
 RING GROUP (Plus+): up to 5 phones ring together, first to answer gets it; ring 10-60 s; then voicemail, one backup number, or a sorry message. While on, forwarding and the keypad menu are skipped; Hours still apply.
 VOICEMAIL (every plan): standard greeting in a chosen language, or own audio / AI voice made from text; ring time 10-60 s; email copy; transcripts.
 TEXTING on a calling number is an add-on ($0.05 per text sent, receiving free); US local numbers need 10DLC registration, toll-free numbers need verification, before texts work. Missed-call text: one text per caller per day after an unanswered call (needs texting on). Text Triggers (Business): an incoming text starts a call — callback (rings the owner, reads the text, press 1 to call them back), message (calls the texter and reads a message), ai (AI agent calls them back); filters: keywords, business hours only, once per sender per hour; checked top to bottom, max 5; wallet must be over $1.

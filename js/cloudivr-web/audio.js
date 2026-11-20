@@ -34,7 +34,7 @@ function routes(router, { db, h, upload, audioLibraryService, ttsService, log = 
 
   router.post('/audio/tts', h(async (req, res) => {
     const text = String(req.body.text || '').trim()
-    const voiceKey = String(req.body.voice || 'rachel')
+    const voiceKey = String(req.body.voice || ttsService.DEFAULT_VOICE)
     const speed = Math.min(1.5, Math.max(0.5, Number(req.body.speed) || 1))
     if (text.length < 3 || text.length > 1500) return bad(res, 400, 'invalid_text', 'Write 3–1500 characters for the voice to read.')
     if (!ttsService.ALL_VOICES[voiceKey]) return bad(res, 400, 'invalid_voice', 'Pick a voice from the list.')

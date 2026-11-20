@@ -115,6 +115,8 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, get
   }
   const enabled = () => keyed()
   // Cached answer for public pages; refreshes in the background so the page never waits on Mollie.
+  // First question after a restart: wait briefly for Mollie's answer instead of saying "not live".
+  const warm = async (req) => { const o = siteOf(req); if (!sites.has(o)) await Promise.race([checkDomain(o).catch(() => {}), new Promise(ok => setTimeout(ok, 2500))]) }
   const cardsLive = (req) => { const o = siteOf(req); checkDomain(o).catch(() => {}); return sites.get(o)?.ok === true }
   // The payment methods the site's Mollie profile actually has switched on (iDEAL, cards, PayPal, Apple Pay …), for the
   // public landing page. Non-blocking: returns [] until the domain is approved + methods are fetched, then cached 30 min.
@@ -301,7 +303,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, get
     }))
   }
 
-  return { enabled, options, sync, settle, refund, routes, publicRoutes, checkDomain, sites, cardsLive, publicMethods }
+  return { enabled, options, sync, settle, refund, routes, publicRoutes, checkDomain, sites, cardsLive, publicMethods, warm }
 }
 
 module.exports = { createMollie, CURRENCIES, mode }

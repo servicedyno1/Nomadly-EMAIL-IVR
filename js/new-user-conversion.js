@@ -759,8 +759,8 @@ function initNewUserConversion(bot, db, stateCol, walletOfCol, paymentsCol, life
 
       // ── Fictional social proof numbers for conversion ──
       // Each category gets a believable weekly range.
-      // Use a weekly seed so numbers change each week but stay consistent within the week.
-      const weekSeed = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))
+      // Daily seed: the numbers move every day (a "this week" count that never changes looks frozen).
+      const weekSeed = Math.floor(Date.now() / (24 * 60 * 60 * 1000))
       const seededRandom = (min, max, salt) => {
         // Simple deterministic hash per category per week
         const hash = ((weekSeed * 2654435761 + salt) >>> 0) % 10000

@@ -161,7 +161,7 @@ async function trialStatus(db, numbersApi, chatId) {
     db.collection('state').findOne({ _id: `ivrTrialUsed_${chatId}` }),
     numbersApi.myNumbers(chatId),
   ])
-  const hasCaller = nums.some(n => n.status === 'active' && ['telnyx', 'signalwire', 'multitel', 'infobip'].includes(n.provider) && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
+  const hasCaller = nums.some(n => n.status === 'active' && ['telnyx', 'signalwire', 'multitel', 'infobip', 'retell'].includes(n.provider) && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
   const used = !!p?.ivrTrialUsed || st?.val === true
   const heldUntil = p?.ivrTrialPendingAt ? new Date(p.ivrTrialPendingAt).getTime() + TRIAL_HOLD_MS : 0
   const inProgress = !used && heldUntil > Date.now()
@@ -185,7 +185,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (!trial) {
       caller = await numbersApi.findMine(chatId, b.callerId)
       if (!caller || caller.status !== 'active') return { err: [400, 'invalid_caller', 'Pick one of your active numbers as caller ID.'] }
-      if (!['telnyx', 'signalwire', 'multitel', 'infobip'].includes(caller.provider) || caller.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
+      if (!['telnyx', 'signalwire', 'multitel', 'infobip', 'retell'].includes(caller.provider) || caller.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
       if (!phoneConfig.canAccessFeature(caller.plan, 'ivrOutbound')) return { err: [403, 'plan_upgrade_required', 'Quick IVR calls need the Pro plan or higher on the caller number.'] }
     }
     let callerId = trial ? null : caller.phoneNumber
@@ -289,14 +289,14 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     return {
       cfg: {
-        stopKey, callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
+        stopKey, callerId, showAs, callerPlan: caller?.plan || null, callerProvider: caller?.provider || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
         personalize: personalizeCfg, leadText, skipped,
       },
     }
   }
 
-  const rateOf = (cfg) => Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0)
+  const rateOf = (cfg) => +(Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0) + voiceService.surchargeOfNum({ provider: cfg.callerProvider })).toFixed(4)
   const engineParams = (chatId, cfg, to, trial) => ({
     chatId, callerId: cfg.callerId, displayCallerId: cfg.showAs || null, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
     audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : (cfg.personalize?.on && cfg.leadText ? cfg.leadText[to] : cfg.text), voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, stopKey: cfg.stopKey || null, templateName: cfg.templateName,
@@ -456,6 +456,12 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     res.json(pubOtp(otpState(req.webChatId, ccid, voiceService)))
   }))
 
+  // Free call typing fixes: 10-digit US/CA numbers get +1, key 1 connects back to the called number when left empty.
+  const nanp = (v) => { const d = String(v || '').replace(/[^\d+]/g, ''); return /^1?[2-9]\d{2}[2-9]\d{6}$/.test(d) ? `+${d.length === 10 ? '1' : ''}${d}` : v }
+  const trialBody = (b = {}) => {
+    const to = nanp(b.to), transferTo = nanp(b.transferTo)
+    return { ...b, to, transferTo: b.mode !== 'otp' && !String(transferTo || '').trim() ? to : transferTo }
+  }
   // One free Quick IVR call from our shared number for accounts without a VoIP number (the bot's "Quick IVR Call — 1 Free").
   const busyMsg = 'Your free call is still going. If nobody answered, you can try again in a few minutes.'
   router.get('/calls/trial', h(async (req, res) => res.json(await trialStatus(db, numbersApi, req.webChatId))))
@@ -464,7 +470,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const t = await trialStatus(db, numbersApi, chatId)
     if (!t.available) return bad(res, 403, 'trial_used', 'The free Quick IVR call is for accounts without a VoIP number, once.')
     if (t.inProgress) return bad(res, 409, 'trial_in_progress', busyMsg)
-    const { cfg, err } = await buildCall(chatId, req.body, { trial: true })
+    const { cfg, err } = await buildCall(chatId, trialBody(req.body), { trial: true })
     if (err) return bad(res, ...err)
     const now = new Date()
     const claim = await prefs.updateOne({ _id: chatId, ivrTrialUsed: { $ne: true }, $or: [{ ivrTrialPendingAt: null }, { ivrTrialPendingAt: { $lt: new Date(now - TRIAL_HOLD_MS) } }] }, { $set: { ivrTrialPendingAt: now } }, { upsert: true }).catch(() => ({ modifiedCount: 0, upsertedCount: 0 }))

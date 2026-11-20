@@ -71,6 +71,17 @@ const spare = {
     this.timer.unref?.()
   },
 }
+// Retell has no balance API: a buy it refuses for money is the only sign the wallet is low → admin alert (once per 6 h).
+const LOW_FUNDS = /balance|credit|insufficient|fund|payment|billing|top.?up/i
+const noFunds = new Set()
+let lowAlertAt = 0
+const wasNoFunds = (n) => noFunds.has(n)
+function lowFunds(phoneNumber, why) {
+  noFunds.add(phoneNumber)
+  if (Date.now() - lowAlertAt < 6 * 3600000) return
+  lowAlertAt = Date.now()
+  require('../provider-health').alert(`🚨 [Providers] Retell wallet too low — it refused to buy ${phoneNumber} (${why.slice(0, 120)}). Paid orders wait and complete on their own after the top-up (Retell dashboard → Billing). US/Canada numbers can't be bought until then.`)
+}
 // Buy → { id: 'rt:+1…', _provider: 'retell', _landingNumber } | null (nothing is left half-bought).
 async function buyNumber(phoneNumber) {
   if (!selling()) return null
@@ -82,11 +93,13 @@ async function buyNumber(phoneNumber) {
     const got = e164(r.phone_number)
     if (got !== phoneNumber) log(`asked ${phoneNumber}, Retell gave ${got}`)
     if (r.fallback_number !== landing.number || r.inbound_fallback_enabled !== true) await http().patch(`/update-phone-number/${encodeURIComponent(got)}`, { fallback_number: landing.number, inbound_fallback_enabled: true })
-    searched.delete(phoneNumber); bought.add(got)
+    searched.delete(phoneNumber); bought.add(got); noFunds.delete(phoneNumber); lowAlertAt = 0
     log(`Bought ${got} → forwards to landing ${landing.number}`)
     return { id: `rt:${got}`, status: 'success', requirements_met: true, phone_numbers: [{ id: `rt:${got}`, phone_number: got, status: 'success' }], _provider: 'retell', _landingNumber: landing.number, ...(got !== phoneNumber ? { _retriedNumber: got } : {}) }
   } catch (e) {
     log(`buy ${phoneNumber}:`, errOf(e))
+    if (landing && (e.response?.status === 402 || LOW_FUNDS.test(errOf(e)))) lowFunds(phoneNumber, errOf(e))
+    else noFunds.delete(phoneNumber)
     // Keep the landing for the next try (a waiting order retries every few minutes) instead of buying a new one each time.
     if (landing) spare.keep(landing)
     return null
@@ -102,4 +115,4 @@ async function releaseNumber(id) {
   } catch (e) { log(`release ${num}:`, errOf(e)); return false }
 }
 
-module.exports = { owns, enabled, selling, sellsType, isRt, searchNumbers, isRtSearched, remember, searchedMeta, buyNumber, releaseNumber, COST }
+module.exports = { owns, enabled, selling, sellsType, isRt, searchNumbers, isRtSearched, remember, searchedMeta, buyNumber, releaseNumber, wasNoFunds, COST }
