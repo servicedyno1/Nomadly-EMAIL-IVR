@@ -753,3 +753,8 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Verified (no purchase): web catalog lists the 14 countries; searches MX 12, FR 12, AT 8, PR 12; add-on $25 (FR $0 on Business); bot extra list = all 12, Business plan number adds FR.
 - Side effect: texting numbers LT/PL/PR (texting-countries, Infobip) are on sale again at their set prices.
 - Unproven (owner skipped test buy): Bird verifying foreign caller IDs (outgoing shows "Setting up" until then); call delivery into those countries' numbers.
+
+## 2026-11-20 08:07Z — Bot plan number from any instant country (LIVE app-main-b :5100, release 20261120T080747Z-d068eb5)
+- Owner: "The bot only shows US, Canada and France". phone-config botPlanCountries no longer limited to included countries (all 12 Infobip countries); bot checkout surcharge for Infobip/MultiTEL/Retell = phoneConfig.planAddon(plan, cc, type, admin add-on) → same as web ($25 outside included countries; FR $0 on Business). Renewal keeps it (numberSurcharge in canonicalPrice).
+- Live (no purchase): Pro → More Countries lists 12 → Mexico → 5 numbers → summary "Plan $100 + Number $25 = $125/mo".
+- GitHub CI deployed 33c0cfc at 08:03 (= workspace before this change); this release = workspace incl. the 2-file change → Save to GitHub again.

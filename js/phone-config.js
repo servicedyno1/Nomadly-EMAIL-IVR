@@ -411,7 +411,7 @@ function includedIssue(planKey, cc, t) {
 // Bot plan flow: the extra countries (beyond US/CA) a plan's free number can come from.
 // Bot = web: every plan can add any instant number that needs no ID (address-only is fine), priced plan + add-on.
 const instantNoIdDoc = (cc, t) => { const b = require('./number-catalog').best(cc, t); return b ? b.level <= 1 && !b.request && !b.businessOnly : ['US', 'CA'].includes(cc) }
-const botPlanCountries = (planKey) => botCatalogCountries().filter(c => includedCountries(planKey).includes(c.code)).map(c => ({ ...c, types: c.types.filter(t => instantNoId(c.code, t)) })).filter(c => c.types.length)
+const botPlanCountries = (planKey) => botCatalogCountries().map(c => ({ ...c, types: c.types.filter(t => instantNoId(c.code, t)) })).filter(c => c.types.length)
 const botExtraOrMore = () => (BOT_CATALOG() ? botExtraCountries() : getMoreCountries())
 const botExtraCountries = () => botCatalogCountries().map(c => ({ ...c, types: c.types.filter(t => instantNoIdDoc(c.code, t)) })).filter(c => c.types.length)
 function botCatalogCountries() {
