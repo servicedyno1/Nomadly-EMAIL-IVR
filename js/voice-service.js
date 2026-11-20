@@ -1776,6 +1776,10 @@ const activeBridgeTransfers = {}
 // Used to detect when a native transferCall target didn't answer
 const pendingNativeTransfers = {}
 
+// "Show my own number" needs a carrier that passes any caller ID (CALLER_ID_PASSTHROUGH_LIVE=true). Without one only
+// Bird-verified numbers can be shown; anything else falls back to the business / test number so the call still connects.
+const _cidPresentable = async (n) => process.env.CALLER_ID_PASSTHROUGH_LIVE === 'true' || await require('./bird').presentable(n).catch(() => false)
+
 async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, config) {
   // ── Self-call prevention: reject forwarding to own number or caller's number ──
   const session = activeCalls[callControlId]
@@ -1803,6 +1807,7 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
   // Show the caller (callbacks) or the lead (IVR transfers) to the person answering; our number is the fallback if refused.
   const shownRaw = String(config?.presentFrom || '').replace(/[^+\d]/g, '')
   let presentFrom = /^\+\d{8,15}$/.test(shownRaw) && shownRaw !== String(fromNumber || '').replace(/[^+\d]/g, '') ? shownRaw : null
+  if (presentFrom && !(await _cidPresentable(presentFrom))) presentFrom = null
   // Inbound forwarding: the business number unless the owner chose "show the caller" — then US destinations go out
   // through the passthrough trunk (MultiTEL keeps the caller's number); refused or elsewhere → business number.
   let via = null
@@ -3679,6 +3684,7 @@ async function handleOutboundSipCall(payload) {
     }
     if (outFrom !== num.phoneNumber) _cid.logUse(chatId, outFrom, lookupResult?.isTestCall ? 'sip_test_call' : 'sip', destination)
     if ((payload.custom_headers || []).some(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')) _cid.rememberLast(chatId, num.phoneNumber, outFrom !== num.phoneNumber ? outFrom : null)
+    if (outFrom !== num.phoneNumber && !(await _cidPresentable(outFrom))) { log(`[Voice] Outbound SIP: ${outFrom} can't be shown (no passthrough carrier) — showing ${num.phoneNumber}`); outFrom = num.phoneNumber; useMultitelTrunk = false }
     if (outFrom !== num.phoneNumber) log(`[Voice] Outbound SIP: showing${useMultitelTrunk ? ' (via MultiTEL)' : ''} caller ID ${outFrom} for ${num.phoneNumber}`)
     const trunkOpt = useMultitelTrunk ? { trunk: process.env.CALLER_ID_PASSTHROUGH_TRUNK || 'multitel-out' } : {}
     const transferApi = useMultitelTrunk ? require('./callengine') : _telnyxApi
@@ -6061,7 +6067,8 @@ async function initiateOutboundIvrCall(params) {
     answeredBy: null,
   }
   // A "show as" number refused as unverified in the last 24 h is skipped: dial straight from the customer's own number.
-  const skipCid = displayCallerId && await cidRefusedRecently(displayCallerId)
+  const skipCid = displayCallerId && (await cidRefusedRecently(displayCallerId) || !(await _cidPresentable(displayCallerId)))
+  if (skipCid) log(`[OutboundIVR] ${displayCallerId} can't be shown right now — calling from ${callerId}`)
   // When using a custom (unowned) caller ID, route through MultiTEL trunk via Asterisk instead of Telnyx.
   const useMultitel = displayCallerId && !skipCid && params.provider === 'multitel'
   let result
