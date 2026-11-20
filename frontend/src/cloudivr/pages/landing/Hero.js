@@ -39,7 +39,7 @@ export function OneHero() {
 // Real facts from the live catalogue, on a glass band that overlaps the hero. Platform counters show only when real.
 export function TrustBand({ catalog }) {
   const items = [
-    [Globe2, String(catalog?.countries?.length || 2), 'Countries with local numbers'],
+    [Globe2, 'Local', 'and toll-free numbers'],
     [Clock3, '24/7', 'Your menu or AI always answers'],
     [Languages, '20', 'AI conversation languages'],
     [Timer, '60 s', 'Free test call, no card'],

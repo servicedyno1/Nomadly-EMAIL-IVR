@@ -90,6 +90,7 @@ export function ForwardingTab({ num, reload }) {
   const [f, setF] = useState({ mode: cf.mode || 'disabled', forwardTo: cf.forwardTo || '', ringTimeout: cf.ringTimeout || 25, holdMusic: !!cf.holdMusic, backups: cf.backups || [], showCallerId: !!cf.showCallerId });
   const [save, busy] = useSave(num, 'forwarding', reload);
   const u = useUnsaved(f);
+  const canShowCaller = useShell().catalog?.forwardShowsCaller === true;
   return (
     <Card title="Call forwarding" sub="Send calls to any phone. Forwarded minutes bill from your wallet." bind={u.bind}>
       <Assist screen="forwarding" hello="Tell me where calls should go and when — I’ll set the options below." examples={FWD_EXAMPLES} current={f} context={numContext(num)} onApply={(p) => { u.touch(); setF(x => ({ ...x, ...p })); }} labels={FWD_LABELS} testid="forwarding-assist" />
@@ -104,9 +105,9 @@ export function ForwardingTab({ num, reload }) {
         <Field label="Ring time before forwarding (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="forwarding-ring-timeout-input" /></Field>
         {f.mode !== 'disabled' && <BackupsField value={f.backups} onChange={v => setF({ ...f, backups: v })} testid="forwarding-backups-input" />}
         <div className="flex items-center justify-between"><span className="text-sm">Play hold music while connecting</span><Toggle checked={f.holdMusic} onChange={v => setF({ ...f, holdMusic: v })} testid="forwarding-hold-music-toggle" label="Play hold music while connecting" /></div>
-        <Field label="Caller ID on forwarded calls" hint={(f.showCallerId ? "Shows who is calling on US numbers. Other countries, or if the carrier refuses, show your business number." : "The phone you forward to sees your CloudIVR number.") + " What the other phone displays can vary by its carrier."}>
-          <select className="civr-input" value={f.showCallerId ? 'caller' : 'business'} onChange={e => setF({ ...f, showCallerId: e.target.value === 'caller' })} data-testid="forwarding-caller-id-select">
-            <option value="business">My business number</option><option value="caller">The caller's number (US only)</option>
+        <Field label="Caller ID on forwarded calls" hint={!canShowCaller ? "The phone you forward to sees your CloudIVR number. Showing the caller's number is not available right now." : (f.showCallerId ? "Shows who is calling on US numbers. Other countries, or if the carrier refuses, show your business number." : "The phone you forward to sees your CloudIVR number.") + " What the other phone displays can vary by its carrier."}>
+          <select className="civr-input" value={f.showCallerId && canShowCaller ? 'caller' : 'business'} onChange={e => setF({ ...f, showCallerId: e.target.value === 'caller' })} data-testid="forwarding-caller-id-select">
+            <option value="business">My business number</option><option value="caller" disabled={!canShowCaller} data-testid="forwarding-caller-id-caller-option">{canShowCaller ? "The caller's number (US only)" : "The caller's number — unavailable right now"}</option>
           </select>
         </Field>
       </>}

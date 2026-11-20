@@ -53,7 +53,12 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 | Zadarma | €0 | €3.20 | included | Number activating |
 | DIDWW | varies | $1.20-$5 | varies | $0 balance, no setup |
 
-## P0 — Immediate (2026-11-16)
+## P0 — Immediate (2026-11-20)
+- Replace businessintelusa's dead MultiTEL fax +12029495438 with an Infobip fax number (approved).
+- Save to GitHub so CI deploys keep: capabilities.js/Emily live status, caller-ID greying, telephony surcharge, fax retries.
+- Done 2026-11-20 (live, agent-tested): Emily live status, forwarding caller-ID greyed (web+bot), $0.05/min surcharge on Retell numbers, fax order (bot) / send (web+bot) / receive vs external fax line.
+
+## P0 — Earlier (2026-11-16)
 - [x] SIP test page login fix (all 4 brands, deployed; registration verified live) — see CHANGELOG 23:50Z
 - [ ] Customer @Spirits_Of_The_Ancesters to retry /call (not user-confirmed)
 - [x] Reviews moderated (admin approve), custom caller ID OFF, Bird-only calling — all 4 brands (2026-11-17)

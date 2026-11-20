@@ -3836,3 +3836,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - DONE (retry after Retell invoice cleared): paulwzz295 (5000000000000153) +15188010947 → +15186653607 (landing +15397376878), messaged in-app, Bird-linked. All 15 replacements complete.
 - 30 hidden (status 'released', releasedReason 'multitel_lost', autoRenew false, record kept): businessintelusa's 25 extras, 2 suspended (1005284399 +18774081013, 1794625076), test account 5000000000000004 MultiTEL lines. 45 old numbers removed from Bird caller IDs; birdCallerIdVerify marked status 'removed'.
 - MultiTEL outbound trunk (multitel-out) is dead and Bird refuses unverified caller IDs → "show my own number" (custom caller ID switch ON) failed silently. Fix: voice-service _cidPresentable(n) (Bird-verified or CALLER_ID_PASSTHROUGH_LIVE=true) gates forwards' presentFrom, SIP show-as and IVR/landing displayCallerId → falls back to business / test number. Verified: landing call-me showAs +13105550123 → called from +18648308599 and connected.
+
+## 2026-11-20 — Emily live capabilities, caller-ID option greyed, fax web+bot E2E, telephony surcharge
+- Emily prompts now carry an automatic LIVE STATUS (available / not available right now) from real switches.
+- Forwarding "caller's number" greyed out (web) / disabled (bot) while no passthrough carrier exists.
+- $0.05/min telephony infrastructure surcharge on wallet-billed minutes of Retell numbers; calls blocked if wallet can't cover.
+- Fax: ordering (bot), sending (web + bot path) and receiving verified against an external fax line; automatic send retries.

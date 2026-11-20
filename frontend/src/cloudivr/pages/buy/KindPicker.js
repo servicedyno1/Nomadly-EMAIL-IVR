@@ -7,6 +7,7 @@ import { KINDS, CapBadges } from '../../kinds';
 export function useKindFacts(catalog, myNums) {
   const { data: mobile } = useApi('/mobile-numbers');
   const { data: fax } = useApi('/fax-numbers');
+  const { data: ready } = useApi('/texting/ready');
   const plans = (catalog?.plans || []).filter(p => p.available !== false).map(p => p.price);
   const lines = (myNums?.numbers || []).filter(n => n.status === 'active');
   const texts = (mobile?.items || []).filter(x => !['failed', 'cancelled', 'released'].includes(x.status)).length + lines.filter(n => n.features?.texting?.enabled && n.features?.texting?.available).length;
@@ -14,22 +15,25 @@ export function useKindFacts(catalog, myNums) {
   const low = plans.length ? Math.min(...plans) : null;
   return {
     calls: { price: low, owned: lines.length },
-    texting: { price: low, owned: texts },
+    // No country sells a number that both calls and texts right now → the card shows Unavailable.
+    texting: { price: low, owned: texts, unavailable: !!ready && !(ready.available && ready.items?.length) && !catalog?.texting?.available },
     fax: { price: fax?.price || null, owned: faxes, extra: fax ? `${fax.freePages ?? 25} free pages a month, then ${money(fax.pagePrice ?? 0.05)} a page.` : null },
   };
 }
 
 function KindCard({ k, fact, onPick }) {
+  const off = !!fact?.unavailable;
   return (
-    <button type="button" onClick={() => onPick(k.id)} data-testid={`buy-kind-${k.id}`}
-      className="civr-card text-left p-6 flex flex-col transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:!border-[var(--c-accent)]">
+    <button type="button" onClick={() => !off && onPick(k.id)} disabled={off} aria-disabled={off} data-testid={`buy-kind-${k.id}`}
+      className={`civr-card text-left p-6 flex flex-col transition-[border-color,box-shadow,transform,opacity] duration-200 ${off ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:-translate-y-0.5 hover:!border-[var(--c-accent)]'}`}>
       <span className="w-11 h-11 rounded-xl bg-[var(--c-accent-soft)] grid place-items-center"><k.Icon className="w-5 h-5 text-[var(--c-accent)]" /></span>
       <span className="mt-4 text-lg font-semibold">{k.title}</span>
       <CapBadges caps={k.caps} className="mt-2" testid={`buy-kind-${k.id}-caps`} />
       <span className="mt-3 text-sm text-[var(--c-text-2)] flex-1">{k.pitch} <span className="text-[var(--c-muted)]">{fact?.extra || k.note}</span></span>
       <span className="mt-4 text-sm min-h-[28px]" data-testid={`buy-kind-${k.id}-price`}>{fact?.price ? <>from <b className="text-xl">{money(fact.price)}</b>/month</> : '\u00a0'}</span>
       {fact?.owned > 0 && <span className="mt-1 text-xs text-[var(--c-muted)]" data-testid={`buy-kind-${k.id}-owned`}>{`You have ${fact.owned}`}</span>}
-      <span className="mt-4 civr-btn civr-btn-primary w-full pointer-events-none">Choose</span>
+      {off ? <span className="mt-4 civr-btn w-full pointer-events-none border border-[var(--c-border)] text-[var(--c-muted)]" data-testid={`buy-kind-${k.id}-unavailable`}>Unavailable</span>
+        : <span className="mt-4 civr-btn civr-btn-primary w-full pointer-events-none">Choose</span>}
     </button>
   );
 }

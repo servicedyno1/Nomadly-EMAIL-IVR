@@ -164,6 +164,8 @@ async function transferCall(id, toNumber, fromNumber, options = {}) {
 async function bridgeCalls(aId, bId) { const r = await post('/calls/1/connect', { callIds: [raw(aId), raw(bId)] }); if (r) { emit('call.bridged', legs.get(aId)); emit('call.bridged', legs.get(bId)) } return r ? { success: true } : null }
 
 const sipEndpoint = (user) => ({ type: 'SIP', username: user, sipTrunkId: sipTrunk(), customHeaders: { 'X-Nomadly-Key': process.env.SIP_SERVER_SECRET || '', 'X-Nomadly-User': user } })
+// Join a live Infobip call to a SIP user on our server (fax receiver).
+const connectSip = async (id, user, from) => post(`/calls/1/calls/${raw(id)}/connect`, { callRequest: { endpoint: sipEndpoint(user), from: digits(from) || 'CloudIVR' } }).catch(e => { log(`connectSip ${user}: ${errOf(e)}`); return null })
 const tandemUser = (to, from) => `pstn.${digits(to)}.${digits(from)}`
 async function createOutboundCall(from, to, webhookUrl, connectionId, options = {}) {
   const sip = /^sip:/i.test(String(to)) ? String(to).replace(/^sip:/i, '').split('@')[0] : null
@@ -298,6 +300,7 @@ async function sendSms(from, to, text) {
 
 const M = module.exports = {
   enabled, selling, sellsIn, isIb, sipTrunk, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
+  connectSip,
   voice: { ingest, setSink, _legs: legs, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall },
   searchNumbers, isIbSearched, recall, searchedMeta, remember, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,
 }

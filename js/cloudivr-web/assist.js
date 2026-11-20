@@ -191,7 +191,7 @@ const SCREENS = {
       ringTimeout: [int(10, 60), 'seconds to ring before forwarding, 10-60'],
       backups: [phoneCsv(4), 'backup phones, comma separated'],
       holdMusic: [bool, 'hold music while connecting'],
-      showCallerId: [bool, 'true = forwarded phone sees the caller\'s number (US), false = sees the business number'],
+      showCallerId: [bool, 'true = forwarded phone sees the caller\'s number (US; only if LIVE STATUS allows it, else always false), false = sees the business number'],
     },
   },
   ringgroup: {
@@ -246,7 +246,7 @@ KEYPAD MENU (IVR, Plus+): greeting (typed text read in the app's language, or an
 - afterHours: a separate menu used outside the number's Hours schedule (instead of the closed message), e.g. "We're closed. Press 1 to leave a message, press 2 for emergencies." Needs the Hours schedule on (account info hoursOn).
 - submenu: more levels of keys with their own greeting (may nest up to 3 levels deep).
 The menu must be saved AND switched on (switch at the top). Switching it on turns the AI agent off on that number.
-FORWARDING: always / when busy / when not answered after 10-60 s; up to 4 backups ring one after another; forwarded phone sees the business number or, US only, the caller's number. Minutes bill from the wallet.
+FORWARDING: always / when busy / when not answered after 10-60 s; up to 4 backups ring one after another; forwarded phone sees the business number (showing the caller's number instead only when LIVE STATUS doesn't list it as not available). Minutes bill from the wallet.
 RING GROUP (Plus+): up to 5 phones ring together, first to answer gets it; ring 10-60 s; then voicemail, one backup number, or a sorry message. While on, forwarding and the keypad menu are skipped; Hours still apply.
 VOICEMAIL (every plan): standard greeting in a chosen language, or own audio / AI voice made from text; ring time 10-60 s; email copy; transcripts.
 TEXTING on a calling number is an add-on ($0.05 per text sent, receiving free); US local numbers need 10DLC registration, toll-free numbers need verification, before texts work. Missed-call text: one text per caller per day after an unanswered call (needs texting on). Text Triggers (Business): an incoming text starts a call — callback (rings the owner, reads the text, press 1 to call them back), message (calls the texter and reads a message), ai (AI agent calls them back); filters: keywords, business hours only, once per sender per hour; checked top to bottom, max 5; wallet must be over $1.

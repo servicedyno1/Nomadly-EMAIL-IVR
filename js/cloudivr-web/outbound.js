@@ -289,14 +289,14 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     return {
       cfg: {
-        stopKey, callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
+        stopKey, callerId, showAs, callerPlan: caller?.plan || null, callerProvider: caller?.provider || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
         personalize: personalizeCfg, leadText, skipped,
       },
     }
   }
 
-  const rateOf = (cfg) => Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0)
+  const rateOf = (cfg) => +(Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0) + voiceService.surchargeOfNum({ provider: cfg.callerProvider })).toFixed(4)
   const engineParams = (chatId, cfg, to, trial) => ({
     chatId, callerId: cfg.callerId, displayCallerId: cfg.showAs || null, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
     audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : (cfg.personalize?.on && cfg.leadText ? cfg.leadText[to] : cfg.text), voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, stopKey: cfg.stopKey || null, templateName: cfg.templateName,

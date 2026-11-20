@@ -10,7 +10,7 @@ export { coinList, andList, planBadge } from './kit';
 // Real facts from the live catalogue (no made-up customers), cm.com stats-row style.
 export function Facts({ catalog }) {
   const items = [
-    [Globe2, String(catalog?.countries?.length || 2), 'Countries with local, mobile or toll-free numbers'],
+    [Globe2, 'Local', 'Local, mobile or toll-free numbers'],
     [Timer, '60 s', 'Free test call — no account, no card'],
     [Tag, startPrice(catalog) || '$50', 'Numbers from, per month — no contracts'],
     [Languages, '20', 'AI conversation languages — it switches when your caller does'],
@@ -58,7 +58,7 @@ export function Coverage({ catalog }) {
     <section id="coverage" className="civr-l-cream scroll-mt-16" data-testid="coverage-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
         <div className="grid lg:grid-cols-12 gap-8 items-end">
-          <div className="lg:col-span-8"><SectionHead label="Coverage" title={`Local presence in ${list.length || 2} countries.`} sub="Local, mobile and toll-free numbers your customers recognise — and pick up." /></div>
+          <div className="lg:col-span-8"><SectionHead label="Coverage" title="Local presence where your customers are." sub="Local, mobile and toll-free numbers your customers recognise — and pick up." /></div>
           <p className="lg:col-span-4 text-sm civr-l-muted lg:text-right">Voice & SIP on a Business Line · SMS on a Texting Number · Fax on a fax-only number</p>
         </div>
         <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="coverage-grid">

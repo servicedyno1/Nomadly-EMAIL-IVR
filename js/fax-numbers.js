@@ -7,8 +7,9 @@ const telnyxAcct = require('./telnyx-fax-account')
 const swFax = require('./signalwire/fax')
 const mtFax = require('./multitel/fax')
 // New fax numbers come from MultiTEL only; numbers bought earlier on SignalWire / Telnyx stay where they are.
-const acct = { enabled: () => mtFax.enabled() && require('./multitel').selling(), searchFax: (...a) => mtFax.searchFax(...a) }
-const releaseFor = (n) => (n.provider === 'multitel_fax' ? mtFax.releaseFax(n.phoneNumber) : n.provider === 'signalwire_fax' ? swFax.releaseFax(n.phoneNumber) : telnyxAcct.releaseFax(n.phoneNumber))
+const ibFax = () => (require('./infobip/fax').enabled() ? require('./infobip/fax') : null) // FAX_PROVIDER=infobip
+const acct = { enabled: () => !!ibFax() || (mtFax.enabled() && require('./multitel').selling()), searchFax: (...a) => (ibFax() || mtFax).searchFax(...a) }
+const releaseFor = (n) => (n.provider === 'infobip_fax' ? require('./infobip/fax').releaseFax(n.phoneNumber) : n.provider === 'multitel_fax' ? mtFax.releaseFax(n.phoneNumber) : n.provider === 'signalwire_fax' ? swFax.releaseFax(n.phoneNumber) : telnyxAcct.releaseFax(n.phoneNumber))
 const fax = require('./fax-service')
 const { walletOps, round2 } = require('./cloudivr-web/wallet')
 
@@ -19,10 +20,11 @@ const FAX_TYPES = { US: ['local'], CA: ['local'], GB: ['local', 'national', 'mob
   DE: ['local', 'national'], FR: ['local'], IT: ['local'], PL: ['local'], ZA: ['local'], SG: ['local'], TH: ['local', 'national'], FI: ['local', 'national'], LV: ['local'], HR: ['local'], UA: ['local', 'mobile'], HK: ['national'], SK: ['local'], AL: ['local'] }
 const TYPE_LABEL = { local: 'Local', national: 'National', mobile: 'Mobile' }
 const { NAMES, offer: mtOffer } = require('./multitel/countries')
-const offerOf = (cc, type) => { const o = FAX_TYPES[cc]?.includes(type) ? mtOffer(cc, type) : null; return o && o.level <= 2 ? o : null }
-const COUNTRIES = Object.keys(FAX_TYPES).map(code => ({ code, name: NAMES[code] || code, areaCodes: ['US', 'CA'].includes(code),
+const offerOf = (cc, type) => { if (ibFax()) return ibFax().COUNTRIES.find(c => c.code === cc) && type === 'local' ? { level: 0 } : null; const o = FAX_TYPES[cc]?.includes(type) ? mtOffer(cc, type) : null; return o && o.level <= 2 ? o : null }
+const MT_COUNTRIES = Object.keys(FAX_TYPES).map(code => ({ code, name: NAMES[code] || code, areaCodes: ['US', 'CA'].includes(code),
   types: FAX_TYPES[code].filter(t => offerOf(code, t)).map(t => { const o = offerOf(code, t); return { type: t, label: TYPE_LABEL[t], paperwork: ['none', 'name_address', 'documents'][o.level], businessOnly: o.businessOnly, address: o.address } }) }))
   .sort((a, b) => (a.code === 'US' ? -1 : b.code === 'US' ? 1 : a.name.localeCompare(b.name)))
+const COUNTRIES = ibFax() ? ibFax().COUNTRIES : MT_COUNTRIES
 // Saved name + address vs the offer's rules → message, or null when it can buy.
 function paperworkIssue(cc, type, eu, { docs = 0, signature = true } = {}) {
   const o = offerOf(cc, type), name = NAMES[cc] || cc
@@ -96,17 +98,17 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
       let orderId, real = phoneNumber
       try {
         if (dry()) orderId = `dryrun-${crypto.randomUUID().slice(0, 8)}`
-        else { const o = await mtFax.orderFax(phoneNumber); orderId = o?.id; real = o?.phoneNumber || phoneNumber; if (o?.needsReg) needsReg = true }
+        else { const o = await (ibFax() || mtFax).orderFax(phoneNumber); orderId = o?.id; real = o?.phoneNumber || phoneNumber; if (o?.needsReg) needsReg = true }
         if (!orderId) throw new Error('no order id')
       } catch (e) {
         await w.credit(chatId, price)
         log(`[FaxNumbers] order ${phoneNumber} for ${chatId} failed: ${e.response?.data?.errors?.[0]?.detail || e.response?.data?.message || e.message} — refunded $${price}`)
         throw new FaxNumberError(424, 'purchase_failed', `This fax number could not be activated. You were refunded $${price.toFixed(2)}. Pick another number.`)
       }
-      const doc = { _id: real, phoneNumber: real, chatId, country: c.country, type, status: needsReg ? 'pending_registration' : 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, provider: 'multitel_fax', mtNumberId: orderId, expiresAt: nextMonth(), createdAt: new Date(), ...(endUser ? { endUser } : {}), ...(person ? { person: { ...person, signature: undefined } } : {}), ...(needsReg ? { registration: { status: o?.level && !ready ? 'needs_details' : 'pending', level: o?.level || 0, since: new Date() } } : {}), ...(dry() ? { dryRun: true } : {}) }
+      const doc = { _id: real, phoneNumber: real, chatId, country: c.country, type, status: needsReg ? 'pending_registration' : 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, provider: ibFax() ? 'infobip_fax' : 'multitel_fax', mtNumberId: orderId, expiresAt: nextMonth(), createdAt: new Date(), ...(endUser ? { endUser } : {}), ...(person ? { person: { ...person, signature: undefined } } : {}), ...(needsReg ? { registration: { status: o?.level && !ready ? 'needs_details' : 'pending', level: o?.level || 0, since: new Date() } } : {}), ...(dry() ? { dryRun: true } : {}) }
       await nums.replaceOne({ _id: real }, doc, { upsert: true })
       if (needsReg && (!o?.level || ready)) await sendRegistration(doc, email, person, docs)
-      await db.collection('transactions').insertOne({ chatId, type: 'fax-number', amount: price, currency: 'USD', status: 'completed', metadata: { phoneNumber: real, provider: 'multitel_fax' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
+      await db.collection('transactions').insertOne({ chatId, type: 'fax-number', amount: price, currency: 'USD', status: 'completed', metadata: { phoneNumber: real, provider: ibFax() ? 'infobip_fax' : 'multitel_fax' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
       await cache.deleteOne({ _id: chatId }); await seen.deleteOne({ _id: phoneNumber }).catch(() => {})
       notifyAdmin(`📠 Fax number${dry() ? ' (DRY RUN)' : ''}${needsReg ? ' — waiting for carrier registration' : ''}\naccount: ${chatId}${email ? ` (${email})` : ''}\nnumber: ${real} (${c.country} ${type}) · $${price}/month`)
       return { number: pub(doc), balance: await w.balance(chatId) }
@@ -161,7 +163,7 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
   async function cancelPending(chatId, phoneNumber, why = 'cancelled_by_customer') {
     const n = await nums.findOneAndUpdate({ _id: phoneNumber, ...(chatId ? { chatId: String(chatId) } : {}), status: 'pending_registration' }, { $set: { status: 'released', releasedAt: new Date(), releaseReason: why, 'registration.status': why } }, { returnDocument: 'after', includeResultMetadata: false })
     if (!n) throw new FaxNumberError(404, 'not_found', 'Only a fax number that is not live yet can be cancelled for a refund.')
-    if (!n.dryRun) await mtFax.releaseFax(n.phoneNumber).catch(e => log(`[FaxNumbers] release ${n.phoneNumber}: ${e.message}`))
+    if (!n.dryRun) await releaseFor(n).catch(e => log(`[FaxNumbers] release ${n.phoneNumber}: ${e.message}`))
     await w.credit(n.chatId, n.price)
     notifyAdmin(`↩️ Fax number ${n.phoneNumber} cancelled (${why}) — refunded $${n.price} to ${n.chatId}`)
     return { refunded: n.price, balance: await w.balance(n.chatId) }
@@ -200,7 +202,7 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
       } else if (st.state === 'rejected') {
         const u = await nums.updateOne({ _id: n._id, status: 'pending_registration' }, { $set: { status: 'released', releasedAt: new Date(), releaseReason: 'registration_rejected', 'registration.status': 'rejected', 'registration.raw': st.raw } })
         if (!u.modifiedCount) continue
-        await mtFax.releaseFax(n.phoneNumber).catch(() => {})
+        await releaseFor(n).catch(() => {})
         await w.credit(n.chatId, n.price)
         await push(n.chatId, `The carrier did not approve fax number ${n.phoneNumber}. We released it and refunded $${n.price.toFixed(2)} to your wallet.`)
         notifyAdmin(`❌ Fax number registration rejected: ${n.phoneNumber} (account ${n.chatId}) — refunded $${n.price}`)
@@ -230,4 +232,4 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
   return { offer, search, buy, list, setAutoRenew, renewDue, checkRegistrations, submitDetails, cancelPending, chaseDetails, cache: cache2, FaxNumberError }
 }
 
-module.exports = { create, FaxNumberError, COUNTRIES, offerOf, paperworkIssue, PRICE }
+module.exports = { create, FaxNumberError, COUNTRIES, offerOf, paperworkIssue, PRICE, selling: acct.enabled }

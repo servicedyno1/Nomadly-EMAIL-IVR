@@ -567,6 +567,11 @@ async function dispatch({ chatId, num, fileId, pages, to, batchId = null }) {
       _log(`[Fax] MultiTEL send ${num.phoneNumber} → ${to} failed: ${e.message}`)
       throw new FaxError('send_failed', 'The fax could not be sent. Check the number and try again.')
     }
+  } else if (num.provider === 'infobip_fax') {
+    try { faxId = await require('./infobip/fax').sendFax({ from: num.phoneNumber, to, fileId }) } catch (e) {
+      _log(`[Fax] Infobip/Bird send ${num.phoneNumber} → ${to} failed: ${e.response?.data?.message || e.message}`)
+      throw new FaxError('send_failed', 'The fax could not be sent. Check the number and try again.')
+    }
   } else if (num.provider === 'signalwire_fax') {
     try { faxId = await swFax.sendFax({ from: num.phoneNumber, to, fileId }) } catch (e) {
       _log(`[Fax] SignalWire send ${num.phoneNumber} → ${to} failed: ${e.response?.data?.message || e.message}`)

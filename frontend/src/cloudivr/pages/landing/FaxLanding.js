@@ -28,7 +28,7 @@ export function FaxLanding({ fax }) {
   };
   return (
     <div className="grid lg:grid-cols-5 gap-5" data-testid="fax-landing">
-      <div className="lg:col-span-2"><Card id="fax" icon={Printer} badge={`${fax?.countries?.length || 15} countries`} title="Fax number" kind="Fax-only number, online" price={fax?.price || 50} points={points(fax)} note="Search for your exact number, then create your free account to pay." /></div>
+      <div className="lg:col-span-2"><Card id="fax" icon={Printer} badge="Fax only" title="Fax number" kind="Fax-only number, online" price={fax?.price || 50} points={points(fax)} note="Search for your exact number, then create your free account to pay." /></div>
       <div className="lg:col-span-3 v2-surface p-6 sm:p-7" data-testid="fax-landing-search">
         <div className="font-semibold text-slate-950">Find your fax number</div>
         {fax && !fax.available ? <p className="text-sm text-slate-600 mt-3" data-testid="fax-landing-unavailable">Fax numbers are not available right now. Please check back soon.</p> : <>
