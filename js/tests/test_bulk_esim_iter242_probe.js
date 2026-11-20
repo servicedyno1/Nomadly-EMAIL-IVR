@@ -125,19 +125,19 @@ const nums = (n, from) => Array.from({ length: n }, (_, i) => `+1212555${String(
   ok('(e) refund of 10 failed parts at discounted unit = $0.9', rf?.amount === 0.9, JSON.stringify(rf?.amount))
 
   // (f) content
-  ok('(f) 138/139 with opt-out, err args [138]', !B.checkContent('a'.repeat(138), false).error && JSON.stringify(B.checkContent('a'.repeat(139), false)) === JSON.stringify({ error: 'err_too_long', args: [138] }))
-  ok('(f) 160/161 without opt-out, args [160]', !B.checkContent('a'.repeat(160), false, false).error && B.checkContent('a'.repeat(161), false, false).args[0] === 160)
+  ok('(f) 138/139 with opt-out, err names version, 139 of 138', !B.checkContent('a'.repeat(138), false).error && JSON.stringify(B.checkContent('a'.repeat(139), false)) === JSON.stringify({ error: 'err_versions_long', args: [[{ i: 1, len: 139 }], 138, 1] }))
+  ok('(f) 160/161 without opt-out, limit 160', !B.checkContent('a'.repeat(160), false, false).error && B.checkContent('a'.repeat(161), false, false).args[1] === 160)
   ok('(f) unicode 70 ok / 71 refused (no opt-out)', !B.checkContent('é漢'.repeat(35), false, false).error && B.checkContent('漢'.repeat(71), false, false).error === 'err_special_char')
-  ok('(f) multi-version: one too-long version refuses all', B.checkContent(`short one\n---\n${'b'.repeat(139)}`, false).error === 'err_too_long')
+  ok('(f) multi-version: one too-long version refuses all', B.checkContent(`short one\n---\n${'b'.repeat(139)}`, false).error === 'err_versions_long')
   ok('(f) multi-version link in v2: text-only refused, link type ok', B.checkContent('Hi\n---\nGo to nomadly.com', false).error === 'err_has_link' && !B.checkContent('Hi\n---\nGo to nomadly.com', true).error)
   const cpG = (await B.createCampaign(cid, { name: 'TEST_Guard', content: 'g'.repeat(160), optOut: false, contacts: nums(500, 9000), consent: true })).campaign
   ok('(f) 160-char no-optout campaign created', !!cpG)
   await db.collection('bsCampaigns').updateOne({ _id: cpG._id }, { $set: { content: ['g'.repeat(161)] } })
-  ok('(f) edited to 161 → createBooking err_too_long', (await B.createBooking(cid, { campaignId: cpG._id, now: true })).error === 'err_too_long')
+  ok('(f) edited to 161 → createBooking err_too_long', (await B.createBooking(cid, { campaignId: cpG._id, now: true })).error === 'err_versions_long')
   await db.collection('bsCampaigns').updateOne({ _id: cpG._id }, { $set: { content: ['ok', 'call 212-555-0101'] } })
   ok('(f) edited v2 to contain phone → err_has_link', (await B.createBooking(cid, { campaignId: cpG._id, now: true })).error === 'err_has_link')
   await db.collection('bsCampaigns').updateOne({ _id: cpG._id }, { $set: { optOut: true, content: ['g'.repeat(150)] } })
-  ok('(f) optOut flipped on with 150 chars → err_too_long', (await B.createBooking(cid, { campaignId: cpG._id, now: true })).error === 'err_too_long')
+  ok('(f) optOut flipped on with 150 chars → err_too_long', (await B.createBooking(cid, { campaignId: cpG._id, now: true })).error === 'err_versions_long')
 
   // (g) AI variants simulated
   const t = 'Summer deal: 15% off all plans this week only.'

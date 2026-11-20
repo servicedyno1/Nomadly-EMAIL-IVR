@@ -88,14 +88,14 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   ok('plain campaign with bare domain refused', B.checkContent('go to shop.example.com', false).error === 'err_has_link')
   ok('link campaign with link accepted', !B.checkContent('Visit www.qa.com', true).error)
   const room = 160 - B.OPT.length
-  ok('one-SMS limit includes opt-out line (138 chars)', room === 138 && !B.checkContent('a'.repeat(room), false).error && B.checkContent('a'.repeat(room + 1), false).error === 'err_too_long', `room=${room}`)
-  ok('without the opt-out line the text itself may be 160', !B.checkContent('a'.repeat(160), false, false).error && B.checkContent('a'.repeat(161), false, false).error === 'err_too_long')
+  ok('one-SMS limit includes opt-out line (138 chars)', room === 138 && !B.checkContent('a'.repeat(room), false).error && B.checkContent('a'.repeat(room + 1), false).error === 'err_versions_long', `room=${room}`)
+  ok('without the opt-out line the text itself may be 160', !B.checkContent('a'.repeat(160), false, false).error && B.checkContent('a'.repeat(161), false, false).error === 'err_versions_long')
   ok('createCampaign without consent → err_consent', (await B.createCampaign(cA, { name: 'x', content: 'Hi', contacts: nums(500) })).error === 'err_consent')
   const lc = (await B.createCampaign(cA, { name: 'TEST_link', content: 'Visit www.qa.com', contacts: nums(500, 4000), withLinks: true, consent: true })).campaign
   const lb = await B.createBooking(cA, { date: day, hour: H, campaignId: lc._id })
   ok('link campaign priced like plain text: $0.10/part ($50 per 500)', lb.booking?.price === 50 && lb.booking?.unitPrice === 0.1, JSON.stringify(lb.error || lb.booking?.price))
   const mp = await B.createCampaign(cA, { name: 'TEST_2part', content: 'b'.repeat(200), contacts: nums(300, 5000), consent: true })
-  ok('a 200-char text is refused (every text is one SMS)', mp.error === 'err_too_long', JSON.stringify(mp.error))
+  ok('a 200-char text is refused (every text is one SMS)', mp.error === 'err_versions_long', JSON.stringify(mp.error))
   await B.cancelBooking(lb.booking._id, { by: 'admin' })
 
   // ---- +1 numbers outside USA/Canada ----
