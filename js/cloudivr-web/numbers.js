@@ -1234,23 +1234,26 @@ function routes(router, deps) {
         const order = live ? await paidCheckout(chatId, phone, { countryCode: old.country, numberType: old.type, areaCode: picked.areaCode, planKey: old.plan, price: REPLACE_PRICE, paymentMethod: 'wallet_usd', refund: { currency: 'usd', amount: REPLACE_PRICE }, capabilities: picked.hit.capabilities, numberCost: picked.hit.cost, countryName: c?.name, lang: 'en', hold: true }) : { id: `dryrun-${crypto.randomUUID().slice(0, 8)}` }
         if (!order || order._verification) throw new Error('The new number could not be reserved — it may have just been taken. Pick another one.')
         const selected = order._retriedNumber || phone
-        if (live && tr.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selected, tr.callControlAppId)
+        // Retell / Infobip / MultiTEL numbers route through our own SIP server: no Telnyx app or credential steps.
+        const viaOwn = ['retell', 'infobip', 'multitel'].includes(order._provider) || /^(rt|ib|mt):/.test(String(order.id || ''))
+        if (live && !viaOwn && tr.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selected, tr.callControlAppId)
         // SIP apps keep their login: the credential moves to the new number.
         let sip = { telnyxSipUsername: old.telnyxSipUsername || null, telnyxSipPassword: old.telnyxSipPassword || null, telnyxCredentialId: old.telnyxCredentialId || null }
-        if (live && tr.sipConnectionId) {
+        if (live && !viaOwn && tr.sipConnectionId) {
           if (old.telnyxCredentialId) await telnyxApi.deleteSIPCredential(old.telnyxCredentialId).catch(() => {})
           const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, old.sipUsername, old.sipPassword, selected)
           if (cred?.sip_username) sip = { telnyxSipUsername: cred.sip_username, telnyxSipPassword: cred.sip_password || old.sipPassword, telnyxCredentialId: cred.id || null }
         }
         const caps = { voice: picked.hit.capabilities.voice !== false, sms: !!picked.hit.capabilities.sms, mms: !!picked.hit.capabilities.mms, fax: !!picked.hit.capabilities.fax }
         const { _reminder3Sent, _reminder1Sent, ...keep } = old
-        const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, provider: order._provider || (String(order.id || '').startsWith('mt:') ? 'multitel' : String(order.id || '').startsWith('ib:') ? 'infobip' : keep.provider || 'telnyx'), capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: !!caps.sms && old.features?.sms === true }, ...(live ? {} : { dryRun: true }) }
+        const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, provider: order._provider || (String(order.id || '').startsWith('mt:') ? 'multitel' : String(order.id || '').startsWith('ib:') ? 'infobip' : String(order.id || '').startsWith('rt:') ? 'retell' : keep.provider || 'telnyx'), landingNumber: order._landingNumber || null, ...(order._pending ? { status: 'provisioning' } : {}), capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: !!caps.sms && old.features?.sms === true }, ...(live ? {} : { dryRun: true }) }
         const releaseAt = new Date(Date.now() + OVERLAP_DAYS * 86400000).toISOString()
         await require('../live-number').updateLive(phoneNumbersOf, chatId, old.phoneNumber, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null, 'val.numbers.$.telnyxSipUsername': null, 'val.numbers.$.telnyxSipPassword': null, 'val.numbers.$.sipUsername': null, 'val.numbers.$.sipPassword': null } })
         const eu = await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: order._provider || 'telnyx', country: old.country })
         if (eu) doc.endUser = eu
         doc.resold = true
         await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } })
+        if (order._pending) await require('../pending-orders').enqueue({ chatId, phoneNumber: selected, order, amount: REPLACE_PRICE, email: req.webUser?.email })
         await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].parentNumber': selected } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': old.phoneNumber }] }).catch(() => {})
         await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: 'replace', oldNumber: old.phoneNumber, plan: old.plan, amount: REPLACE_PRICE, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
         await txn(chatId, 'number-replace', REPLACE_PRICE, { phoneNumber: selected, oldNumber: old.phoneNumber })

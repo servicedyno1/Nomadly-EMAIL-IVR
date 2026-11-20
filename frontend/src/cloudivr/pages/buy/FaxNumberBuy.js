@@ -58,7 +58,7 @@ export function FaxNumberBuy({ balance, onBought, onStage }) {
     try {
       const d = await api('/fax-numbers', { method: 'POST', body: { phoneNumber: pick.phoneNumber, autoRenew } });
       sessionStorage.removeItem('civr.faxPick');
-      toast.success(d.number.registration?.needsDetails ? `${d.number.phoneNumber} is paid and reserved — one quick step left to switch it on` : d.number.status === 'pending_registration' ? `${d.number.phoneNumber} is waiting for the carrier’s approval` : `${d.number.phoneNumber} is your fax number`);
+      toast.success(d.pending ? `Payment received — we're setting up ${d.number.phoneNumber} and will message you when it's ready` : d.number.registration?.needsDetails ? `${d.number.phoneNumber} is paid and reserved — one quick step left to switch it on` : d.number.status === 'pending_registration' ? `${d.number.phoneNumber} is waiting for the carrier’s approval` : `${d.number.phoneNumber} is your fax number`);
       onBought?.(); nav(cp('/app/fax'));
     } catch (err) { setError(err); toast.error(err.message); } finally { setBusy(''); }
   };

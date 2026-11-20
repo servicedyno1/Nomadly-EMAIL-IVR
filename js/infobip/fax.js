@@ -79,9 +79,22 @@ async function retry(faxId, error) {
   const job = await jobs()?.findOneAndUpdate({ _id: faxId, attempt: { $lt: MAX_TRIES } }, { $inc: { attempt: 1 }, $set: { lastError: error || null } }, { returnDocument: 'after' })
   const j = job?.value !== undefined ? job.value : job
   if (!j) return false
+  const retryAt = new Date(Date.now() + RETRY_MS)
+  await jobs().updateOne({ _id: faxId }, { $set: { retryAt } })
   log(`${faxId} failed (${error}) — try ${j.attempt}/${MAX_TRIES} in ${RETRY_MS / 1000}s`)
-  setTimeout(() => dial(j).catch(e => { log(`${faxId} redial failed: ${e.message}`); require('../fax-service').handleEvent({ event_type: 'fax.failed', payload: { fax_id: faxId, page_count: 0, failure_reason: error } }).catch(() => {}) }), RETRY_MS)
+  schedule({ ...j, retryAt })
   return true
+}
+// The retry time is saved, so a restart (or the other deploy slot) picks it up; only one process wins each redial.
+function schedule(j) {
+  setTimeout(async () => {
+    const won = await jobs().updateOne({ _id: j._id, retryAt: j.retryAt }, { $unset: { retryAt: 1 } }).catch(() => null)
+    if (!won?.modifiedCount) return
+    dial(j).catch(e => { log(`${j._id} redial failed: ${e.message}`); require('../fax-service').handleEvent({ event_type: 'fax.failed', payload: { fax_id: j._id, page_count: 0, failure_reason: j.lastError } }).catch(() => {}) })
+  }, Math.max(0, new Date(j.retryAt) - Date.now()))
+}
+async function resumeRetries() {
+  for (const j of await jobs().find({ retryAt: { $exists: true } }).toArray()) schedule(j)
 }
 
 function routes(app, express) {
@@ -106,6 +119,6 @@ function routes(app, express) {
     } catch (e) { log(`hook ${q.dir} ${q.id}: ${e.message}`) }
   })
 }
-const init = (db) => { _db = db }
+const init = (db) => { _db = db; resumeRetries().catch(e => log(`resume retries: ${e.message}`)) }
 
 module.exports = { enabled, COUNTRIES, searchFax, orderFax, releaseFax, isFaxNumber, inbound, sendFax, routes, init }

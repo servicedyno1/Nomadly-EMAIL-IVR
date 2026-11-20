@@ -3842,3 +3842,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Forwarding "caller's number" greyed out (web) / disabled (bot) while no passthrough carrier exists.
 - $0.05/min telephony infrastructure surcharge on wallet-billed minutes of Retell numbers; calls blocked if wallet can't cover.
 - Fax: ordering (bot), sending (web + bot path) and receiving verified against an external fax line; automatic send retries.
+
+## 2026-11-20 (later) — OTP verified, auto-completing orders, replace/extra numbers on Retell
+- OTP collection verified live (accept + decline/retry).
+- Fax: retries survive restarts; delivery receipt (message with time + emailed PDF confirmation).
+- BusinessIntelUSA dead fax swapped to +1 267-871-8206 (free, renewal kept).
+- Paid number/fax orders that hit a supplier failure now wait and complete automatically (similar number if gone), refund after 24 h.
+- Web "Replace number" and "Add extra number" work with Retell numbers (correct landing, no Telnyx steps).

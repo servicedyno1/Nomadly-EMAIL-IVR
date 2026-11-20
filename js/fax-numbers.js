@@ -101,8 +101,20 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
         else { const o = await (ibFax() || mtFax).orderFax(phoneNumber); orderId = o?.id; real = o?.phoneNumber || phoneNumber; if (o?.needsReg) needsReg = true }
         if (!orderId) throw new Error('no order id')
       } catch (e) {
+        const why = e.response?.data?.errors?.[0]?.detail || e.response?.data?.message || e.message
+        if (ibFax() && !dry()) {
+          // Supplier failure (low balance, outage…): keep the paid order and finish it automatically (refund after 24 h).
+          log(`[FaxNumbers] order ${phoneNumber} for ${chatId} failed: ${why} — waiting in the pending queue`)
+          const pend = require('./pending-orders'), order = pend.pendingResult('infobip_fax', phoneNumber, { country: c.country, type })
+          const doc = { _id: phoneNumber, phoneNumber, chatId, country: c.country, type, status: 'provisioning', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, provider: 'infobip_fax', mtNumberId: null, expiresAt: nextMonth(), createdAt: new Date() }
+          await nums.replaceOne({ _id: phoneNumber }, doc, { upsert: true })
+          await pend.enqueue({ chatId, phoneNumber, order, amount: price, email, kind: 'fax' })
+          await db.collection('transactions').insertOne({ chatId, type: 'fax-number', amount: price, currency: 'USD', status: 'completed', metadata: { phoneNumber, provider: 'infobip_fax', pending: true }, createdAt: new Date() })
+          await cache.deleteOne({ _id: chatId })
+          return { number: pub(doc), pending: true, balance: await w.balance(chatId) }
+        }
         await w.credit(chatId, price)
-        log(`[FaxNumbers] order ${phoneNumber} for ${chatId} failed: ${e.response?.data?.errors?.[0]?.detail || e.response?.data?.message || e.message} — refunded $${price}`)
+        log(`[FaxNumbers] order ${phoneNumber} for ${chatId} failed: ${why} — refunded $${price}`)
         throw new FaxNumberError(424, 'purchase_failed', `This fax number could not be activated. You were refunded $${price.toFixed(2)}. Pick another number.`)
       }
       const doc = { _id: real, phoneNumber: real, chatId, country: c.country, type, status: needsReg ? 'pending_registration' : 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, provider: ibFax() ? 'infobip_fax' : 'multitel_fax', mtNumberId: orderId, expiresAt: nextMonth(), createdAt: new Date(), ...(endUser ? { endUser } : {}), ...(person ? { person: { ...person, signature: undefined } } : {}), ...(needsReg ? { registration: { status: o?.level && !ready ? 'needs_details' : 'pending', level: o?.level || 0, since: new Date() } } : {}), ...(dry() ? { dryRun: true } : {}) }

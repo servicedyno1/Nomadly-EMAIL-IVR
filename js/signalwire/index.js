@@ -216,8 +216,10 @@ function wrap(t) {
   }
 
   w.buyNumber = async (phoneNumber, connectionId, messagingProfileId, retrySearch = null) => {
-    if (rt.isRtSearched(phoneNumber)) return rt.buyNumber(phoneNumber)
-    if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber) && rt.selling() && /^\+1\d{10}$/.test(String(phoneNumber))) { rt.remember(phoneNumber); return rt.buyNumber(phoneNumber) }
+    // A failed Retell buy (low balance, outage…) doesn't refund: the paid order waits and completes on its own.
+    const rtBuy = async () => { const meta = rt.searchedMeta(phoneNumber); return (await rt.buyNumber(phoneNumber)) || require('../pending-orders').pendingResult('retell', phoneNumber, meta) }
+    if (rt.isRtSearched(phoneNumber)) return rtBuy()
+    if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber) && rt.selling() && /^\+1\d{10}$/.test(String(phoneNumber))) { rt.remember(phoneNumber); return rtBuy() }
     if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber)) await ib.recall(phoneNumber).catch(() => false)
     if (txs.isTxSearched(phoneNumber) && sells('telnyx')) {
       let r = await txs.buyNumber(phoneNumber)
@@ -258,7 +260,7 @@ function wrap(t) {
   }
   w.listNumbers = async () => [...(swOn() ? await rest.listNumbers() : []), ...((await t.listNumbers().catch(() => [])) || [])]
   w.assignNumberToCallControlApp = async (phoneNumber, appId) => {
-    if (rt.owns(phoneNumber)) return true // forwards to its Infobip landing number
+    if (rt.owns(phoneNumber) || require('../pending-orders').isHeld(phoneNumber)) return true // forwards to its Infobip landing number / not bought yet
     if (ib.enabled() && (await ib.refreshOwned()).includes(phoneNumber)) return true // routed to our calls config when bought
     if (mt.enabled() && (await mt.refreshOwned()).includes(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } // SIP URI to our server
     if (txs.enabled()) { await txs.refreshOwned(); if (txs.ownsNumber(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } }

@@ -54,7 +54,8 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 | DIDWW | varies | $1.20-$5 | varies | $0 balance, no setup |
 
 ## P0 — Immediate (2026-11-20)
-- Replace businessintelusa's dead MultiTEL fax +12029495438 with an Infobip fax number (approved).
+- Done: BusinessIntelUSA fax swapped to +12678718206; OTP verified; auto-completing orders; replace/extra numbers on Retell.
+- Live-test a real supplier failure (e.g. Retell overdue) end-to-end through the waiting-order queue.
 - Save to GitHub so CI deploys keep: capabilities.js/Emily live status, caller-ID greying, telephony surcharge, fax retries.
 - Done 2026-11-20 (live, agent-tested): Emily live status, forwarding caller-ID greyed (web+bot), $0.05/min surcharge on Retell numbers, fax order (bot) / send (web+bot) / receive vs external fax line.
 
