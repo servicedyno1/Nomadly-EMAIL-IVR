@@ -2503,10 +2503,11 @@ function handleCallBridged(payload) {
   }
   const active = activeCalls[callControlId]
   if (active) {
-    active.phase = 'bridged'
-    log(`[Voice] Call bridged: ${active.from} ↔ ${active.to}`)
     // Mark native transfer as connected if one exists
     const nativeTransfer = pendingNativeTransfers[callControlId]
+    // A connected forward stays a forward (billed at the forwarding rate).
+    if (!(nativeTransfer && ['forwarding', 'ivr_forward'].includes(active.phase))) active.phase = 'bridged'
+    log(`[Voice] Call bridged: ${active.from} ↔ ${active.to}`)
     if (nativeTransfer) {
       nativeTransfer.connected = true
       if (nativeTransfer._timeout) clearTimeout(nativeTransfer._timeout)
@@ -6972,7 +6973,7 @@ async function startRingGroup(callControlId, session) {
   const g = ringGroups[callControlId] = { legs: new Set(), answered: null, done: false, cfg: rg, timer: null }
   await _telnyxApi.playbackStart(callControlId, RINGBACK_URL, { loop: 'infinity' }).catch(() => {})
   await Promise.all(members.map(async (m) => {
-    const leg = await _telnyxApi.createOutboundCall(session.to, m).catch(() => null)
+    const leg = await _telnyxApi.createOutboundCall(session.to, m, null, null, { ringFor: callControlId }).catch(() => null)
     if (!leg?.callControlId) return
     activeBridgeTransfers[leg.callControlId] = { originalCallControlId: callControlId, forwardTo: m, fromNumber: session.to, type: 'ring_group', createdAt: new Date() }
     g.legs.add(leg.callControlId)
@@ -7017,7 +7018,7 @@ async function ringGroupFallback(callControlId) {
 // Dials `forwardTo` as a new leg that is bridged to the caller once answered (30 s ring limit, or the session's
 // bridgeRingSecs). true when dialed.
 async function dialBridgeLeg(callControlId, forwardTo, fromNumber, via = null) {
-  const newCall = via ? await require('./callengine').createOutboundCall(fromNumber, forwardTo, null, null, { trunk: via }) : await _telnyxApi.createOutboundCall(fromNumber, forwardTo)
+  const newCall = via ? await require('./callengine').createOutboundCall(fromNumber, forwardTo, null, null, { trunk: via }) : await _telnyxApi.createOutboundCall(fromNumber, forwardTo, null, null, { ringFor: callControlId })
   if (!newCall?.callControlId) return false
   activeBridgeTransfers[newCall.callControlId] = { originalCallControlId: callControlId, forwardTo, fromNumber }
   const ringSecs = activeCalls[callControlId]?.bridgeRingSecs || 30

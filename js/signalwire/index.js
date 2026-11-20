@@ -89,6 +89,8 @@ function wrap(t) {
       if (r.error) log(`ring ${to} via CallEngine refused (${r.error}) — not retried elsewhere`)
       return r.error && !r.status ? { ...r, status: 503 } : r
     }
+    // A leg to be joined to a call that came in on Infobip must be an Infobip call too (it leaves via our SIP server → Bird).
+    if (ib.isIb(options.ringFor) && ib.sipTrunk()) return ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)
     const tries = []
     // Voicemail drop: the call engine detects answering machines on the call itself (Asterisk AMD), so Bird handles it too.
     // Bird only (default): a caller ID not verified on Bird is swapped for a system caller ID (logged); any failure alerts the admin.
