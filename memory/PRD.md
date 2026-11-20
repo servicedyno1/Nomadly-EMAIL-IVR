@@ -845,3 +845,6 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 ## 2026-11-20 — CRM calling API (Enterprise; Business +$99/mo) — LIVE on main, agent live-tested, not user-confirmed
 - Connect-on-answer (no key) to the owner's agent/toll-free line, voicemail toggle, webhook updates, docs /api-docs, Emily setup. Details: DEPLOYMENT_STATE.md.
 - Backlog: roll out to WL brands; per-request webhook URL; "What's new" entry.
+
+## 2026-11-20 — Review posts to @Hostbay
+- 4–5★ BulkSMS reviews (delivered single texts or campaigns) from any of the 4 bots post right away to @Hostbay: AI-written unique salesy copy, masked number, no eSIM mention, link to @Nomadlybot. LIVE all brands; unit-tested; no live channel post yet.

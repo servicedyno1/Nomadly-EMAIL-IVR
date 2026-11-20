@@ -779,3 +779,8 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - js/cloudivr-web/admin-move.js: /admin/plan-move/{bots,lookup,history}, POST /admin/plan-move. Nomadly bot only (others "coming later" — separate DBs). Moves chosen live numbers + their extra numbers (doc copied incl. SIP/renewal, movedFrom stamp) bot phoneNumbersOf → web account, sipPresence chatId, audit snapshot in planMoves, web inbox + Telegram notice (deps.sendBot). Wallet NOT moved (owner choice).
 - Admin UI: cloudivr.net/admin?tab=move-plan (MovePlan.js). Test js/tests/test_admin_plan_move.js 7/7.
 - DONE live via the UI: @pirate_script (1005284399) +18883476682 (Business, renews 2026-12-20, Retell, landing +12626628486) → fundmyllc@gmail.com (5000000000000006). Bot wallet $102.07 stays; web wallet $0.04 → he must top up for calls/renewal.
+
+## 2026-11-20 ~15:40Z — 4–5★ BulkSMS reviews auto-posted to @Hostbay (overlay3, ALL 4 brands)
+- js/bulk-esim/review-post.js (new) + bot.js hook: on star rating, if stars>=4 and (campaign or arrived=yes) → bsNotify {brand:'Nomadly', type:'channel'} → Nomadly process posts to @Hostbay (REVIEW_POST_CHANNEL override). Fresh AI text each time (APP_OPEN_API_KEY, gpt-4.1-mini, last 15 posts passed to avoid repeats; rejects eSIM/SIM/provider words; fallback templates). Number masked "+1 720-•••-•388"; CTA always @Nomadlybot (button open_bulksms). Once per review (reviewPosts collection).
+- Script /opt/nomadly/ov3/deploy3.sh; all 4 OV3_EXIT=0. NomadlyBot is admin in @Hostbay with post rights (getChatMember). No live test post made.
+- Test js/tests/test_review_post.js 12/12; test_bulk_esim_review.js 20/20. Not in GitHub — Save to GitHub or CI rolls it back.
