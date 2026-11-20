@@ -12,7 +12,7 @@ async function record(db, user, expires, ua, now = new Date()) {
   // The SIP server re-reports a registered phone at most every 4 min, so short re-register timers (e.g. Zoiper's 60 s)
   // must stay "signed in" until the next report could arrive — otherwise the phone flaps offline between reports.
   const keep = e > 0 ? Math.max(e, REPORT_EVERY_S + 60) : 0
-  await col(db).updateOne({ _id: String(user) }, { $set: { until: new Date(now.getTime() + keep * 1000), ua: String(ua || '').slice(0, 80), at: now } }, { upsert: true })
+  await col(db).updateOne({ _id: String(user) }, { $set: { until: new Date(now.getTime() + keep * 1000), at: now, ...(ua ? { ua: String(ua).slice(0, 80) } : {}) } }, { upsert: true })
   await db.collection('appSettings').updateOne({ _id: 'sipPresenceSince' }, { $setOnInsert: { at: now } }, { upsert: true })
   // Remember whose login this is, so a later attempt with it after it was replaced can be explained to its owner.
   try {
