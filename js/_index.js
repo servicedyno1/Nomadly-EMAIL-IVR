@@ -30433,7 +30433,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const countryCode = info?.cpCountryCode || 'US'
     let surcharge = getNumberSurcharge(countryCode, numberType)
     // MultiTEL / Infobip numbers: same add-on price as the web checkout.
-    if (['multitel', 'infobip', 'retell'].includes(selectedProvider)) surcharge = require('./number-addons').get(countryCode, numberType)
+    // Outside the plan's included countries: the extra-number price (or the admin's country add-on), as on the web.
+    if (['multitel', 'infobip', 'retell'].includes(selectedProvider)) surcharge = phoneConfig.planAddon(planKey, countryCode, numberType, require('./number-addons').get(countryCode, numberType))
     let verifyNote = null
     // Telnyx international: live cost + tell the user BEFORE paying what verification follows
     if (isTelnyxIntl(selectedProvider, countryCode)) {
