@@ -741,7 +741,7 @@ function askAddressAfterPay(chatId, info, number) {
   }, 4000)
 }
 // Forwarding caller-ID toggle label (business number vs the caller's number on US forwards).
-const cidBtn = (f) => f?.showCallerId ? "🪪 Caller ID: caller's number (US)" : '🪪 Caller ID: my business number'
+const cidBtn = (f) => !require('./capabilities').callerPassthrough() ? '🪪 Caller ID: my business number' : f?.showCallerId ? "🪪 Caller ID: caller's number (US)" : '🪪 Caller ID: my business number'
 // One short line per number: number · place · calls/texts · ⚡ instant (address numbers just activate after payment).
 function numLine(r, i, cc, type) {
   const c = r?._capabilities || {}
@@ -4970,6 +4970,7 @@ const loadData = async () => {
     // sms-service module state from initSmsLimits) and handleVoiceWebhook (from
     // initVoiceService, run earlier in this function).
     registerTelnyxRoutes()
+    require('./infobip/fax').init(db)
     faxService.init({ db, bot, walletOf, log, callControlAppId: () => telnyxResources.callControlAppId || process.env.TELNYX_CALL_CONTROL_APP_ID })
     if (process.env.SKIP_WEBHOOK_SYNC !== 'true') faxService.ensureApp().catch(e => log(`[Fax] Fax Application setup failed: ${e.response?.data?.errors?.[0]?.detail || e.message}`))
     if (process.env.SKIP_WEBHOOK_SYNC !== 'true' && TELEGRAM_ADMIN_CHAT_ID) require('./caller-id-report').start({ db, log, send: (text) => bot.sendMessage(TELEGRAM_ADMIN_CHAT_ID, text, { parse_mode: 'HTML' }) })
@@ -32709,6 +32710,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     // ── Toggle caller ID shown on forwarded calls ──
     if (String(message || '').startsWith('🪪 Caller ID')) {
       const fwd = num.features?.callForwarding || {}
+      if (!require('./capabilities').callerPassthrough()) return send(chatId, "🪪 Forwarded calls show <b>your business number</b>.\n<i>Showing the caller's number is not available right now.</i>", { parse_mode: 'HTML' })
       const value = { ...fwd, showCallerId: !fwd.showCallerId }
       await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', value)
       num.features.callForwarding = value
@@ -50198,6 +50200,7 @@ app.post('/infobip/sms-webhook/:k', express.json({ limit: '1mb' }), async (req, 
 // MultiTEL inbound texts (number smsuri, URL POST form data) → same handler as Telnyx texts. Keyed path like Infobip's.
 // MultiTEL received a fax (type-16 line): read the fax inbox now instead of waiting for the 2-minute poll.
 let _mtFaxPoll = null
+require('./infobip/fax').routes(app, express) // Infobip fax: PDF fetch + SIP-server hook
 app.post('/multitel/fax-webhook/:k', express.json({ limit: '25mb' }), (req, res) => {
   res.sendStatus(200)
   if (req.params.k !== require('./multitel/fax').faxHookKey()) return log('MultiTEL fax webhook: bad key')

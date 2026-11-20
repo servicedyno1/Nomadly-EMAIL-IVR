@@ -19,4 +19,5 @@ async function list({ limit = 100, surface } = {}) {
   return col.find(surface ? { surface } : {}).sort({ at: -1 }).limit(Math.min(500, limit)).project({ _id: 0 }).toArray()
 }
 
-module.exports = { SCOPE, init, record, list, lastUserText }
+module.exports = { init, record, list, lastUserText }
+Object.defineProperty(module.exports, 'SCOPE', { enumerable: true, get: () => `${SCOPE}\n\n${require('./capabilities').statusText()}` })

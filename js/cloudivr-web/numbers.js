@@ -52,6 +52,7 @@ function countries() {
     const i = c.name.indexOf(' ')
     return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'] }
   })
+  if (!numberCatalog.chainSells()) for (const c of list) c.types = ['US', 'CA'].includes(c.code) ? numberCatalog.usCaTypes(c.code) : []
   const have = new Map(list.map(c => [c.code, c]))
   for (const [code, types] of Object.entries(numberCatalog.sold())) {
     const c = have.get(code)
@@ -66,12 +67,12 @@ function countries() {
       const b = numberCatalog.best(c.code, t)
       // caps: what the number can do; smsNeedsApproval: US local texting needs 10DLC, US/CA toll-free needs verification.
       const sms = b ? !!b.sms : ['US', 'CA'].includes(c.code)
-      const caps = { voice: true, sms, fax: ['US', 'CA'].includes(c.code) && t !== 'mobile', smsNeedsApproval: sms && c.code === 'US' }
+      const caps = { voice: true, sms, fax: ['US', 'CA'].includes(c.code) && t !== 'mobile' && b?.provider !== 'retell', smsNeedsApproval: sms && c.code === 'US' }
       if (!b) c.offers[t] = { provider: null, level: 0, caps, included: phoneConfig.instantNoId(c.code, t) }
       if (b) c.offers[t] = { caps, included: phoneConfig.instantNoId(c.code, t), provider: b.provider, level: b.level, ...(b.businessOnly ? { businessOnly: true } : {}), ...(b.level && b.address ? { address: b.address } : {}), ...(b.request ? { request: b.request } : {}) }
     }
   }
-  return list.sort((a, b) => (['US', 'CA'].indexOf(b.code) - ['US', 'CA'].indexOf(a.code)) || a.name.localeCompare(b.name))
+  return list.filter(c => c.types.length).sort((a, b) => (['US', 'CA'].indexOf(b.code) - ['US', 'CA'].indexOf(a.code)) || a.name.localeCompare(b.name))
 }
 const ibCountries = require('../infobip/countries')
 const numberCatalog = require('../number-catalog')
@@ -139,6 +140,7 @@ const catalog = () => {
     cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',
     texting: { ...require('../hosted-sms.js').TEXTING, available: require('../hosted-sms.js').AVAILABLE, numberPrice: phoneConfig.plans?.starter?.price ?? null },
     enterprise: { price: phoneConfig.ENTERPRISE_PRICE },
+    forwardShowsCaller: require('../capabilities').callerPassthrough(),
     extraNumber: { price: phoneConfig.SUB_NUMBER_BASE_PRICE, limits: Object.fromEntries(Object.keys(phoneConfig.plans).map(id => [id, phoneConfig.getSubNumberLimit(id)])) },
   }
 }
@@ -476,7 +478,7 @@ function routes(router, deps) {
   const searchArgs = (country, type, areaCode, sms) => ({ country, type, areaCode: areaCode || null, texting: !!sms, own: ownProvider(countries().find(x => x.code === country), type) })
   const hot = require('./search-warm').create(rawSearch, { log: (m) => log(`[CloudIVR-Web] number search cache: ${m}`) })
   // A cached hit the provider no longer remembers (bought or refused since) can't be ordered any more.
-  const stillOffered = (n) => (n._signalwire || n._provider === 'signalwire' ? require('../signalwire').sells('signalwire') && !require('../signalwire/rest').isFull() : n._provider === 'telnyx' ? require('../signalwire').sells('telnyx') : n._provider === 'multitel' ? require('../multitel').isMtSearched(n.phone_number) : n._provider === 'infobip' ? require('../infobip').isIbSearched(n.phone_number) : true)
+  const stillOffered = (n) => (n._signalwire || n._provider === 'signalwire' ? require('../signalwire').sells('signalwire') && !require('../signalwire/rest').isFull() : n._provider === 'telnyx' ? require('../signalwire').sells('telnyx') : n._provider === 'multitel' ? require('../multitel').isMtSearched(n.phone_number) : n._provider === 'infobip' ? require('../infobip').isIbSearched(n.phone_number) : n._provider === 'retell' ? require('../retell').isRtSearched(n.phone_number) : true)
   if (String(process.env.NUMBER_SEARCH_WARM || 'true').toLowerCase() !== 'false') hot.start(searchArgs)
 
   // Typed a full area code: start that search now so pressing Search answers straight away.
@@ -511,7 +513,7 @@ function routes(router, deps) {
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
       capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
-      surcharge: ['infobip', 'multitel'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
+      surcharge: ['infobip', 'multitel', 'retell'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
       provider: n._provider || null,
       ...(n._assigned ? { assigned: true } : {}),
       ...(texting.offerOf(country, type) ? { extraPrice: texting.offerOf(country, type).extraPrice, textPrice: texting.offerOf(country, type).textPrice } : {}),
@@ -527,7 +529,7 @@ function routes(router, deps) {
   // What the line can really do: calls in, calls out (needs the number linked on Bird), texts, fax.
   const withCapacity = async (n) => {
     const c = n.capabilities || {}, bird = require('../bird')
-    const out = c.voice !== false && ['multitel', 'infobip'].includes(n.provider) && n.status === 'active' && !n.dryRun && bird.enabled() ? await bird.presentable(n.phoneNumber).catch(() => false) : null
+    const out = c.voice !== false && ['multitel', 'infobip', 'retell'].includes(n.provider) && n.status === 'active' && !n.dryRun && bird.enabled() ? await bird.presentable(n.phoneNumber).catch(() => false) : null
     return { ...publicNumber(n, n._all), capacity: { callsIn: c.voice !== false, callsOut: c.voice === false ? false : out === null ? c.voice !== false : out ? true : 'pending', texts: !!c.sms && n.features?.sms === true, fax: !!c.fax } }
   }
   router.get('/numbers', h(async (req, res) => { const all = await myNumbers(req.webChatId); res.json({ numbers: await Promise.all(all.map(n => withCapacity({ ...n, _all: all }))) }) }))
@@ -548,7 +550,7 @@ function routes(router, deps) {
   const extraPriceOf = (country, type) => texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE
   const searchSimilar = async (country, type, areaCode) => (await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 6))).map(n => ({
     phoneNumber: n.phone_number, capabilities: n._capabilities || { voice: true, sms: false, fax: false },
-    surcharge: ['infobip', 'multitel'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
+    surcharge: ['infobip', 'multitel', 'retell'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
   }))
 
   // Account currently holding this number (anyone, including the buyer), or null.
@@ -645,7 +647,8 @@ function routes(router, deps) {
       if (!order) throw new Error(hit?.provider === 'signalwire' && require('../signalwire/rest').isFull() ? 'We can’t activate numbers in this area right now. Search again to see the numbers we can switch on today.' : 'The number could not be reserved — it may have just been taken. Pick another one.')
       if (order._retriedNumber) selected = order._retriedNumber
       const viaMultitel = order._provider === 'multitel' || String(order.id || '').startsWith('mt:')
-      const viaInfobip = viaMultitel || order._provider === 'infobip' || String(order.id || '').startsWith('ib:') // own routing, no Telnyx steps
+      const viaRetell = order._provider === 'retell' || String(order.id || '').startsWith('rt:')
+      const viaInfobip = viaMultitel || viaRetell || order._provider === 'infobip' || String(order.id || '').startsWith('ib:') // own routing, no Telnyx steps
       if (!dryRun() && !viaInfobip && tr.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selected, tr.callControlAppId)
 
       let sipUsername = phoneConfig.generateSipUsername(), sipPassword = phoneConfig.generateSipPassword()
@@ -657,7 +660,7 @@ function routes(router, deps) {
       const caps = { voice: hit.capabilities.voice !== false, sms: !!hit.capabilities.sms, mms: !!hit.capabilities.mms, fax: !!hit.capabilities.fax }
       const expiresAt = coterm ? new Date(coterm) : new Date(); if (!coterm) expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
-        phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaInfobip ? 'infobip' : 'telnyx', country, countryName: c.name,
+        phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaRetell ? 'retell' : viaInfobip ? 'infobip' : 'telnyx', ...(order._landingNumber ? { landingNumber: order._landingNumber } : {}), country, countryName: c.name,
         ...(order._needsRegistration || regIssue ? { registration: { status: regIssue ? 'needs_details' : 'pending', level: offer?.level || 0, since: new Date().toISOString(), paid: price } } : {}),
         type, plan: planKey, planPrice: round2(base), ...(!sub && phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0) ? { numberSurcharge: round2(phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: order._pending ? 'provisioning' : 'active',
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
@@ -742,7 +745,7 @@ function routes(router, deps) {
     const ringTimeout = Math.min(60, Math.max(10, parseInt(req.body.ringTimeout, 10) || 25))
     const bk = mode === 'disabled' ? { list: [] } : parseBackups(req.body.backups, [to, req.num.phoneNumber])
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
-    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list, showCallerId: !!req.body.showCallerId }
+    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list, showCallerId: !!req.body.showCallerId && require('../capabilities').callerPassthrough() }
     await setField(req.webChatId, req.num.phoneNumber, 'features.callForwarding', value)
     // Only one answers: "forward every call" switches the AI agent off.
     const ai = req.num.features?.aiAgent

@@ -497,7 +497,7 @@ async function handleAutoRoutedRealTimeBilling(callControlId, sipUsername, fromC
     }
 
     const { chatId, num } = lookupResult
-    const rate = getCallRate(destination)
+    const rate = getCallRate(destination) + surchargeOfNum(num)
 
     // ── Wallet check — hang up immediately if wallet too low ──
     if (_walletOf) {
@@ -1552,6 +1552,20 @@ async function incrementMinutesUsed(chatId, phoneNumber, minutes) {
  * @param {string} callType - Label for payment logs (e.g. 'Inbound', 'Forwarding', 'SIPOutbound', 'IVR_Outbound', 'IVR_Transfer')
  * @returns {{ planMinUsed: number, overageMin: number, overageCharge: number, rate: number }}
  */
+// Telephony infrastructure surcharge per wallet-billed minute on Retell-sourced numbers (extra carrier legs).
+const TELEPHONY_SURCHARGE = parseFloat(process.env.TELEPHONY_SURCHARGE_PER_MIN || '0.05')
+const surchargeOfNum = (num) => (num?.provider === 'retell' ? TELEPHONY_SURCHARGE : 0)
+let _rtNums = null, _rtAt = 0
+async function surchargeFor(phoneNumber) {
+  if (!TELEPHONY_SURCHARGE || !_phoneNumbersOf) return 0
+  if (!_rtNums || Date.now() - _rtAt > 300000) {
+    const docs = await _phoneNumbersOf.find({ 'val.numbers.provider': 'retell' }).project({ 'val.numbers.phoneNumber': 1, 'val.numbers.provider': 1 }).toArray().catch(() => null)
+    if (docs) { _rtNums = new Set(docs.flatMap(d => (d.val?.numbers || []).filter(n => n.provider === 'retell').map(n => n.phoneNumber))); _rtAt = Date.now() }
+  }
+  return _rtNums?.has(phoneNumber) ? TELEPHONY_SURCHARGE : 0
+}
+const surchargeNote = (x) => (x ? ` · incl. $${x}/min telephony infrastructure surcharge` : '')
+
 // ━━━ Outbound call types: charge wallet directly, do NOT use plan minutes ━━━
 const OUTBOUND_CALL_TYPES = [
   'SIPOutbound', 'Forwarding', 'Bridge_Transfer',
@@ -1582,6 +1596,9 @@ async function billCallMinutesUnified(chatId, phoneNumber, minutesBilled, destin
       }
     } catch (e) { log(`[Voice] Loyalty tier lookup error: ${e.message}`) }
   }
+  const surcharge = await surchargeFor(phoneNumber).catch(() => 0)
+  if (surcharge) rate = +(rate + surcharge).toFixed(4)
+  const sNote = surchargeNote(surcharge)
   const discountLine = tierInfo && loyaltyDiscount > 0
     ? `\n${tierInfo.badge} <b>${tierInfo.name} ${tierInfo.discountPercent}% off</b> applied`
     : ''
@@ -1593,7 +1610,7 @@ async function billCallMinutesUnified(chatId, phoneNumber, minutesBilled, destin
       if (_walletOf) {
         const deductResult = await smartWalletDeduct(_walletOf, chatId, totalCharge, {
           type: 'outbound_call', callType,
-          description: `Outbound ${callType}: ${phoneNumber} → ${destinationNumber} (${minutesBilled} min × $${rate})`,
+          description: `Outbound ${callType}: ${phoneNumber} → ${destinationNumber} (${minutesBilled} min × $${rate})${sNote}`,
           destination: destinationNumber, phoneNumber,
           callRef, // idempotency key — duplicate webhooks for same callRef will no-op
         })
@@ -1678,7 +1695,7 @@ async function billCallMinutesUnified(chatId, phoneNumber, minutesBilled, destin
       try {
         const deductResult = await smartWalletDeduct(_walletOf, chatId, overageCharge, {
           type: 'overage_charge', callType,
-          description: `Overage ${callType}: ${phoneNumber} → ${destinationNumber} (${newOverageMin} min × $${rate})`,
+          description: `Overage ${callType}: ${phoneNumber} → ${destinationNumber} (${newOverageMin} min × $${rate})${sNote}`,
           destination: destinationNumber, phoneNumber,
         })
         if (deductResult.success) {
@@ -2623,6 +2640,8 @@ async function handleCallInitiated(payload) {
   const esimLine = _db && /^\+1\d{10}$/.test(to) ? await _db.collection('esimLines').findOne({ phoneNumber: to, status: 'active', callsTo: 'browser', ivrNumber: { $ne: null } }).catch(() => null) : null
   if (esimLine) log(`[Voice] eSIM ${to} → menu of ${esimLine.ivrNumber}`)
   // A number bought elsewhere (e.g. Retell) forwards to a landing number of ours: run the bought number's setup.
+  // Infobip fax numbers: straight to the fax receiver on our SIP server (no menu, no billing as a call).
+  if (direction === 'incoming' && String(callControlId).startsWith('ib:') && await require('./infobip/fax').isFaxNumber(to).catch(() => false)) return require('./infobip/fax').inbound(callControlId, from, to)
   const landed = !esimLine && _phoneNumbersOf ? await _phoneNumbersOf.findOne({ 'val.numbers': { $elemMatch: { landingNumber: to, status: { $in: ['active', 'suspended'] } } } }).catch(() => null) : null
   const landedNum = landed?.val?.numbers?.find(n => n.landingNumber === to)
   if (landedNum) { log(`[Voice] Landing ${to} → ${landedNum.phoneNumber}`); to = landedNum.phoneNumber }
@@ -2682,7 +2701,7 @@ async function handleCallInitiated(payload) {
 
   // ── CHECK: Inbound minutes limit reached? → Try overage billing ──
   if (!_freeTestRing && isMinuteLimitReached(num, ownerNumbers)) {
-    const inboundRate = getCallRate(from) // Rate based on caller's country
+    const inboundRate = getCallRate(from) + surchargeOfNum(num) // Rate based on caller's country
     let overageAllowed = false
     if (_walletOf) {
       try {
@@ -3465,7 +3484,7 @@ async function handleOutboundSipCall(payload) {
   }
 
   // Wallet balance check — outbound calls charge directly from wallet (plan minutes are for inbound only)
-  const sipRate = getCallRate(destination)
+  const sipRate = getCallRate(destination) + surchargeOfNum(num)
   const minRequired = sipRate + CALL_CONNECTION_FEE  // Per-minute rate + connection fee
   // Free test calls (bot/web test logins, CloudIVR landing lines) are capped and never billed — no wallet needed.
   if (_walletOf && !lookupResult.isTestCall) {
@@ -4101,7 +4120,7 @@ async function routeOffHours(callControlId, session) {
   const fwd = !session.aiClosed && hrs.offAction === 'forward' ? [...new Set(hrs.offForward || [])].filter(n => n && n !== to && n !== from && !dialGuard.classifyDial(n).blocked).slice(0, 5) : []
   if (fwd.length && _walletOf) {
     const { usdBal } = await getBalance(_walletOf, chatId).catch(() => ({ usdBal: CALL_FORWARDING_RATE_MIN }))
-    if (usdBal < CALL_FORWARDING_RATE_MIN) { log(`[Voice] Off-hours forward wallet check: $${usdBal} < $${CALL_FORWARDING_RATE_MIN} — not forwarding`); fwd.length = 0 }
+    if (usdBal < CALL_FORWARDING_RATE_MIN + surchargeOfNum(num)) { log(`[Voice] Off-hours forward wallet check: $${usdBal} < $${CALL_FORWARDING_RATE_MIN} — not forwarding`); fwd.length = 0 }
   }
   if (!fwd.length) return offHoursEnd(callControlId, session)
   log(`[Voice] ${to} is OFF (outside hours, tz=${hrs.timezone}) — forwarding ${from} to ${fwd.join(' → ')}`)
@@ -4209,6 +4228,8 @@ async function birdAutoLinkTick() {
   const sw = new Set(ibNums)
   const numbers = new Set()
   for (const n of require('./ivr-outbound').SYSTEM_CALLERS()) if (sw.has(n)) numbers.add(n)
+  // Infobip fax numbers send via Bird, so they need linking too.
+  for (const f of await _db.collection('faxNumbers').find({ provider: 'infobip_fax', status: 'active' }, { projection: { _id: 1 } }).toArray()) numbers.add(f._id)
   // Retell numbers are customer numbers too (bought on Retell, so not in the Infobip/MultiTEL lists).
   for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1, 'val.numbers.capabilities': 1, 'val.numbers.provider': 1 } }).toArray())
     for (const n of d.val?.numbers || []) if ((sw.has(n.phoneNumber) || n.provider === 'retell') && n.capabilities?.voice !== false && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
@@ -4294,7 +4315,7 @@ async function handleCallAnswered(payload) {
     if (!_walletOf) return true
     try {
       const { usdBal } = await getBalance(_walletOf, chatId)
-      if (usdBal >= CALL_FORWARDING_RATE_MIN) {
+      if (usdBal >= CALL_FORWARDING_RATE_MIN + surchargeOfNum(num)) {
         // De-duplicated, destination-aware low-balance nudge (shared with the post-billing alert)
         await notifyLowForwardingBalance(chatId, num.phoneNumber, fwdConfig.forwardTo)
         return true
@@ -4316,7 +4337,7 @@ async function handleCallAnswered(payload) {
   if (ringGroupOn(num)) {
     if (_walletOf) {
       const { usdBal } = await getBalance(_walletOf, chatId).catch(() => ({ usdBal: CALL_FORWARDING_RATE_MIN }))
-      if (usdBal < CALL_FORWARDING_RATE_MIN) {
+      if (usdBal < CALL_FORWARDING_RATE_MIN + surchargeOfNum(num)) {
         log(`[Voice] Ring group wallet check: $${usdBal} < $${CALL_FORWARDING_RATE_MIN} — not ringing`)
         await _telnyxApi.speakOnCall(callControlId, 'Sorry, this line cannot take calls right now. Please try again later.').catch(() => {})
         setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 5000)
@@ -4849,7 +4870,7 @@ async function ivrForwardAllowed(callControlId, session, to) {
   const { num, chatId } = session
   if (!_walletOf) return true
   try {
-    const rate = getCallRate(to)
+    const rate = getCallRate(to) + surchargeOfNum(num)
     const { usdBal } = await getBalance(_walletOf, chatId)
     if (usdBal < rate) {
       log(`[Voice] IVR forward blocked: wallet $${usdBal} < $${rate}/min for ${to}`)
@@ -7094,6 +7115,7 @@ async function resolveOtp(callControlId, action, message) {
 }
 
 module.exports = {
+  surchargeOfNum,
   resolveOtp,
   pendingIvrConfirms, resolveIvrConfirm,
   handleVoiceWebhook,
