@@ -114,6 +114,32 @@ const rtp = require('../ai-agent/rtp')
     ce._setConnected(true)
     assert.ok(r.lineLimit)
   })
+
+  // Inbound on an Infobip-delivered number: answered at Infobip, then handed to our call engine by SIP (never to Telnyx).
+  const ib = require('../infobip')
+  const ibDone = []
+  ib.voice.answerCall = async (id) => { ibDone.push(['answer', id]); return {} }
+  ib.connectSip = async (id, user, from) => { ibDone.push(['connect', id, user, from]); return {} }
+  ib.voice.hangupCall = async (id) => { ibDone.push(['hangup', id]); return null }
+  process.env.APP_OPEN_API_KEY = 'k'
+  calls.init({ log: () => {}, selfUrl: 'https://x', walletOf: { findOne: async () => ({ usdIn: 50, usdOut: 0 }) } })
+  const numIb = { phoneNumber: '+18885550100', plan: 'business', features: { aiAgent: { enabled: true, agentId: 'a1' } } }
+  await ok('Infobip inbound call is answered and handed to the call engine', async () => {
+    const r = await calls.tryInbound({ payload: { call_control_id: 'ib:x1', from: '+19085550100' }, chatId: '9', num: numIb })
+    assert.strictEqual(r, true)
+    assert.deepStrictEqual(ibDone[0], ['answer', 'ib:x1'])
+    assert.strictEqual(ibDone[1][0], 'connect'); assert.ok(/^ai\.[^.]+\..+/.test(ibDone[1][2])); assert.strictEqual(ibDone[1][3], '+19085550100')
+    assert.ok(calls.owns('ib:x1'))
+  })
+  await ok('when the agent leg ends, the Infobip caller is hung up', async () => {
+    const s = calls.sessions.get('ib:x1')
+    ce.answerCall = async () => ({}); ce.startExternalMedia = async () => null; ce.hangupCall = async () => null
+    ce._onEvent({ type: 'StasisStart', args: ['sip', `ai.nomadly.${s.token}`], channel: { id: 'c9', name: 'PJSIP/kamailio-9', caller: {}, state: 'Ring' } })
+    await wait(30)
+    assert.ok(calls.sessions.get('ae:c9'), 'agent runs on the engine leg'); assert.ok(calls.owns('ib:x1'))
+    await calls.finish(calls.sessions.get('ae:c9'), {}).catch(() => {})
+    assert.ok(ibDone.some(d => d[0] === 'hangup' && d[1] === 'ib:x1'))
+  })
   console.log(`\n${pass} passed, ${fail} failed`)
   process.exit(fail ? 1 : 0)
 })()

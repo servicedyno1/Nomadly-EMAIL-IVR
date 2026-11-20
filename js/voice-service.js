@@ -5567,7 +5567,8 @@ async function handleCallHangup(payload) {
   // ALL calls billed minimum 1 minute — answered or not, outbound or forwarded.
   // Inbound missed calls: no charge (receiver doesn't pay for missed inbound).
   const isForwarded = session.phase === 'forwarding' || session.phase === 'ivr_forward'
-  const minutesBilled = duration > 0
+  const missedInbound = !isOutbound && session.phase === 'missed' // nobody took it: the caller only heard our "unavailable" message
+  const minutesBilled = missedInbound ? 0 : duration > 0
     ? Math.ceil(duration / 60)
     : ((isOutbound || isForwarded) ? 1 : 0) // Outbound/Forwarded: 1-min minimum even if unanswered. Inbound: no charge if missed.
 
