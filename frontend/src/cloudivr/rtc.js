@@ -3,6 +3,8 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 import { api, enc, askProfile } from './api';
 import { useMic } from './mic';
 import { startSipLine } from './sipClient';
+import { toast } from 'sonner';
+import { cp } from './paths';
 
 // SDK errors can carry carrier wording — show our own text instead.
 const friendly = (e) => {
@@ -90,6 +92,13 @@ export function RtcProvider({ children }) {
     // Outgoing calls need the account's personal / business details first.
     const prof = await api('/profile/legal').catch(() => null);
     if (prof && !prof.complete && !(await askProfile())) return null;
+    // A wallet below the call minimum is refused by the network — say so instead of a silent hang-up.
+    const cs = await api('/wallet/calling').catch(() => null);
+    if (cs?.locked) {
+      setMsg(`Outgoing calls are paused: your wallet has $${cs.balance.toFixed(2)}. Top up to at least $${cs.unlockAt} to call again.`);
+      toast.error('Not enough wallet balance to call', { action: { label: 'Top up', onClick: () => { window.location.href = cp('/app/wallet'); } } });
+      return null;
+    }
     const m = await mic.ask();
     if (m !== 'granted') return null;
     if (key.current && Date.parse(key.current.expiresAt) - Date.now() < 3600000) {

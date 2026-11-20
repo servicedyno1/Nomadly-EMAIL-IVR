@@ -323,6 +323,8 @@ function removeSipPreDialBlock(sipUsername) {
   } catch (e) { /* non-critical */ }
 }
 
+const isPreDialBlocked = (chatId) => [..._sipPreDialBlocklist.values()].some(e => String(e.chatId) === String(chatId) && e.reason === 'low_balance')
+
 // Remove ALL blocks for a given chatId (called when wallet is topped up)
 function removeSipPreDialBlockByChatId(chatId) {
   let removed = 0
@@ -337,7 +339,7 @@ function removeSipPreDialBlockByChatId(chatId) {
   try {
     const db = _phoneNumbersOf?.s?.db
     if (db) {
-      db.collection('sipPreDialBlocklist').deleteMany({ chatId }).catch(() => {})
+      db.collection('sipPreDialBlocklist').deleteMany({ chatId: { $in: [target, Number(target)] } }).catch(() => {})
     }
   } catch (e) { /* non-critical */ }
   // ALWAYS clear lingering wallet-reject cooldowns for this user — they outlive
@@ -7209,6 +7211,7 @@ module.exports = {
   
   trackIvrAnalytics,
   removeSipPreDialBlockByChatId,
+  isPreDialBlocked,
   addSipPreDialBlock,
   notifyPreDialLowBalance,
   LOW_BALANCE_TRIGGER,

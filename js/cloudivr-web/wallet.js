@@ -15,6 +15,16 @@ const depositStatus = (d, paidAt) => {
 }
 const livePayments = () => process.env.WEB_CLOUDIVR_DRY_RUN !== 'true' || !!process.env.WEB_DYNO_PAY_API_KEY
 
+// A web top-up lifts the outbound-call lock as soon as the balance reaches the resume level (bot top-ups do the same in _index.js).
+const unlockCalling = (chatId, bal) => {
+  try { const vs = require('../voice-service.js'); if (bal >= vs.LOW_BALANCE_RESUME) vs.removeSipPreDialBlockByChatId(String(chatId)) } catch (_) { /* voice engine not loaded */ }
+}
+const callingState = async (chatId, bal) => {
+  const vs = require('../voice-service.js')
+  const locked = bal < vs.LOW_BALANCE_TRIGGER || (vs.isPreDialBlocked(chatId) && bal < vs.LOW_BALANCE_RESUME)
+  return { locked, balance: round2(bal), lockBelow: vs.LOW_BALANCE_TRIGGER, unlockAt: vs.LOW_BALANCE_RESUME }
+}
+
 function walletOps(db) {
   const walletOf = db.collection('walletOf')
   const balance = async (chatId) => {
@@ -34,6 +44,7 @@ function walletOps(db) {
   const credit = async (chatId, amount) => {
     const amt = round4(amount)
     if (amt > 0) await walletOf.updateOne({ _id: String(chatId) }, { $inc: { usdIn: amt } }, { upsert: true })
+    if (amt > 0) unlockCalling(chatId, await balance(chatId))
   }
   return { balance, debit, credit }
 }
@@ -45,6 +56,9 @@ const LABEL = { purchase: 'Number purchase', purchase_sub: 'Extra number purchas
 function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUsd }) {
   const w = walletOps(db)
   const rateCache = { at: 0, rates: null }
+
+  // Can this account place outgoing calls right now? (browser phone checks before dialing)
+  router.get('/wallet/calling', h(async (req, res) => res.json(await callingState(req.webChatId, await w.balance(req.webChatId)))))
 
   // Coins per 1 USD for every coin (display only; the exact amount comes with the address). Cached for a minute.
   router.get('/wallet/rates', h(async (req, res) => {
