@@ -758,3 +758,10 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Owner: "The bot only shows US, Canada and France". phone-config botPlanCountries no longer limited to included countries (all 12 Infobip countries); bot checkout surcharge for Infobip/MultiTEL/Retell = phoneConfig.planAddon(plan, cc, type, admin add-on) → same as web ($25 outside included countries; FR $0 on Business). Renewal keeps it (numberSurcharge in canonicalPrice).
 - Live (no purchase): Pro → More Countries lists 12 → Mexico → 5 numbers → summary "Plan $100 + Number $25 = $125/mo".
 - GitHub CI deployed 33c0cfc at 08:03 (= workspace before this change); this release = workspace incl. the 2-file change → Save to GitHub again.
+
+## 2026-11-20 11:06–11:09Z — BulkSMS version separators + clear too-long errors (ALL 4 brands, frontend unchanged)
+- Trigger: voodoo @AimHigghh (7516113198) typed "- - -" between versions → read as one text → "too long". (His text was a sweepstakes-prize message; owner told; owner asked only for these two fixes.)
+- bulk-esim/core.js: splitVersions — line of only dashes (---, - - -, —, —-, ===) or inline 3+ dashes / "—-" splits versions; normal "-"/"—" in text kept. checkContent → err_versions_long([{i,len}], max, total) ("Version 2: 152 of 138 — cut 14"; single text hints the --- separator when ~2+ SMS long). sendOne → err_one_too_long(len, max) (3 SMS incl. opt-out) — replaces misleading "max 160".
+- i18n.js (en/fr/zh/hi/fa): err_versions_long, err_one_too_long, rotate_how (shown under the message step), rotate_split (review: "3 versions · each of the 500 numbers gets one (about 167 per version)").
+- Tests updated (error key/args): engine (4 pre-existing failures, same as before), replies_variants 28/28, iter242_probe 53/53, stop_upload_iter239 88/88, iter242_wizard 31/31, bot_flow 24/24.
+- Releases: voodoo 20261120T110640Z-0a460c1, main 20261120T110712Z-f2beb16, wl 20261120T110756Z-0a460c1, proshop 20261120T110833Z-0a460c1. Not in GitHub (main or WhiteLabel) yet.

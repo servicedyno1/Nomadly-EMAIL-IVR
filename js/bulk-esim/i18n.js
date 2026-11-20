@@ -867,6 +867,56 @@ const GUARD = {
 }
 for (const [l, d] of Object.entries(GUARD)) Object.assign(LANGS[l], d)
 
+// Too-long texts say which version, by how much; rotation is explained in one line.
+const cut = (len, max) => len - max
+const VERS = {
+  en: {
+    err_versions_long: (list, max, total) => total > 1
+      ? `Too long — each version must fit one SMS (max ${max} characters):\n${list.map(x => `• Version ${x.i}: ${x.len} of ${max} — cut ${cut(x.len, max)}`).join('\n')}`
+      : `Too long: ${list[0].len} characters — max ${max} for one SMS. Cut ${cut(list[0].len, max)}.${list[0].len > max * 1.6 ? '\nWriting several versions? Put a line with only <code>---</code> between them.' : ''}`,
+    err_one_too_long: (len, max) => `Too long: ${len} characters — max ${max} (up to 3 SMS). Cut ${cut(len, max)}.`,
+    rotate_how: '🔄 Each person gets <b>one</b> of your versions — e.g. 3 versions × 500 numbers ≈ 167 each.',
+    rotate_split: (k, n) => `🔄 ${k} versions · each of the ${n} numbers gets one (about ${Math.round(n / k)} per version).`,
+  },
+  fr: {
+    err_versions_long: (list, max, total) => total > 1
+      ? `Trop long — chaque version doit tenir en un SMS (${max} caractères max) :\n${list.map(x => `• Version ${x.i} : ${x.len} sur ${max} — retirez ${cut(x.len, max)}`).join('\n')}`
+      : `Trop long : ${list[0].len} caractères — ${max} max pour un SMS. Retirez-en ${cut(list[0].len, max)}.${list[0].len > max * 1.6 ? '\nPlusieurs versions ? Mettez une ligne avec seulement <code>---</code> entre elles.' : ''}`,
+    err_one_too_long: (len, max) => `Trop long : ${len} caractères — ${max} max (jusqu’à 3 SMS). Retirez-en ${cut(len, max)}.`,
+    rotate_how: '🔄 Chaque personne reçoit <b>une</b> de vos versions — ex. 3 versions × 500 numéros ≈ 167 chacune.',
+    rotate_split: (k, n) => `🔄 ${k} versions · chacun des ${n} numéros en reçoit une (environ ${Math.round(n / k)} par version).`,
+  },
+  zh: {
+    err_versions_long: (list, max, total) => total > 1
+      ? `太长 — 每个版本必须是一条短信（最多 ${max} 个字符）：\n${list.map(x => `• 版本 ${x.i}：${x.len}/${max} — 删去 ${cut(x.len, max)}`).join('\n')}`
+      : `太长：${list[0].len} 个字符 — 一条短信最多 ${max}。请删去 ${cut(list[0].len, max)}。${list[0].len > max * 1.6 ? '\n要写多个版本？在版本之间放一行只有 <code>---</code>。' : ''}`,
+    err_one_too_long: (len, max) => `太长：${len} 个字符 — 最多 ${max}（最多 3 条短信）。请删去 ${cut(len, max)}。`,
+    rotate_how: '🔄 每个人只会收到<b>其中一个</b>版本 — 例如 3 个版本 × 500 个号码 ≈ 每个约 167。',
+    rotate_split: (k, n) => `🔄 ${k} 个版本 · ${n} 个号码每个收到其中一个（每个版本约 ${Math.round(n / k)} 个）。`,
+  },
+  hi: {
+    err_versions_long: (list, max, total) => total > 1
+      ? `बहुत लंबा — हर वर्ज़न एक SMS में आना चाहिए (अधिकतम ${max} अक्षर):\n${list.map(x => `• वर्ज़न ${x.i}: ${x.len}/${max} — ${cut(x.len, max)} कम करें`).join('\n')}`
+      : `बहुत लंबा: ${list[0].len} अक्षर — एक SMS में अधिकतम ${max}। ${cut(list[0].len, max)} कम करें।${list[0].len > max * 1.6 ? '\nकई वर्ज़न लिख रहे हैं? उनके बीच सिर्फ़ <code>---</code> वाली लाइन रखें।' : ''}`,
+    err_one_too_long: (len, max) => `बहुत लंबा: ${len} अक्षर — अधिकतम ${max} (3 SMS तक)। ${cut(len, max)} कम करें।`,
+    rotate_how: '🔄 हर व्यक्ति को आपके वर्ज़न में से <b>एक</b> मिलता है — जैसे 3 वर्ज़न × 500 नंबर ≈ हर एक को 167।',
+    rotate_split: (k, n) => `🔄 ${k} वर्ज़न · ${n} नंबरों में से हर एक को एक मिलेगा (हर वर्ज़न लगभग ${Math.round(n / k)})।`,
+  },
+  fa: {
+    err_versions_long: (list, max, total) => total > 1
+      ? `خیلی طولانی — هر نسخه باید یک پیامک باشد (حداکثر ${max} نویسه):\n${list.map(x => `• نسخه ${x.i}: ${x.len} از ${max} — ${cut(x.len, max)} کم کنید`).join('\n')}`
+      : `خیلی طولانی: ${list[0].len} نویسه — حداکثر ${max} برای یک پیامک. ${cut(list[0].len, max)} کم کنید.${list[0].len > max * 1.6 ? '\nچند نسخه می‌نویسید؟ بین آن‌ها یک خط فقط با <code>---</code> بگذارید.' : ''}`,
+    err_one_too_long: (len, max) => `خیلی طولانی: ${len} نویسه — حداکثر ${max} (تا ۳ پیامک). ${cut(len, max)} کم کنید.`,
+    rotate_how: '🔄 هر نفر <b>یکی</b> از نسخه‌های شما را می‌گیرد — مثلاً ۳ نسخه × ۵۰۰ شماره ≈ هر کدام ۱۶۷.',
+    rotate_split: (k, n) => `🔄 ${k} نسخه · هر یک از ${n} شماره یکی را می‌گیرد (حدود ${Math.round(n / k)} برای هر نسخه).`,
+  },
+}
+for (const [l, d] of Object.entries(VERS)) {
+  const f = d.err_versions_long
+  d.err_versions_long = (list, max, total = 1) => f(Array.isArray(list) ? list : [{ i: 1, len: Number(list) || 0 }], max, total)
+  if (LANGS[l]) Object.assign(LANGS[l], d)
+}
+
 // Guided test step: test first → "Did it arrive?" → choose when. Short on purpose.
 const rdy = (head, line, nums, first, off, cost) => (o) => `✅ <b>${head}</b> · ${o.n} ${nums} · <b>$${o.price}</b>\n\n🧪 <b>3/4 · ${first}</b>\n${o.barred ? off : !o.open && !o.free ? cost(money(o.unit)) : line}`
 const GUIDE = {

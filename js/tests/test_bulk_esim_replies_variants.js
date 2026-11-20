@@ -19,8 +19,8 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   const M = db.collection('bsMessages')
 
   // ---- content rules ----
-  ok('one SMS incl. opt-out line: 138 chars ok, 139 refused', !B.checkContent('a'.repeat(138), false).error && B.checkContent('a'.repeat(139), false).error === 'err_too_long')
-  ok('no opt-out line: 160 ok, 161 refused', !B.checkContent('a'.repeat(160), false, false).error && B.checkContent('a'.repeat(161), false, false).error === 'err_too_long')
+  ok('one SMS incl. opt-out line: 138 chars ok, 139 refused', !B.checkContent('a'.repeat(138), false).error && B.checkContent('a'.repeat(139), false).error === 'err_versions_long')
+  ok('no opt-out line: 160 ok, 161 refused', !B.checkContent('a'.repeat(160), false, false).error && B.checkContent('a'.repeat(161), false, false).error === 'err_versions_long')
   ok('unicode text: 70 chars is one SMS, 71 is refused naming the character that forces unicode', !B.checkContent('ب'.repeat(70), false, false).error && B.checkContent('ب'.repeat(71), false, false).error === 'err_special_char' && /ب/.test(B.checkContent('ب'.repeat(71), false, false).args[0]))
   ok('text-only refuses links/phones in ANY version', B.checkContent('Hi\n---\nCall 212-555-1234', false).error === 'err_has_link')
   ok('MAX_PARTS is 1', B.MAX_PARTS === 1)
@@ -61,7 +61,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   await db.collection('bsCampaigns').updateOne({ _id: cpX._id }, { $set: { content: ['Plain text here www.evil.com'] } })
   ok('text-only campaign whose text gained a link is refused at booking', (await B.createBooking(cid, { campaignId: cpX._id, now: true })).error === 'err_has_link')
   await db.collection('bsCampaigns').updateOne({ _id: cpX._id }, { $set: { content: ['x'.repeat(150)] } })
-  ok('…or grew past one SMS', (await B.createBooking(cid, { campaignId: cpX._id, now: true })).error === 'err_too_long')
+  ok('…or grew past one SMS', (await B.createBooking(cid, { campaignId: cpX._id, now: true })).error === 'err_versions_long')
 
   // ---- send both, then replies ----
   await B.confirmBooking(bA.booking._id, { method: 'wallet' }); await B.confirmBooking(bB.booking._id, { method: 'wallet' })

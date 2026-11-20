@@ -867,16 +867,22 @@ const MAX_PARTS = 1
 const optLine = (optOut) => (optOut === false ? '' : OPT)
 const bodyOf = (cp, i) => cp.content[i % cp.content.length] + optLine(cp.optOut)
 // withLinks undefined → the price type comes from the text itself (any version with a link/phone = link price), so it can't be gamed.
+// Versions are split on a line of only dashes (---, - - -, the long dash phones type for ---) or an inline run of 3+ dashes / "—-".
+const SEP_LINE = /^[ \t]*(?:[-–—─_=][ \t]*)+$/
+const SEP_INLINE = /(^|[ \t])(?:—-|-—|——|(?:[-–—][ \t]*){3,})(?=[ \t]|$)/g
+const splitVersions = (text) => String(text || '').split(/\r?\n/).map(l => (SEP_LINE.test(l) ? '\u0000' : l.replace(SEP_INLINE, '$1\u0000'))).join('\n')
+  .split('\u0000').map(x => x.trim()).filter(Boolean)
 function checkContent(content, withLinks, optOut = true) {
-  const parts = (Array.isArray(content) ? content : String(content || '').split(/\n?---\n?/)).map(x => x.trim()).filter(Boolean)
+  const parts = (Array.isArray(content) ? content : splitVersions(content)).map(x => String(x).trim()).filter(Boolean)
   if (!parts.length) return E('err_add_text')
   const limit = optOut === false ? 160 : 160 - OPT.length
-  const over = parts.find(p => segs(p + optLine(optOut)) > MAX_PARTS)
-  if (over) {
-    const line = over + optLine(optOut), bad = badChars(line)
+  const over = parts.map((p, i) => ({ i: i + 1, p })).filter(x => segs(x.p + optLine(optOut)) > MAX_PARTS)
+  if (over.length) {
+    const bad = badChars(over.map(x => x.p).join(' ') + optLine(optOut))
     // Fits as a normal (GSM-7) SMS and only fails because of special characters → name them instead of "too long".
-    if (bad.length && line.length <= limit) return E('err_special_char', showBad(bad))
-    return E('err_too_long', bad.length ? 70 - optLine(optOut).length : limit)
+    if (bad.length && over.every(x => x.p.length <= limit)) return E('err_special_char', showBad(bad))
+    if (bad.length) return E('err_too_long', 70 - optLine(optOut).length)
+    return E('err_versions_long', over.map(x => ({ i: x.i, len: x.p.length })), limit, parts.length)
   }
   const linked = parts.some(hasLinkOrPhone)
   if (withLinks === false && linked) return E('err_has_link')
@@ -1284,7 +1290,7 @@ async function sendOne(cid, to, text, sessionId, { optOut = true, unlimited = fa
   if (!body) return E('err_add_text')
   if (sessionId) { const rr = await replyRoute(cid, sessionId); if (rr.error) return rr } else if (!(await ready()).one) return E('off_one')
   const full = sessionId || !optOut ? body : body + OPT
-  if (segs(full) > 3) { const bad = badChars(full); return bad.length && full.length <= 3 * 160 ? E('err_special_char', showBad(bad)) : E('err_too_long', 160) }
+  if (segs(full) > 3) { const bad = badChars(full); return bad.length && full.length <= 3 * 153 ? E('err_special_char', showBad(bad)) : E('err_one_too_long', body.length, 3 * 153 - (full.length - body.length)) }
   if (hasLinkOrPhone(body)) { const sc = await screenContent(cid, [body], 'one-off text'); if (sc.error) return sc }
   if (!unlimited && (await usage(cid)).remaining < segs(full)) return E('err_quota_used')
   if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
@@ -1885,4 +1891,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { applyValidation, saveList, savedLists, renameList, VAL_RATE, orderOrQueue, processLineQueue, replaceEsim, altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, singleTextMode, savePendingText, clearPendingText, duePendingTexts, claimPendingText, releasePendingText, dueWinbacks, winbackTake, winbackGive, WINBACK, SINGLE_TEXT_PRICE, SINGLE_TEXT_MIN_BALANCE, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
+module.exports = { applyValidation, saveList, savedLists, renameList, VAL_RATE, orderOrQueue, processLineQueue, replaceEsim, altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, singleTextMode, savePendingText, clearPendingText, duePendingTexts, claimPendingText, releasePendingText, dueWinbacks, winbackTake, winbackGive, WINBACK, SINGLE_TEXT_PRICE, SINGLE_TEXT_MIN_BALANCE, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, splitVersions, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }

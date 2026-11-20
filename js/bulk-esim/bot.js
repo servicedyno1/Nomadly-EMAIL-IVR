@@ -140,7 +140,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   const arrivedKb = () => kb([[L.arrived_yes], [L.arrived_spam], [L.arrived_no], [L.back]])
   const askTestTo = async (free) => { await go('bse-test-to'); return send(chatId, say('test_to_q', free), kb([...(info.bseTestTo ? [[info.bseTestTo]] : []), [L.test_skip], [L.back]])) }
   const unitOf = (c, links) => (links ? c.priceLink : c.pricePlain)
-  const contentAsk = async (key = 'content_q') => { const c = await B.cfg(), optOut = info.bseOptOut !== false; return send(chatId, say(key, { max: optOut ? 160 - B.OPT.length : 160, optOut, plain: per500(c.pricePlain), link: per500(c.priceLink) }), kb([[optOut ? L.optout_no : L.optout_yes], [L.back]])) }
+  const contentAsk = async (key = 'content_q') => { const c = await B.cfg(), optOut = info.bseOptOut !== false; return send(chatId, `${say(key, { max: optOut ? 160 - B.OPT.length : 160, optOut, plain: per500(c.pricePlain), link: per500(c.priceLink) })}\n${say('rotate_how')}`, kb([[optOut ? L.optout_no : L.optout_yes], [L.back]])) }
   // Step 1 — numbers: parsed, capped at maxVolume, checked (Telnyx carrier lookup, free); every kept number is billed, only mobiles are texted.
   if (action === 'bse-contacts') {
     if (message === L.validate_first) { await put('bseValFirst', true); return send(chatId, say('val_upload'), kb([[L.back]])) }
@@ -188,7 +188,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   async function review() {
     const c = await B.cfg(), d = await drafts().findOne({ _id: cid }) || {}, v = info.bseContent, links = v.some(B.hasLinkOrPhone), n = (d.contacts || []).length
     await go('bse-review')
-    return send(chatId, say('review', { v, found: [...new Set(v.flatMap(B.linksIn))], optOut: info.bseOptOut !== false, links, n, price: Math.round(n * unitOf(c, links) * 100) / 100 }), kb([[v.length > 1 ? L.use_these : L.use_one], [L.rotate_ai], ...(v.length > 1 ? [] : [[L.rotate_own]]), [L.edit], [L.back]]))
+    return send(chatId, say('review', { v, found: [...new Set(v.flatMap(B.linksIn))], optOut: info.bseOptOut !== false, links, n, price: Math.round(n * unitOf(c, links) * 100) / 100 }) + (v.length > 1 ? `\n\n${say('rotate_split', v.length, n)}` : ''), kb([[v.length > 1 ? L.use_these : L.use_one], [L.rotate_ai], ...(v.length > 1 ? [] : [[L.rotate_own]]), [L.edit], [L.back]]))
   }
   if (action === 'bse-content') {
     if (message === L.optout_no || message === L.optout_yes) { info.bseOptOut = message === L.optout_yes; await put('bseOptOut', info.bseOptOut); return contentAsk() }
