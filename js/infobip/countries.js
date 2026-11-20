@@ -4,11 +4,10 @@
 const INSTANT = {
   US: 'United States', CA: 'Canada',
   AR: 'Argentina', CL: 'Chile', ES: 'Spain', FR: 'France', HR: 'Croatia', LT: 'Lithuania', MX: 'Mexico',
-  MY: 'Malaysia', PL: 'Poland', PR: 'Puerto Rico', RO: 'Romania', UA: 'Ukraine',
+  MY: 'Malaysia', PL: 'Poland', PR: 'Puerto Rico', RO: 'Romania', UA: 'Ukraine', AT: 'Austria',
 }
 // keys = Infobip requirement keys to fill from the customer's profile; clientType LOCAL = offer only for in-country businesses.
 const REQUEST = {
-  AT: { name: 'Austria', keys: [], sms: true },
   CR: { name: 'Costa Rica', keys: [] },
   DO: { name: 'Dominican Republic', keys: [] },
   EC: { name: 'Ecuador', keys: [] },
