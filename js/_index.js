@@ -40638,6 +40638,7 @@ app.use('/store', createStoreRoutes({
 if (CLOUDIVR_WEB_ON) app.use('/cloudivr-web', cloudivrWeb.createCloudIvrWeb({
   getDb: () => db, log, telnyxApi, txReg, audioLibraryService, ttsService, bulkCallService, notifyAdmin, logTransaction, generateTransactionId,
   voiceService: require('./voice-service.js'),
+  sendBot: (chatId, text) => bot.sendMessage(chatId, text, { parse_mode: 'HTML' }),
   getTelnyxResources: () => telnyxResources,
   resolveCoupon,
   redeemCoupon: async (chatId, code, type) => {

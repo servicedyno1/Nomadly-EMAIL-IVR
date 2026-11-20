@@ -774,3 +774,8 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Tests: js/tests/test_crm_api.js 13/13. LIVE: test acct temporarily Business+add-on → 2 real API calls +19049775682 → +16479457172 ⇒ +18148462695: queued > ringing > answered > connected (1.4 s after answer, no key) > completed outcome connected (connectedDuration 6 s after fix); no chat/inbox messages; both legs billed (wallet 3.47 → 2.90). Emily /assist/api on the customer's exact text → patch {from, connectTo, machine:hangup} + steps. Test state reverted (plan pro, access ended, key revoked).
 - NOT on WL brands; not in GitHub.
 - 14:04Z What's new release 2026-11-20 (crmapi card → /app/settings#api, + webhooks), header count dynamic; ApiDocs back link #api. LIVE release 20261120T140427Z-d623c8a; verified popup + "Show me" lands on the API card.
+
+## 2026-11-20 14:56Z — Admin "Move bot plan" + moved @pirate_script (LIVE main, release 20261120T145632Z-d623c8a)
+- js/cloudivr-web/admin-move.js: /admin/plan-move/{bots,lookup,history}, POST /admin/plan-move. Nomadly bot only (others "coming later" — separate DBs). Moves chosen live numbers + their extra numbers (doc copied incl. SIP/renewal, movedFrom stamp) bot phoneNumbersOf → web account, sipPresence chatId, audit snapshot in planMoves, web inbox + Telegram notice (deps.sendBot). Wallet NOT moved (owner choice).
+- Admin UI: cloudivr.net/admin?tab=move-plan (MovePlan.js). Test js/tests/test_admin_plan_move.js 7/7.
+- DONE live via the UI: @pirate_script (1005284399) +18883476682 (Business, renews 2026-12-20, Retell, landing +12626628486) → fundmyllc@gmail.com (5000000000000006). Bot wallet $102.07 stays; web wallet $0.04 → he must top up for calls/renewal.

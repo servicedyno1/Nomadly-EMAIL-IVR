@@ -103,6 +103,7 @@ function createCloudIvrWeb(deps) {
     const adminAuth = require('./admin-auth').createAdminAuth(db, { log })
     adminAuth.routes(r, h)
     require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
+    require('./admin-move').createAdminMove(db, { log, adminAuth, sendBot: deps.sendBot }).routes(r, h)
     inboundEmail.routes(r, h, adminAuth.require)
     require('../sms-optout').init(db)
     require('../number-addons').init(db)
