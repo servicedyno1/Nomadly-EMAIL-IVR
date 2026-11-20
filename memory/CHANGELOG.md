@@ -3861,6 +3861,6 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Cause: inbound AI agent on Infobip-landed (Retell) numbers sent "answer" to Telnyx (blocked account) → fell to SIP ring (no app signed in) → "unavailable" message, and billed 1 plan minute.
 - Fix: `js/ai-agent/calls.js` `toEngine()` — `ib:` calls are answered at Infobip and connected by SIP to the call engine (`ai.<app>.<token>`), same as SignalWire; `hangup()` handles `ib:`; caller hung up when the agent leg ends. `js/voice-service.js`: inbound calls ending in phase `missed` bill 0 minutes.
 - Tests: `js/tests/test_ai_agent_callengine.js` 14/14. Live test call 22:19Z from +18648308599 → +18883476682: answered by "Receptionist", RTP both ways, 26s, $0.12 charged to the customer's wallet (our test).
-- Voicemail switched ON for +18883476682 (owner request) as safety net.
+- Voicemail for +18883476682: switched on as safety net, then switched back OFF at owner request (same day).
 - NOT verified: missed-inbound zero billing on a live call; keypad/menu hand-over to the agent on Infobip calls; why Zoiper's 20:59 sign-in did not ring at 21:02 (presence "until" may be optimistic).
 - Needs "Save to GitHub" (WITH-WEBIVR) or the next auto-deploy reverts it.
