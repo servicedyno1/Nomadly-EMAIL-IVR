@@ -528,6 +528,7 @@ function startNotices(bot, db) {
         if (n.type === 'refund' && n.amount) await wallet(db).credit(n.chatId, Number(n.amount))
         if (n.silent) continue
         if (n.type === 'admin') { await T?.notifyAdmin?.(n.text); continue }
+        if (n.type === 'channel') { await require('./review-post').post(bot, db, n.review).catch(e => console.log(`[ReviewPost] ${e.message}`)); continue }
         const lang = (await db.collection('state').findOne({ _id: String(n.chatId) }, { projection: { userLanguage: 1 } }).catch(() => null))?.userLanguage || 'en'
         const text = n.key ? t(lang, n.key, ...(n.args || [])) : n.text
         await bot.sendMessage(n.chatId, text, { disable_web_page_preview: true, ...(n.type === 'inbound' && n.canReply !== false ? { reply_markup: { inline_keyboard: [[{ text: t(lang, 'reply_btn'), callback_data: `bse-reply:${n.sessionId}` }]] } } : {}) }).catch(() => {})
@@ -601,6 +602,7 @@ async function onReview(q, { saveInfo, send, lang }) {
     await rvAlert(r.kind === 'campaign'
       ? `📣 <b>Campaign review</b>: ${'⭐'.repeat(r.stars)} (${r.stars}/5)\n${rvLine(r)}`
       : `${r.arrived === 'no' ? '👎' : '📝'} <b>Single-text review</b>: ${ARR[r.arrived] || '— no answer'} · ${'⭐'.repeat(r.stars)} (${r.stars}/5)\n${rvLine(r)}`)
+    if (require('./review-post').positive(r)) await B.db().collection('bsNotify').insertOne({ brand: 'Nomadly', type: 'channel', review: { _id: String(r._id), kind: r.kind, stars: r.stars, arrived: r.arrived, to: r.to }, sent: false, at: new Date() }).catch(() => {})
     const p = await send(chatId, t(lang, 'rv_comment_q'), { reply_markup: { force_reply: true, selective: true } }).catch(() => null)
     if (p?.message_id) { await saveInfo('bseReviewPrompt', p.message_id); await saveInfo('bseReviewId', id) }
     return true
