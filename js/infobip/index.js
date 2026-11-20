@@ -43,6 +43,7 @@ function finish(leg, errName) {
   const [cause, sip] = CAUSE[errName] || (errName ? ['unspecified', '500'] : CAUSE.NORMAL_HANGUP)
   if (!leg.quietEnd) emit('call.hangup', leg, { hangup_cause: cause, sip_hangup_cause: sip, hangup_source: leg.hungUpByUs ? 'callee' : 'caller', end_time: new Date().toISOString() })
   if (leg.transferOf) { const a = legs.get(leg.transferOf); if (a && !a.ended && a.peer === leg.id && leg.answered) hangupCall(a.id) }
+  if (leg.peer) { const b = legs.get(leg.peer); if (b && !b.ended) hangupCall(b.id) } // caller left a forwarded call: end the forward too
   setTimeout(() => legs.delete(leg.id), 10 * 60000)
 }
 function markAnswered(leg) { if (leg.answered) return; leg.answered = true; leg.state = 'answered'; emit('call.answered', leg) }
@@ -151,9 +152,10 @@ const stopRecording = async (id) => (legs.get(id) ? post(`/calls/1/calls/${raw(i
 async function transferCall(id, toNumber, fromNumber, options = {}) {
   const a = live(id); if (!a) return null
   const from = digits(fromNumber || (a.direction === 'incoming' ? a.to : a.from))
-  const r = await post(`/calls/1/calls/${raw(id)}/connect`, { callRequest: { endpoint: { type: 'PHONE', phoneNumber: digits(toNumber) }, from, connectTimeout: options.timeoutSecs || 30 }, ringbackGeneration: { enabled: true } })
-  const bId = r?.callId || r?.id || r?.calls?.find?.(c => c.id !== raw(id))?.id
-  if (!bId) return null
+  const r = await post(`/calls/1/calls/${raw(id)}/connect`, { callRequest: { endpoint: sipTrunk() ? sipEndpoint(tandemUser(toNumber, from)) : { type: 'PHONE', phoneNumber: digits(toNumber) }, from, connectTimeout: options.timeoutSecs || 30 }, ringbackGeneration: { enabled: true } })
+  // connect answers { conference: { id, participants } }: the new leg is the participant that isn't the caller.
+  const bId = [...(r?.conference?.participants || []), ...(r?.participants || [])].find(p => p.callId && p.callId !== raw(id))?.callId || r?.callId || r?.calls?.find?.(c => c.id !== raw(id))?.id
+  if (!bId) { log(`connect ${raw(id)}: no new leg in ${JSON.stringify(r).slice(0, 300)}`); return null }
   const b = track({ id: `ib:${bId}`, from: e164(from), to: toNumber, direction: 'outgoing', connection: a.connection, clientState: b64(options.targetLegClientState), session: a.session, transferOf: a.id, initiatedSent: true })
   a.peer = b.id
   emit('call.initiated', b)
@@ -161,12 +163,15 @@ async function transferCall(id, toNumber, fromNumber, options = {}) {
 }
 async function bridgeCalls(aId, bId) { const r = await post('/calls/1/connect', { callIds: [raw(aId), raw(bId)] }); if (r) { emit('call.bridged', legs.get(aId)); emit('call.bridged', legs.get(bId)) } return r ? { success: true } : null }
 
+const sipEndpoint = (user) => ({ type: 'SIP', username: user, sipTrunkId: sipTrunk(), customHeaders: { 'X-Nomadly-Key': process.env.SIP_SERVER_SECRET || '', 'X-Nomadly-User': user } })
+const tandemUser = (to, from) => `pstn.${digits(to)}.${digits(from)}`
 async function createOutboundCall(from, to, webhookUrl, connectionId, options = {}) {
   const sip = /^sip:/i.test(String(to)) ? String(to).replace(/^sip:/i, '').split('@')[0] : null
   if (sip && !sipTrunk()) return { error: 'Infobip SIP dialing not set up', status: 422, _provider: 'infobip' }
   const amd = options.answering_machine_detection && options.answering_machine_detection !== false
-  // Softphones: through our SIP trunk to our SIP server, which rings the signed-in apps.
-  const endpoint = sip ? { type: 'SIP', username: sip, sipTrunkId: sipTrunk(), customHeaders: { 'X-Nomadly-Key': process.env.SIP_SERVER_SECRET || '', 'X-Nomadly-User': sip } } : { type: 'PHONE', phoneNumber: digits(to) }
+  // Softphones: through our SIP trunk to our SIP server, which rings the signed-in apps. Phone numbers too: Infobip
+  // can't call out on this account, so the SIP server passes them to Bird showing `from` (pstn.<to>.<from>).
+  const endpoint = sip ? sipEndpoint(sip) : sipTrunk() ? sipEndpoint(tandemUser(to, from)) : { type: 'PHONE', phoneNumber: digits(to) }
   try {
     const r = (await M.http().post('/calls/1/calls', { endpoint, from: digits(from), callsConfigurationId: configId(), connectTimeout: options.timeout_secs || 30, ...(amd ? { machineDetection: { enabled: true } } : {}) })).data
     if (r.state === 'FAILED') return { error: 'Infobip refused the call', status: 422, _provider: 'infobip' }
