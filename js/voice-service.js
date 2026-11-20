@@ -1967,6 +1967,7 @@ async function handleBridgeTransferAnswered(payload) {
   const parentSession = outboundIvrCalls[transfer.originalCallControlId] || activeCalls[transfer.originalCallControlId]
   if (parentSession) {
     parentSession.transferConnected = true
+    if (parentSession.api) { apiStep(parentSession, 'connected'); return true }
     const chatId = String(parentSession.chatId) // Ensure string for consistency
     const msg = transfer.type === 'sip_ring'
       ? `✅ <b>SIP Call Connected</b>\nIncoming call bridged to your device`
@@ -2520,6 +2521,7 @@ function handleCallBridged(payload) {
   if (session) {
     session.phase = 'bridged'
     log(`[OutboundIVR] Bridged: ${session.targetNumber} → ${session.ivrNumber}`)
+    if (session.api) return apiStep(session, 'connected')
     _bot?.sendMessage(session.chatId, ivrOutbound.formatCallNotification('transferred', session), { parse_mode: 'HTML' }).catch(() => {})
     return
   }
@@ -5868,11 +5870,20 @@ const ivrOutbound = require('./ivr-outbound.js')
 // Caller ID on the leg a key press connects to (a verified "Show as" number for Call me first / text callbacks).
 const legFrom = (s) => s.transferCallerId || s.callerId
 
+// One update per step of a CRM API call (ringing / answered / connected / completed) → apiCalls + the account webhook.
+function apiStep(session, step, data) {
+  if (!session?.api) return
+  session._apiSteps = session._apiSteps || new Set()
+  if (session._apiSteps.has(step)) return
+  session._apiSteps.add(step)
+  require('./cloudivr-web/crm-api').onEvent(session.api, step, data).catch(e => log(`[CrmApi] ${step}: ${e.message}`))
+}
+
 async function initiateOutboundIvrCall(params) {
   if (!params.campaignId) require('./scam-watch').watch({ chatId: params.chatId, where: params.isTrial ? 'Free trial IVR call' : 'Quick IVR call', data: { greetingText: params.greetingText, templateName: params.templateName, placeholderValues: params.placeholderValues, menu: params.menu, otpConfirmMsg: params.otpConfirmMsg, otpRejectMsg: params.otpRejectMsg } })
   // Spam watch: a caught call is dialed as usual (alert only) or waits for the admin when the hold switch is on.
   if (!params.campaignId && !params._cwOk) { const waiting = await require('./call-watch').quickIvr(params); if (waiting) return waiting }
-  const { chatId, callerId, displayCallerId: _askedCid, transferCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, stopKey, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
+  const { chatId, callerId, displayCallerId: _askedCid, transferCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, stopKey, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl, connectOnAnswer, machinePolicy, api } = params
   // Custom caller IDs (trial or paid) only while the admin switch is on; otherwise the system / line number shows.
   const displayCallerId = require('./cloudivr-web/caller-ids').enabled() ? _askedCid : null
   // Backup transfer numbers, tried in order when the transfer number is busy or doesn't answer.
@@ -6065,7 +6076,8 @@ async function initiateOutboundIvrCall(params) {
   const swRestSessionId = require('crypto').randomUUID()
   const webhookUrl = `${_selfUrl}/telnyx/voice-webhook`
   // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
-  const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
+  // CRM API connect-on-answer that skips voicemail: machine detection first, so only live people are connected.
+  const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : connectOnAnswer && machinePolicy !== 'connect' ? { answering_machine_detection: 'detect' } : {}
   // Provide LaML callback URLs for the SignalWire REST fallback in the wrapper
   amdOpts._campaign = !!campaignId
   amdOpts._swRestCallbackUrl = `${_selfUrl}/twilio/single-ivr?sessionId=${encodeURIComponent(swRestSessionId)}`
@@ -6191,6 +6203,8 @@ async function initiateOutboundIvrCall(params) {
     otpRejectMsg: otpRejectMsg || null,
     // Text-to-Call message (CloudIVR Text Triggers): read greetingText once, then hang up — no keypad.
     messageOnly: !!params.messageOnly,
+    // CRM API call: connect to ivrNumber the moment the lead answers (no key), report each step to the account webhook.
+    connectOnAnswer: !!connectOnAnswer, machinePolicy: machinePolicy || 'hangup', api: api || null,
   }
 
   log(`[OutboundIVR] Call initiated: ${callerId} → ${targetNumber} (chatId: ${chatId}, template: ${templateName})`)
@@ -6207,6 +6221,7 @@ function handleOutboundIvrInitiated(payload) {
 
   session.phase = 'ringing'
   log(`[OutboundIVR] Ringing: ${session.targetNumber}`)
+  if (session.api) apiStep(session, 'ringing')
   return true
 }
 
@@ -6280,6 +6295,25 @@ async function handleOutboundIvrAnswered(payload) {
         }, 60000)
       }
     } catch (e) { log(`[OutboundIVR] Limit monitor setup error: ${e.message}`) }
+  }
+
+  // CRM API call: no prompt, no key — voicemail is skipped (or connected) as the owner chose, people are connected straight away.
+  if (session.connectOnAnswer) {
+    if (session.machinePolicy !== 'connect' && !session.answeredBy) for (let i = 0; i < 9 && !session.answeredBy && !isCallEnded(callControlId); i++) await new Promise(r => setTimeout(r, 500))
+    if (session.api) apiStep(session, 'answered', { answeredBy: session.answeredBy || 'human' })
+    if (session.machinePolicy !== 'connect' && session.answeredBy === 'machine') {
+      session.apiVoicemail = true
+      log(`[OutboundIVR] API call reached voicemail at ${session.targetNumber} — hanging up (owner's choice)`)
+      await _telnyxApi.hangupCall(callControlId).catch(() => {})
+      return true
+    }
+    session.phase = 'transferring'
+    session.digitPressed = 'auto'
+    session._pendingTransferTo = session.ivrNumber
+    session._pendingTransferFrom = legFrom(session)
+    await playHoldMusicAndTransfer(callControlId, session.ivrNumber, legFrom(session), { holdMusic: false, presentFrom: null })
+    log(`[OutboundIVR] API call answered by ${session.targetNumber} — connecting to ${session.ivrNumber}`)
+    return true
   }
 
   // Message-only call: speak once, hang up when it should be finished.
@@ -6712,6 +6746,16 @@ async function handleOutboundIvrHangup(payload) {
     return true
   }
 
+  // CRM API call: one final update to the account webhook instead of a chat message.
+  if (session.api) {
+    const leg = Object.values(ivrTransferLegs).find(t => t.parentCallControlId === callControlId && t.answerTime)
+    const bridge = Object.values(activeBridgeTransfers).find(t => t.originalCallControlId === callControlId && t.bridgeTime)
+    const legAt = leg?.answerTime || bridge?.bridgeTime || null
+    const outcome = session.apiVoicemail ? 'voicemail' : ['no_answer', 'busy'].includes(notifType) ? notifType
+      : (notifType === 'completed' || session.transferConnected || legAt) ? 'connected' : notifType === 'transfer_failed' ? 'agent_no_answer' : 'hung_up'
+    apiStep(session, 'completed', { outcome, duration, connectedDuration: legAt ? Math.round((Date.now() - legAt) / 1000) : null })
+  }
+
   // Notify bot user (non-bulk calls only) + Redial button
   const baseNotif = ivrOutbound.formatCallNotification(notifType, {
     ...session,
@@ -6754,7 +6798,7 @@ async function handleOutboundIvrHangup(payload) {
       inline_keyboard: [[{ text: '🔁 Redial Same Number', callback_data: `ivr_redial:${session.chatId}` }]]
     }
   }
-  _bot?.sendMessage(session.chatId, baseNotif + planLine, msgOpts).catch(() => {})
+  if (!session.api) _bot?.sendMessage(session.chatId, baseNotif + planLine, msgOpts).catch(() => {})
 
   // If trial call, only mark as used if the call was actually answered
   if (session.isTrial) {
@@ -6830,6 +6874,7 @@ async function handleIvrTransferLegInitiated(payload) {
         templateName: session.templateName,
         phase: 'initiated',
         startTime: Date.now(),
+        api: session.api || null,
       }
       log(`[OutboundIVR] Transfer leg initiated: ${from} → ${to} (leg: ${callControlId})`)
 
@@ -6840,6 +6885,7 @@ async function handleIvrTransferLegInitiated(payload) {
         if (transfer && transfer.phase === 'initiated') {
           log(`[OutboundIVR] Transfer timeout: ${to} didn't answer in 30s`)
           transfer.timedOut = true
+          if (transfer.api) return
           // Proactively notify user — the hangup handler will also fire
           const lang = await _getUserLang(transfer.chatId)
           const msg = _trans('vs.transferTimeout', lang, formatPhone(to))
@@ -6870,7 +6916,8 @@ async function handleIvrTransferLegAnswered(payload) {
 
   // Notify bot user that transfer connected
   const parentSession = outboundIvrCalls[transfer.parentCallControlId]
-  if (parentSession) {
+  if (parentSession?.api) apiStep(parentSession, 'connected')
+  else if (parentSession) {
     const lang = await _getUserLang(transfer.chatId)
     const msg = _trans('vs.transferConnected', lang, transfer.targetNumber, formatPhone(transfer.ivrNumber))
     if (msg) _bot?.sendMessage(transfer.chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
@@ -6939,7 +6986,7 @@ async function handleIvrTransferLegHangup(payload) {
     statusMsg += `Status: ${hangupCause}`
   }
 
-  _bot?.sendMessage(transfer.chatId, statusMsg, { parse_mode: 'HTML' }).catch(() => {})
+  if (!transfer.api) _bot?.sendMessage(transfer.chatId, statusMsg, { parse_mode: 'HTML' }).catch(() => {})
 
   // Log the transfer leg
   logEvent(transfer.callerId, transfer.ivrNumber, 'ivr_transfer_leg', duration)

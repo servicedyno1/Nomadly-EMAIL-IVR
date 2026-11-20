@@ -142,6 +142,10 @@ function createCloudIvrWeb(deps) {
     cardCheck.adminRoutes(r, h, adminAuth.require)
     require('../active-slot').singletonInterval('cloudivr-card-check', () => cardCheck.tick().catch(e => log(`[CardCheck] tick: ${e.message}`)), 5 * 60000)
     require('./journey').createJourney({ db, h, accountOf: (req) => new Promise(ok => auth.requireUser(req, { status: () => ({ json: () => ok(null) }) }, () => ok(req.webChatId))) }).routes(r)
+    // CRM calling API (API key, not the session cookie).
+    const crmApi = require('./crm-api')
+    crmApi.init({ db, log, voiceService: deps.voiceService, notify: require('./notify') })
+    crmApi.publicRoutes(r, { h })
     r.use(auth.requireUser)
     // Checkout paid by card while the money is held for the ID check: save the order, run it once released.
     r.use(h(async (req, res, next) => {
@@ -213,6 +217,9 @@ function createCloudIvrWeb(deps) {
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })
+    crmApi.init({ db, log, voiceService: deps.voiceService, numbersApi, notify: require('./notify') })
+    crmApi.routes(r, { h })
+    require('../active-slot').singletonInterval('cloudivr-api-addon', () => crmApi.tick().catch(e => log(`[CrmApi] tick: ${e.message}`)), 60 * 60000)
     contacts.routes(r, { db, h, upload })
     require('./hosted').routes(r, { db, h, upload, log, notifyAdmin: deps.notifyAdmin })
     calls.routes(r, { ...deps, db, h, numbersApi })

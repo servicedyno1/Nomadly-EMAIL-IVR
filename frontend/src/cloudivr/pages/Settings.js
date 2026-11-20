@@ -15,6 +15,7 @@ import { openCookieSettings } from '../consent';
 import { Security } from './settings/Security';
 import { Referral, Suggest } from './settings/Rewards';
 import { Webhooks } from './settings/Webhooks';
+import { ApiAccess } from './settings/ApiAccess';
 import { InstallApp } from './settings/InstallApp';
 import { EmailPrefs } from './settings/EmailPrefs';
 import { useUnsaved, SaveRow } from '../guard';
@@ -171,7 +172,7 @@ function useHashScroll() {
 const SECTIONS = [
   ['account', 'Account', 'Who you are and how you sign in.'],
   ['preferences', 'Preferences', 'Language, look and defaults for your calls.'],
-  ['notifications', 'Notifications & integrations', 'Emails we send you and webhooks for your own tools.'],
+  ['notifications', 'Notifications & integrations', 'Emails we send you, the CRM calling API and webhooks for your own tools.'],
   ['community', 'Community & rewards', 'Earn credit, suggest features, reach the team.'],
 ];
 
@@ -225,7 +226,7 @@ export default function Settings() {
         <div className="space-y-12">
           <Section id="account"><Profile account={account} setAccount={setAccount} /><SignInMethods account={account} /><ProfileDetailsCard /><ComplianceCard /><TenDlcCard /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /></Section>
           <Section id="preferences"><Language /><Appearance /><DefaultVoice /><SenderName /><InstallApp /></Section>
-          <Section id="notifications"><EmailPrefs /><Webhooks /></Section>
+          <Section id="notifications"><EmailPrefs /><ApiAccess /><Webhooks /></Section>
           <Section id="community"><Referral /><Suggest admin={account.admin} /><Community /></Section>
         </div>
       </div>

@@ -841,3 +841,7 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 ## 2026-11-20 — Bot Replace number, Setting-up badge, Bird 3-min retries, Retell low-wallet alert, daily social proof — LIVE (app-main), agent live-tested, not user-confirmed
 - Details: CHANGELOG.md + DEPLOYMENT_STATE.md (same date). Owner choices: Bird keeps trying ~90 min; badge times per step; bot replace = web rules ($25, 7-day overlap); Retell alert only when a buy is refused (no balance API); social proof stays made-up but changes daily.
 - Backlog: Save to GitHub (prod edits not in GitHub); bot Extra-number parity check; external fax interoperability on a stable outside line.
+
+## 2026-11-20 — CRM calling API (Enterprise; Business +$99/mo) — LIVE on main, agent live-tested, not user-confirmed
+- Connect-on-answer (no key) to the owner's agent/toll-free line, voicemail toggle, webhook updates, docs /api-docs, Emily setup. Details: DEPLOYMENT_STATE.md.
+- Backlog: roll out to WL brands; per-request webhook URL; "What's new" entry.
