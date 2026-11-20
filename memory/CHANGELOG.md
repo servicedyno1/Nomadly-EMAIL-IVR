@@ -3849,3 +3849,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - BusinessIntelUSA dead fax swapped to +1 267-871-8206 (free, renewal kept).
 - Paid number/fax orders that hit a supplier failure now wait and complete automatically (similar number if gone), refund after 24 h.
 - Web "Replace number" and "Add extra number" work with Retell numbers (correct landing, no Telnyx steps).
+
+## 2026-11-20 (fork) — Bot Replace number, Setting-up badge, Bird 3-min retries, Retell low-wallet alert, daily social proof
+- Telegram bot Replace Number (same price/rules/provisioning as web). Live-tested + cleaned up.
+- "Setting up" badge with per-step expected times on web (numbers, number page, fax lines) and bot (My Plans, manage screen, purchase messages).
+- Bird caller-ID link retries every 3 min, up to 30 tries (~90 min).
+- Admin alert when Retell refuses a buy for low wallet (Retell has no balance API).
+- Bot social-proof counts (still made-up) change daily.

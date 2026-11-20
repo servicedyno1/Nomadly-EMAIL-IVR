@@ -366,7 +366,7 @@ async function handle(ctx) {
       const r = await api.buy(chatId, { phoneNumber: info.fxnPick, autoRenew: true })
       await save('fxnPick', null)
       if (r.number.registration?.needsDetails) { await save('fxnPaid', r.number.phoneNumber); info.fxnPaid = r.number.phoneNumber; await send(t.paidNext(esc(r.number.phoneNumber), esc(country.name))); return askWho() }
-      await send(r.pending ? require('./pending-orders').pendingMsg(esc(r.number.phoneNumber)) : r.number.status === 'pending_registration' ? t.paidPending(esc(r.number.phoneNumber)) : t.paidActive(esc(r.number.phoneNumber)))
+      await send(r.pending ? require('./pending-orders').pendingMsg(esc(r.number.phoneNumber), 'fax') : r.number.status === 'pending_registration' ? t.paidPending(esc(r.number.phoneNumber)) : t.paidActive(esc(r.number.phoneNumber)))
       return list()
     } catch (e) {
       await send(`⚠️ ${e.status ? e.message : t.buyFail}`)

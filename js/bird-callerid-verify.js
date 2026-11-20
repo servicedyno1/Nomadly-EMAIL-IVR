@@ -2,6 +2,8 @@
 // Automated Bird caller-ID verification. Bird verifies a caller ID by CALLING the number and reading a 6-digit code
 // aloud (no SMS). This module: arms a number (starts Bird's call), turns the recorded audio of that call into the code
 // (Whisper transcription), and submits it to Bird. Deps are injected so it can be unit-tested without live services.
+// New numbers: a try that didn't verify is retried every 3 min, 30 times (about 90 min), then the admin is alerted.
+const LINK_RETRY_MS = 3 * 60000, LINK_ROUNDS = 30
 const WORDS = { zero: '0', oh: '0', o: '0', one: '1', two: '2', to: '2', too: '2', three: '3', four: '4', for: '4', five: '5', six: '6', seven: '7', eight: '8', ate: '8', nine: '9' }
 
 // Pull a 6-digit code out of a spoken transcript ("one two three four five six", "1 2 3-4 5 6", "code is 123456").
@@ -21,14 +23,14 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
   const e164 = (p) => `+${String(p || '').replace(/[^\d]/g, '')}`
 
   // Start Bird's verification call to `number` and remember it so the recording can be matched back.
-  async function arm(number, { name } = {}) {
+  async function arm(number, { name, ttlMs = 10 * 60000 } = {}) {
     if (!bird.enabled()) return { error: 'Bird is not enabled (BIRD_API_KEY not loaded).' }
     const n = e164(number)
     // A pending/failed registration can't get a fresh call — drop it so registering again places a new one.
     for (const v of await bird.listCallerIds().catch(() => [])) if (e164(v.phone_number) === n && !v.outbound_enabled && bird.deleteCallerId) await bird.deleteCallerId(v.id)
     const r = await bird.startCallerIdVerification(n, name)
     if (r.error) return { error: `Bird couldn't start verification: ${r.error}` }
-    await col().updateOne({ _id: n }, { $set: { _id: n, verifiedNumberId: r.id, status: 'calling', attempts: 0, armedAt: new Date(), expiresAt: new Date(Date.now() + 10 * 60000), lastCode: null, error: null } }, { upsert: true })
+    await col().updateOne({ _id: n }, { $set: { _id: n, verifiedNumberId: r.id, status: 'calling', attempts: 0, armedAt: new Date(), expiresAt: new Date(Date.now() + ttlMs), lastCode: null, error: null } }, { upsert: true })
     log(`[BirdVerify] armed ${n} (verified-number ${r.id}) — Bird is calling it with a spoken code`)
     return { number: n, verifiedNumberId: r.id, status: r.status || 'calling' }
   }
@@ -77,12 +79,13 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
     for (const n of numbers.map(e164)) {
       if (ready.has(n)) { if (docs.get(n)?.status !== 'verified') await col().updateOne({ _id: n }, { $set: { status: 'verified', verifiedAt: now } }, { upsert: true }); continue }
       const d = docs.get(n)
-      if (d && (d.rounds || 0) >= maxRounds) {
+      if (d && (d.gaveUpAt || (d.rounds || 0) >= maxRounds)) {
         if (onGiveUp && !d.gaveUpAt && d.status !== 'calling') { await col().updateOne({ _id: n }, { $set: { gaveUpAt: now } }); onGiveUp(n, d.error) }
         continue
       }
       if (d && d.armedAt > new Date(now - retryMs)) continue
-      const r = await arm(n)
+      // The verification window never outlasts the retry gap, so a call that never arrives doesn't hold up the next try.
+      const r = await arm(n, { ttlMs: Math.min(10 * 60000, retryMs) })
       await col().updateOne({ _id: n }, { $inc: { rounds: 1 }, ...(r.error ? { $set: { status: 'failed', armedAt: now, error: r.error } } : {}) }, { upsert: true })
       return r.error ? { number: n, error: r.error } : { armed: n }
     }
@@ -92,4 +95,4 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
   return { arm, isArmed, captureFromRecording, verifiedPresenters, extractCode, autoLinkTick }
 }
 
-module.exports = { createBirdVerify, extractCode }
+module.exports = { createBirdVerify, extractCode, LINK_RETRY_MS, LINK_ROUNDS }

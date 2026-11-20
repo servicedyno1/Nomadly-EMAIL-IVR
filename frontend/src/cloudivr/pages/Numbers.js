@@ -15,6 +15,7 @@ import { TextingLine, LIVE_TEXTING } from './number/TextingLines';
 import { FaxLine } from './number/FaxLines';
 import { CapBadges } from '../kinds';
 import { NumberActions } from './number/NumberActions';
+import { SetupBadge, useSetupPoll } from './number/SetupBadge';
 
 const on = (f) => !!f?.enabled;
 
@@ -97,17 +98,19 @@ function NumberCard({ n, i, caps, pv, onSaved, reload }) {
           <Link to={href} className="font-mono text-xl inline-flex items-center gap-1.5 min-h-[44px] -my-2 hover:text-[var(--c-accent)] transition-colors" data-testid={`number-card-${i}-phone`} aria-label={`Open ${n.phoneNumber}`}>{pv.phone(n.phoneNumber)}</Link>
           <div className="text-[13px] text-[var(--c-muted)] mt-1" data-testid={`number-card-${i}-country`}><span className="inline-block align-[-2px] mr-1.5"><Flag code={n.country} /></span>{n.countryName || n.country} · {n.planName} {money(n.planPrice)} · {n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</div>
         </div>
-        <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
+        <span className={n.setup && n.status === 'provisioning' ? 'civr-pill civr-pill-warn' : statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.setup && n.status === 'provisioning' ? 'setting up' : n.status}</span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <CapBadges caps={caps} testid={`number-card-${i}-caps`} />
         {on(n.features.voicemail) && <span className="civr-pill">Voicemail</span>}
         {n.features.recording && <span className="civr-pill">Recording</span>}
+        <SetupBadge setup={n.setup} testid={`number-card-${i}-setup`} />
         {n.isSubNumber && <span className="civr-pill" data-testid={`number-card-${i}-extra`}>Extra on {pv.phone(n.parentNumber)}</span>}
         {n.dryRun && <span className="civr-pill civr-pill-warn">Preview</span>}
         {n.registration?.status === 'pending' && <span className="civr-pill civr-pill-warn" title="The carrier is checking your documents. The number goes live once they approve them." data-testid={`number-card-${i}-registration`}>Awaiting carrier approval</span>}
         {n.features?.texting?.available && !n.features.texting.enabled && <Link to={`${href}?tab=sms`} className="text-[13px] text-[var(--c-accent)] hover:underline relative z-10 ml-1 min-h-[32px] inline-flex items-center" data-testid={`number-card-${i}-add-texting`}>+ Add texting</Link>}
       </div>
+      {n.setup && <p className="mt-2 text-xs text-[var(--c-muted)]" data-testid={`number-card-${i}-setup-step`}>{n.setup.step}{n.setup.note ? ` · ${n.setup.note}` : ''}</p>}
       {switches > 0 && <SwitchesToggle n={n} i={i} count={switches} open={open} setOpen={setOpen} />}
       {switches > 0 && open && <div className="mt-2 flex flex-wrap items-center gap-1.5 civr-rise" aria-label="Quick switches" data-testid={`number-card-${i}-switches`}>
         {n.access?.callForwarding && <QuickSwitch num={n} feature="callForwarding" label="Forwarding" checked={on(n.features.callForwarding)} onSaved={onSaved} testid={`number-card-${i}-switch-forwarding`} />}
@@ -135,12 +138,14 @@ export default function Numbers() {
   const { data: mob, reload: reloadMob } = useApi('/mobile-numbers');
   const { data: es, reload: reloadEs } = useApi('/esim');
   const { data: hs } = useApi('/hosted-sms');
-  const { data: fx } = useApi('/fax-numbers');
+  const { data: fx, reload: reloadFx } = useApi('/fax-numbers');
   const [params, setParams] = useSearchParams();
   const pv = usePrivacy();
   const nums = data?.numbers || [];
   const waiting = !!mob?.items?.some(x => x.status === 'provisioning');
   useEffect(() => { if (!waiting) return undefined; const t = setInterval(reloadMob, 5000); return () => clearInterval(t); }, [waiting, reloadMob]);
+  useSetupPoll(nums.some(n => n.setup), reload);
+  useSetupPoll(!!fx?.numbers?.some(n => n.setup), reloadFx);
   // Every number the account owns in one list, whatever it was bought as.
   const items = useMemo(() => [
     ...(data?.numbers || []).map((n, i) => ({ key: n.phoneNumber, type: 'line', n, i, caps: lineCaps(n), words: [n.phoneNumber, n.countryName, n.country, n.planName, n.status, n.type?.replace('_', '-'), n.isSubNumber ? 'Extra' : ''] })),

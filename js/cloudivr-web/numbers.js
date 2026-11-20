@@ -6,6 +6,7 @@ const phoneConfig = require('../phone-config')
 const lifecycle = require('../plan-lifecycle')
 const { walletOps, round2, livePayments } = require('./wallet')
 const numberHours = require('../number-hours')
+const setupStatus = require('../setup-status')
 const vmGreeting = require('../voicemail-greeting')
 const notes = require('./notes')
 const notify = require('./notify')
@@ -491,6 +492,25 @@ function routes(router, deps) {
     res.status(202).json({ ok: true })
   })
 
+  const toResults = (found, country, type) => found.map(n => ({
+    phoneNumber: n.phone_number,
+    region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
+    capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
+    surcharge: ['infobip', 'multitel', 'retell'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
+    provider: n._provider || null,
+    ...(n._assigned ? { assigned: true } : {}),
+    ...(texting.offerOf(country, type) ? { extraPrice: texting.offerOf(country, type).extraPrice, textPrice: texting.offerOf(country, type).textPrice } : {}),
+    cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
+  })).map(r => ({ ...r, planAddons: Object.fromEntries(Object.keys(phoneConfig.plans).map(k => [k, phoneConfig.planAddon(k, country, type, r.surcharge)])) }))
+  // Bot Replace number: same search as the web, saved as the account's last search so pickFromSearch / replaceNumber work.
+  async function searchForReplace(chatId, old, areaCode = null) {
+    const ac = ['US', 'CA'].includes(old.country) && old.type === 'local' && /^\d{3}$/.test(String(areaCode || '')) ? String(areaCode) : null
+    const found = await unheld((await hot.get(searchArgs(old.country, old.type, ac, false))).list.filter(stillOffered))
+    const results = toResults(found, old.country, old.type).filter(r => r.phoneNumber !== old.phoneNumber)
+    await searchCache.updateOne({ _id: chatId }, { $set: { country: old.country, type: old.type, areaCode: ac, results, at: new Date() } }, { upsert: true })
+    return results
+  }
+
   router.get('/catalog', (req, res) => res.json(catalog()))
 
   router.get('/numbers/search', h(async (req, res) => {
@@ -509,16 +529,7 @@ function routes(router, deps) {
     const found = await unheld((await hot.get(searchArgs(country, type, areaCode, req.query.texting === '1'))).list.filter(stillOffered))
     if (own === 'multitel' && !found.length && require('../multitel').isBlocked()) return bad(res, 503, 'provider_unavailable', 'Numbers in this country are temporarily unavailable. Please try again later.')
     if (own && !found.length) return res.json({ numbers: [], fallback: null, unavailable: true, message: `No ${c.name} ${TYPE_NAMES[type] || type} numbers can be picked online right now. Try another type, or message support and we'll order one for you.` })
-    const results = found.map(n => ({
-      phoneNumber: n.phone_number,
-      region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
-      capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
-      surcharge: ['infobip', 'multitel', 'retell'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
-      provider: n._provider || null,
-      ...(n._assigned ? { assigned: true } : {}),
-      ...(texting.offerOf(country, type) ? { extraPrice: texting.offerOf(country, type).extraPrice, textPrice: texting.offerOf(country, type).textPrice } : {}),
-      cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
-    })).map(r => ({ ...r, planAddons: Object.fromEntries(Object.keys(phoneConfig.plans).map(k => [k, phoneConfig.planAddon(k, country, type, r.surcharge)])) }))
+    const results = toResults(found, country, type)
     const fb = found.find(n => n._areaFallback)
     await searchCache.updateOne({ _id: req.webChatId }, { $set: { country, type, areaCode, results, at: new Date() } }, { upsert: true })
     // Paperwork is never shown while choosing — it is asked for after payment, on the number's page.
@@ -530,7 +541,7 @@ function routes(router, deps) {
   const withCapacity = async (n) => {
     const c = n.capabilities || {}, bird = require('../bird')
     const out = c.voice !== false && ['multitel', 'infobip', 'retell'].includes(n.provider) && n.status === 'active' && !n.dryRun && bird.enabled() ? await bird.presentable(n.phoneNumber).catch(() => false) : null
-    return { ...publicNumber(n, n._all), capacity: { callsIn: c.voice !== false, callsOut: c.voice === false ? false : out === null ? c.voice !== false : out ? true : 'pending', texts: !!c.sms && n.features?.sms === true, fax: !!c.fax } }
+    return { ...publicNumber(n, n._all), setup: await setupStatus.of(db, n), capacity: { callsIn: c.voice !== false, callsOut: c.voice === false ? false : out === null ? c.voice !== false : out ? true : 'pending', texts: !!c.sms && n.features?.sms === true, fax: !!c.fax } }
   }
   router.get('/numbers', h(async (req, res) => { const all = await myNumbers(req.webChatId); res.json({ numbers: await Promise.all(all.map(n => withCapacity({ ...n, _all: all }))) }) }))
   router.get('/numbers/:phone', withNumber(async (req, res) => res.json({ number: await withCapacity({ ...req.num, _all: (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers }) })))
@@ -1212,22 +1223,22 @@ function routes(router, deps) {
 
   // ---------- Replace a number ($25): same country + type, settings move over, the old one keeps working 7 days ----------
   const REPLACE_PRICE = 25, OVERLAP_DAYS = 7
-  router.post('/numbers/:phone/replace', withNumber(async (req, res) => {
-    const old = req.num, chatId = req.webChatId
-    if (old.replacedBy) return bad(res, 409, 'already_replaced', `This number was already replaced by ${old.replacedBy}.`)
-    if (old.status !== 'active') return bad(res, 409, 'not_active', 'Only active numbers can be replaced. Renew it first.')
-    const picked = await pickFromSearch(chatId, req.body?.phoneNumber)
-    if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
-    if (picked.country !== old.country || picked.type !== old.type) return bad(res, 400, 'same_kind', `Pick a ${old.countryName || old.country} ${TYPE_NAMES[old.type] || old.type} number, the same kind as the one you have.`)
-    const phone = normPhone(req.body.phoneNumber)
-    try { await locks.insertOne({ _id: phone, chatId, at: new Date() }) } catch (e) { if (e.code === 11000) return bad(res, 409, 'number_taken', 'Someone is buying that number right now. Pick another one.'); throw e }
+  // Shared by the web route and the bot: `picked` = { hit, country, type, areaCode } from a search. Returns { status, body }.
+  async function replaceNumber(chatId, old, picked, { email = null, channel = 'web' } = {}) {
+    const R = (status, error, message, extra = {}) => ({ status, body: { error, message, ...extra } })
+    if (old.replacedBy) return R(409, 'already_replaced', `This number was already replaced by ${old.replacedBy}.`)
+    if (old.status !== 'active') return R(409, 'not_active', 'Only active numbers can be replaced. Renew it first.')
+    if (!picked) return R(400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
+    if (picked.country !== old.country || picked.type !== old.type) return R(400, 'same_kind', `Pick a ${old.countryName || old.country} ${TYPE_NAMES[old.type] || old.type} number, the same kind as the one you have.`)
+    const phone = normPhone(picked.hit.phoneNumber)
+    try { await locks.insertOne({ _id: phone, chatId, at: new Date() }) } catch (e) { if (e.code === 11000) return R(409, 'number_taken', 'Someone is buying that number right now. Pick another one.'); throw e }
     try {
-      if (await holderOf(phone) !== null) return bad(res, 409, 'number_taken', 'Someone just took that number. Pick another one.')
+      if (await holderOf(phone) !== null) return R(409, 'number_taken', 'Someone just took that number. Pick another one.')
       const c = countries().find(x => x.code === old.country)
       const ver = await verificationInfo(old.country, old.type, `${c?.flag || ''} ${c?.name || old.country}`)
-      if (ver.error) return bad(res, 424, 'lookup_failed', ver.error)
-      if (ver.required) return bad(res, 400, 'needs_documents', 'Numbers in this country need ID documents, so they can’t be replaced online. Message support and we’ll help.')
-      if (!(await w.debit(chatId, REPLACE_PRICE))) return bad(res, 402, 'insufficient_balance', `Replacing a number costs $${REPLACE_PRICE}. Your wallet has $${(await w.balance(chatId)).toFixed(2)}.`, { cost: REPLACE_PRICE })
+      if (ver.error) return R(424, 'lookup_failed', ver.error)
+      if (ver.required) return R(400, 'needs_documents', 'Numbers in this country need ID documents, so they can’t be replaced online. Message support and we’ll help.')
+      if (!(await w.debit(chatId, REPLACE_PRICE))) return R(402, 'insufficient_balance', `Replacing a number costs $${REPLACE_PRICE}. Your wallet has $${(await w.balance(chatId)).toFixed(2)}.`, { cost: REPLACE_PRICE })
       try {
         const live = !dryRun() && !old.dryRun
         const tr = getTelnyxResources() || {}
@@ -1253,20 +1264,24 @@ function routes(router, deps) {
         if (eu) doc.endUser = eu
         doc.resold = true
         await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } })
-        if (order._pending) await require('../pending-orders').enqueue({ chatId, phoneNumber: selected, order, amount: REPLACE_PRICE, email: req.webUser?.email })
+        if (order._pending) await require('../pending-orders').enqueue({ chatId, phoneNumber: selected, order, amount: REPLACE_PRICE, email })
         await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].parentNumber': selected } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': old.phoneNumber }] }).catch(() => {})
-        await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: 'replace', oldNumber: old.phoneNumber, plan: old.plan, amount: REPLACE_PRICE, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
+        await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: 'replace', oldNumber: old.phoneNumber, plan: old.plan, amount: REPLACE_PRICE, paymentMethod: 'wallet_usd', channel, timestamp: new Date().toISOString() })
         await txn(chatId, 'number-replace', REPLACE_PRICE, { phoneNumber: selected, oldNumber: old.phoneNumber })
         await notify.push(chatId, `🔁 ${old.phoneNumber} was replaced by ${selected} for $${REPLACE_PRICE}. Your plan, renewal date and settings moved over. The old number keeps working until ${releaseAt.slice(0, 10)}, then it’s released.`, null, { kind: 'billing', meta: { replaced: { old: old.phoneNumber, new: selected } } }).catch(() => {})
-        notifyAdmin(`🔁 CloudIVR web: ${old.phoneNumber} replaced by ${selected}${live ? '' : ' (DRY RUN)'} · $${REPLACE_PRICE}\nweb account: ${chatId}`)
+        notifyAdmin(`🔁 CloudIVR ${channel}: ${old.phoneNumber} replaced by ${selected}${live ? '' : ' (DRY RUN)'} · $${REPLACE_PRICE}\nweb account: ${chatId}`)
         await searchCache.deleteOne({ _id: chatId })
-        res.status(201).json({ number: publicNumber(doc), oldNumber: old.phoneNumber, releaseAt, charged: REPLACE_PRICE, balance: await w.balance(chatId) })
+        return { status: 201, body: { number: publicNumber(doc), setup: await setupStatus.of(db, doc), pending: !!order._pending, oldNumber: old.phoneNumber, releaseAt, charged: REPLACE_PRICE, balance: await w.balance(chatId) } }
       } catch (e) {
         await w.credit(chatId, REPLACE_PRICE)
         log(`[CloudIVR-Web] replace ${old.phoneNumber} → ${phone} failed: ${e.message} — refunded`)
-        bad(res, 424, 'replace_failed', `${e.message && e.message.length < 160 ? e.message : 'The new number could not be activated.'} You were refunded $${REPLACE_PRICE}.`)
+        return R(424, 'replace_failed', `${e.message && e.message.length < 160 ? e.message : 'The new number could not be activated.'} You were refunded $${REPLACE_PRICE}.`)
       }
     } finally { await locks.deleteOne({ _id: phone }).catch(() => {}) }
+  }
+  router.post('/numbers/:phone/replace', withNumber(async (req, res) => {
+    const r = await replaceNumber(req.webChatId, req.num, await pickFromSearch(req.webChatId, req.body?.phoneNumber), { email: req.webUser?.email })
+    res.status(r.status).json(r.body)
   }))
   // After the overlap the old number is released.
   async function releaseReplaced() {
@@ -1283,7 +1298,7 @@ function routes(router, deps) {
   const relT = setInterval(() => releaseReplaced().catch(e => log(`[CloudIVR-Web] release replaced: ${e.message}`)), 10 * 60000)
   relT.unref?.()
 
-  return { myNumbers, findMine, purchase, REPLACE_PRICE, releaseReplaced, pickFromSearch, pickManyFromSearch, extraPriceOf, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
+  return { myNumbers, findMine, purchase, REPLACE_PRICE, replaceNumber, searchForReplace, OVERLAP_DAYS, releaseReplaced, pickFromSearch, pickManyFromSearch, extraPriceOf, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
 }
 
 // USA mobile numbers (two-way SMS lines, esimLines kind 'mobile') are numbers too; plain eSIMs are not.

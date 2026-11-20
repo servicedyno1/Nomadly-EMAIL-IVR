@@ -209,6 +209,7 @@ function createCloudIvrWeb(deps) {
     require('./travel-esim').createTravelEsim({ db, h, walletOps: require('./wallet').walletOps, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log }).routes(r)
     require('../active-slot').singletonInterval('cloudivr-number-docs', () => numberDocs.tick().catch(e => log(`[NumberDocs] tick: ${e.message}`)), 30 * 60000)
     Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile, numberDocs, compliance }))
+    module.exports.numbersApi = numbersApi // the bot's Replace number uses the same flow
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })

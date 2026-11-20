@@ -837,3 +837,7 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Hot-patched on prod release 20261119T181608Z-abc224b (backup /opt/nomadly/deploy-backups/ib-siptrunk-20261119T224651Z). NOT in GitHub yet — user must Save to Github or the next deploy reverts it.
 - Verified: trunk INVITE reaches Kamailio and is accepted (480 for an unregistered probe user). NOT verified: real call answered on Zoiper/browser phone + audio (needs user call). At check time no softphone was registered for cv6frkdxah.
 - Retell +18337549319 still forwards to landing +16479457172; +16623308363 kept on user's request.
+
+## 2026-11-20 — Bot Replace number, Setting-up badge, Bird 3-min retries, Retell low-wallet alert, daily social proof — LIVE (app-main), agent live-tested, not user-confirmed
+- Details: CHANGELOG.md + DEPLOYMENT_STATE.md (same date). Owner choices: Bird keeps trying ~90 min; badge times per step; bot replace = web rules ($25, 7-day overlap); Retell alert only when a buy is refused (no balance API); social proof stays made-up but changes daily.
+- Backlog: Save to GitHub (prod edits not in GitHub); bot Extra-number parity check; external fax interoperability on a stable outside line.

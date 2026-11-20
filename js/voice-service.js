@@ -4217,8 +4217,7 @@ async function telnyxDidSync() {
   const all = [...nums, ...zdNums, ...await multitelNumbers()]
   if (all.length) await require('./callengine').setDidApps(all)
 }
-// New numbers are linked within minutes: a failed try is retried every 15 min, 6 times, then the admin is alerted.
-const BIRD_LINK_RETRY_MS = 15 * 60000, BIRD_LINK_ROUNDS = 6
+const { LINK_RETRY_MS: BIRD_LINK_RETRY_MS, LINK_ROUNDS: BIRD_LINK_ROUNDS } = require('./bird-callerid-verify')
 async function birdAutoLinkTick() {
   if (!_db || !require('./bird').enabled()) return
   // Only Infobip and MultiTEL numbers are linked to Bird (Telnyx / SignalWire / Zadarma caller IDs were removed on request).

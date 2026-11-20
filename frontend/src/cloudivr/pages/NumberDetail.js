@@ -28,6 +28,7 @@ import { ReachChip } from '../SmsReach';
 import { SetupGuide } from './number/SetupGuide';
 import { Crumbs } from '../SectionTabs';
 import { NumberRegistration } from './number/NumberRegistration';
+import { SetupBadge, useSetupPoll } from './number/SetupBadge';
 
 // Tabs in 5 groups. Group → [id, label, sub-tabs]; sub-tab → [id, label, access gate, component]. Tab ids are unchanged (old ?tab= links work).
 const GROUPS = [
@@ -87,6 +88,7 @@ export default function NumberDetail() {
   const pv = usePrivacy();
   const tab = params.get('tab') || 'overview';
   const n = data?.number;
+  useSetupPoll(!!n?.setup, reload);
   if (loading && !n) return <Spinner />;
   if (error) return (
     <div data-testid="number-detail-error">
@@ -113,12 +115,13 @@ export default function NumberDetail() {
           <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{pv.phone(n.phoneNumber)}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2"><CapBadges caps={caps} testid="number-detail-caps" /><span className="inline-flex items-center gap-0.5" data-testid="number-detail-actions"><NumberActions n={n} reload={reload} testid="number-detail" /></span></div>
           <div className="mt-3"><Capacity capacity={n.capacity} testid="number-detail-capacity" /></div>
+          {n.setup && <div className="mt-3"><SetupBadge setup={n.setup} detail testid="number-detail-setup" /></div>}
           <NumberRegistration n={n} reload={reload} />
           {caps.includes('texts') && <div className="mt-3"><ReachChip phone={n.phoneNumber} testid="number-sms-reach" /></div>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {regWait ? <span className="civr-pill civr-pill-warn" data-testid="number-detail-status">{n.registration.status === 'pending' ? 'waiting for carrier' : 'waiting for details'}</span>
-            : <span className={statusPill(n.status)} data-testid="number-detail-status">{n.status}</span>}
+            : <span className={n.setup && n.status === 'provisioning' ? 'civr-pill civr-pill-warn' : statusPill(n.status)} data-testid="number-detail-status">{n.setup && n.status === 'provisioning' ? 'setting up' : n.status}</span>}
           <span className="civr-pill" data-testid="number-detail-expiry">{n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</span>
           {n.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
           {n.replacedBy ? <span className="civr-pill civr-pill-warn" data-testid="number-detail-old-pill">{`Old number · until ${day(n.releaseAt)}`}</span>
