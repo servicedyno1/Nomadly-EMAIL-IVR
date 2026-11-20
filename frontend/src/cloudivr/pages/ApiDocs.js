@@ -77,7 +77,7 @@ export default function ApiDocs() {
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-slate-200/80">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
           <Link to={cp()} className="font-display text-2xl font-extrabold mr-auto flex items-center gap-2" data-testid="api-docs-logo-link"><Wordmark accent="#059669" iconClass="w-7 h-7" /></Link>
-          <Link to={cp('/app/settings#settings-api')} className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 py-3" data-testid="api-docs-settings-link"><ArrowLeft className="w-4 h-4" />Settings → API</Link>
+          <Link to={cp('/app/settings#api')} className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 py-3" data-testid="api-docs-settings-link"><ArrowLeft className="w-4 h-4" />Settings → API</Link>
         </div>
       </header>
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12">

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Users, Sparkles, Webhook, Download, X, Gift, ArrowRight } from 'lucide-react';
+import { Zap, Users, Sparkles, Webhook, Download, X, Gift, ArrowRight, PhoneForwarded } from 'lucide-react';
 import { api, enc } from './api';
 import { useCivrAuth } from './AuthContext';
 import { useRtc } from './rtc';
@@ -10,14 +10,11 @@ import { cp } from './paths';
 // itself — see update.js — so this is what customers see next). Bump `id` and edit `items` for the next release.
 // Accounts created on/after `since` never see it: for them these features are simply part of the app.
 export const RELEASE = {
-  id: '2026-10-25',
-  since: '2026-10-25T18:00:00Z', // ≈ when this release went live; accounts created after it never see this card
+  id: '2026-11-20',
+  since: '2026-11-20T14:00:00Z', // ≈ when this release went live; accounts created after it never see this card
   items: [
-    { key: 'triggers', Icon: Zap, title: 'Text Triggers', body: 'A text to your number can start a call automatically — a call back to you, a recorded message or your AI agent.', feature: 'textTriggers', tab: 'triggers', plan: 'Business plan' },
-    { key: 'ringgroup', Icon: Users, title: 'Ring groups', body: 'Ring up to 5 phones at once — the first one to answer gets the caller.', feature: 'ringGroup', tab: 'ringgroup', plan: 'Plus plan and up' },
-    { key: 'summary', Icon: Sparkles, title: 'AI call summaries', body: 'Voicemails and recorded calls get a short summary, the caller’s mood and next steps.', feature: 'aiSummary', tab: 'logs', plan: 'Plus plan and up' },
+    { key: 'crmapi', Icon: PhoneForwarded, title: 'Connect CRM leads to your agents instantly', body: 'Your CRM starts the call; the moment the lead answers it rings straight through to your agents — no key to press.', plan: 'Enterprise · Business add-on', to: '/app/settings#api' },
     { key: 'webhooks', Icon: Webhook, title: 'Call events for your CRM and Zapier', body: 'Send calls, voicemails and texts to your own tools the moment they happen.', to: '/app/settings#webhooks' },
-    { key: 'install', Icon: Download, title: 'Install the app', body: 'Put CloudIVR on your phone or computer like a normal app.', to: '/app/settings#install' },
   ],
 };
 
@@ -100,7 +97,7 @@ export function WhatsNew() {
           <div>
             <div className="civr-label mb-2 flex items-center gap-1.5"><Gift className="w-3.5 h-3.5" />New in CloudIVR</div>
             <h2 id="whats-new-title" className="font-display text-2xl sm:text-3xl font-bold">What’s new</h2>
-            <p className="text-sm text-[#a1a1aa] mt-1">Five things you can try today.</p>
+            <p className="text-sm text-[#a1a1aa] mt-1">{RELEASE.items.length === 1 ? 'One thing' : `${['Two', 'Three', 'Four', 'Five', 'Six'][RELEASE.items.length - 2] || RELEASE.items.length} things`} you can try today.</p>
           </div>
           <button type="button" onClick={close} className="w-11 h-11 -mt-2 -mr-2 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5 shrink-0" aria-label="Close" data-testid="whats-new-close"><X className="w-4 h-4" /></button>
         </div>
