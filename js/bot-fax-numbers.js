@@ -188,7 +188,7 @@ async function handle(ctx) {
   const list = async () => {
     const mine = await api.list(chatId)
     await setAction('fxnList')
-    const lines = mine.map(n => `• <b>${esc(n.phoneNumber)}</b> (${n.country}) — ${n.registration?.needsDetails ? t.stNeeds : n.status === 'pending_registration' ? t.stPending : n.status === 'past_due' ? t.stPaused : t.stActive}`)
+    const lines = mine.map(n => `• <b>${esc(n.phoneNumber)}</b> (${n.country}) — ${n.registration?.needsDetails ? t.stNeeds : n.status === 'pending_registration' || n.status === 'provisioning' ? t.stPending : n.status === 'past_due' ? t.stPaused : t.stActive}`)
     return send(`${t.head(offer.price, offer.freePages, offer.pagePrice, offer.countries.length)}\n\n${lines.length ? lines.join('\n') : `<i>${t.none}</i>`}`, kb([...mine.filter(n => n.status !== 'released').map(n => [`📠 ${n.phoneNumber}`]), [t.buy]]))
   }
   if (isMenu(message)) return list()
@@ -366,7 +366,7 @@ async function handle(ctx) {
       const r = await api.buy(chatId, { phoneNumber: info.fxnPick, autoRenew: true })
       await save('fxnPick', null)
       if (r.number.registration?.needsDetails) { await save('fxnPaid', r.number.phoneNumber); info.fxnPaid = r.number.phoneNumber; await send(t.paidNext(esc(r.number.phoneNumber), esc(country.name))); return askWho() }
-      await send(r.number.status === 'pending_registration' ? t.paidPending(esc(r.number.phoneNumber)) : t.paidActive(esc(r.number.phoneNumber)))
+      await send(r.pending ? require('./pending-orders').pendingMsg(esc(r.number.phoneNumber)) : r.number.status === 'pending_registration' ? t.paidPending(esc(r.number.phoneNumber)) : t.paidActive(esc(r.number.phoneNumber)))
       return list()
     } catch (e) {
       await send(`⚠️ ${e.status ? e.message : t.buyFail}`)

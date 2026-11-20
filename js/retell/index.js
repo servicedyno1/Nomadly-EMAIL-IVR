@@ -34,6 +34,7 @@ async function searchNumbers(countryCode, numberType = 'local', areaCode = null,
 }
 const isRtSearched = (n) => searched.has(String(n || ''))
 // After a restart the search is forgotten: a US/CA number nobody else searched is retried on Retell.
+const searchedMeta = (n) => searched.get(String(n)) || null
 const remember = (n, meta) => searched.set(String(n), meta || { cc: String(n).startsWith('+1') ? 'US' : '', type: /^\+18(00|33|44|55|66|77|88)/.test(String(n)) ? 'toll_free' : 'local' })
 
 // Landing number on Infobip (US local): bought outside Infobip's own "selling" switch, routed to our calls config.
@@ -59,13 +60,24 @@ async function releaseLanding(number) {
   return true
 }
 
+// One unused landing number kept between failed buys; released if nobody needs it for a day.
+const spare = {
+  n: null, timer: null,
+  take() { const n = this.n; this.n = null; clearTimeout(this.timer); return n },
+  keep(l) {
+    if (this.n) { releaseLanding(l.number).catch(() => {}); return }
+    this.n = l; clearTimeout(this.timer)
+    this.timer = setTimeout(() => { const x = this.take(); if (x) releaseLanding(x.number).catch(e => log(`landing release ${x.number}:`, errOf(e))) }, 24 * 3600000)
+    this.timer.unref?.()
+  },
+}
 // Buy → { id: 'rt:+1…', _provider: 'retell', _landingNumber } | null (nothing is left half-bought).
 async function buyNumber(phoneNumber) {
   if (!selling()) return null
   const s = searched.get(phoneNumber); if (!s) return null
   let landing = null
   try {
-    landing = await buyLanding()
+    landing = spare.take() || await buyLanding()
     const r = (await http().post('/create-phone-number', { phone_number: phoneNumber, number_provider: 'twilio', ...(s.type === 'toll_free' ? { toll_free: true } : {}), nickname: 'CloudIVR', fallback_number: landing.number, inbound_fallback_enabled: true })).data
     const got = e164(r.phone_number)
     if (got !== phoneNumber) log(`asked ${phoneNumber}, Retell gave ${got}`)
@@ -75,7 +87,8 @@ async function buyNumber(phoneNumber) {
     return { id: `rt:${got}`, status: 'success', requirements_met: true, phone_numbers: [{ id: `rt:${got}`, phone_number: got, status: 'success' }], _provider: 'retell', _landingNumber: landing.number, ...(got !== phoneNumber ? { _retriedNumber: got } : {}) }
   } catch (e) {
     log(`buy ${phoneNumber}:`, errOf(e))
-    if (landing) await releaseLanding(landing.number).catch(x => log(`landing release ${landing.number}:`, errOf(x)))
+    // Keep the landing for the next try (a waiting order retries every few minutes) instead of buying a new one each time.
+    if (landing) spare.keep(landing)
     return null
   }
 }
@@ -89,4 +102,4 @@ async function releaseNumber(id) {
   } catch (e) { log(`release ${num}:`, errOf(e)); return false }
 }
 
-module.exports = { owns, enabled, selling, sellsType, isRt, searchNumbers, isRtSearched, remember, buyNumber, releaseNumber, COST }
+module.exports = { owns, enabled, selling, sellsType, isRt, searchNumbers, isRtSearched, remember, searchedMeta, buyNumber, releaseNumber, COST }

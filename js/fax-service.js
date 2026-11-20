@@ -767,6 +767,29 @@ async function emailCopy(chatId, fax, pdf) {
     return true
   } catch (e) { _log(`[Fax] email copy to ${to} failed: ${e.message}`); return false }
 }
+// Delivery receipt: a one-page PDF (from, to, pages, sent and delivered time) emailed to the owner.
+async function receiptPdf(fax, pages, at) {
+  const doc = await PDFDocument.create(), page = doc.addPage([612, 792])
+  const font = await doc.embedFont(StandardFonts.Helvetica), bold = await doc.embedFont(StandardFonts.HelveticaBold)
+  page.drawText('Fax delivery confirmation', { x: 60, y: 700, size: 22, font: bold })
+  const rows = [['Result', 'Delivered'], ['From', fmt(fax.from)], ['To', fmt(fax.to)], ['Pages', String(pages)], ['Sent', new Date(fax.createdAt || at).toUTCString()], ['Delivered', at.toUTCString()], ['Reference', String(fax._id)]]
+  rows.forEach(([k, v], i) => { page.drawText(k, { x: 60, y: 640 - i * 30, size: 12, font: bold }); page.drawText(latin(v, 90), { x: 180, y: 640 - i * 30, size: 12, font }) })
+  page.drawText(`${brand()}`, { x: 60, y: 80, size: 10, font, color: rgb(0.4, 0.4, 0.4) })
+  return Buffer.from(await doc.save())
+}
+async function emailReceipt(fax, pages, at) {
+  const to = await emailOf(fax.chatId)
+  if (!to) return false
+  const subject = `Fax delivered to ${fmt(fax.to)} (${pages} page${pages === 1 ? '' : 's'})`
+  const html = `<p><b>Your fax was delivered.</b></p><p>From: ${esc(fmt(fax.from))}<br/>To: ${esc(fmt(fax.to))}<br/>Pages: ${pages}<br/>Delivered: ${at.toUTCString()}</p><p>The confirmation page is attached.</p>`
+  try {
+    const attachments = [{ filename: `fax_receipt_${String(fax.to).replace(/\D/g, '')}.pdf`, content: await receiptPdf(fax, pages, at), contentType: 'application/pdf' }]
+    if (notify.isWebChatId(fax.chatId)) await require('./cloudivr-web/auth').sendMail(to, subject, html, attachments)
+    else await require('./mailer').send({ from: { name: process.env.MAIL_SENDER_NAME || brand(), address: process.env.MAIL_SENDER }, to, subject, html: require('./sms-app-brand').logoImg(36) + html, attachments })
+    await col('faxes').updateOne({ _id: fax._id }, { $set: { receiptEmailed: true } })
+    return true
+  } catch (e) { _log(`[Fax] receipt email to ${to} failed: ${e.message}`); return false }
+}
 async function download(url) {
   if (swFax.isSwMedia(url)) return swFax.download(url)
   try { return Buffer.from((await axios.get(url, { responseType: 'arraybuffer', timeout: 30000 })).data) } catch (_) {
@@ -938,7 +961,9 @@ async function handleEvent(event) {
     const num = (await findMine(fax.chatId, fax.phoneNumber)) || { phoneNumber: fax.phoneNumber, expiresAt: null }
     const q = await settle(fax, num, Number(p.page_count) || fax.pages)
     if (fax.batchId) { await col('faxBatches').updateOne({ _id: fax.batchId }, { $inc: { delivered: 1 } }); return finishBatch(fax.batchId) }
-    return tell(fax.chatId, t(await langOf(fax.chatId)).delivered(fax.to, Number(p.page_count) || fax.pages, q.cost), { faxId })
+    const pages = Number(p.page_count) || fax.pages, at = new Date()
+    await tell(fax.chatId, `${t(await langOf(fax.chatId)).delivered(fax.to, pages, q.cost)}\n🕒 ${at.toUTCString()}`, { faxId })
+    return emailReceipt(fax, pages, at)
   }
   if (type === 'fax.failed') {
     if (fax.status === 'failed' || fax.status === 'delivered') return

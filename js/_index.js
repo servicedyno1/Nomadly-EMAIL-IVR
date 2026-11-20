@@ -4240,7 +4240,16 @@ const loadData = async () => {
     adminEmail: (subject, html) => process.env.CIVR_ADMIN_EMAIL && require('./cloudivr-web/auth').sendMail(process.env.CIVR_ADMIN_EMAIL, subject, html).catch(() => {}),
     credit: (id, amt) => atomicIncrement(walletOf, id, 'usdIn', Number(amt) || 0),
     removeNumber: (id, phone) => phoneNumbersOf.updateOne({ _id: id }, { $pull: { 'val.numbers': { phoneNumber: phone, status: 'provisioning' } } }),
-    activateNumber: (id, phone, r) => require('./live-number').updateLive(phoneNumbersOf, id, phone, { $set: { 'val.numbers.$.status': 'active', 'val.numbers.$.phoneNumber': r.phoneNumber, 'val.numbers.$.telnyxOrderId': r.telnyxOrderId, ...(r.needsRegistration ? { 'val.numbers.$.registration': { status: 'pending', since: new Date().toISOString() } } : {}) } }),
+    removeFax: (id, phone) => db.collection('faxNumbers').deleteOne({ _id: phone, chatId: String(id), status: 'provisioning' }),
+    activateFax: async (id, phone, r) => {
+      const fx = db.collection('faxNumbers'), doc = await fx.findOne({ _id: phone, chatId: String(id) })
+      if (!doc) return
+      const exp = new Date(); exp.setMonth(exp.getMonth() + 1)
+      const live = { ...doc, _id: r.phoneNumber, phoneNumber: r.phoneNumber, status: 'active', mtNumberId: r.orderId, expiresAt: exp.toISOString(), activatedAt: new Date() }
+      if (r.phoneNumber === phone) return fx.replaceOne({ _id: phone }, live)
+      await fx.insertOne(live); await fx.deleteOne({ _id: phone, status: 'provisioning' })
+    },
+    activateNumber: (id, phone, r) => require('./live-number').updateLive(phoneNumbersOf, id, phone, { $set: { 'val.numbers.$.status': 'active', 'val.numbers.$.phoneNumber': r.phoneNumber, 'val.numbers.$.telnyxOrderId': r.telnyxOrderId, ...(r.landingNumber ? { 'val.numbers.$.landingNumber': r.landingNumber } : {}), ...(r.needsRegistration ? { 'val.numbers.$.registration': { status: 'pending', since: new Date().toISOString() } } : {}) } }),
   }).catch(e => log('[PendingOrders] init: ' + e.message))
   require('./bird-alert').setTelegram(notifyAdmin)
   planLifecycle.lockLegacyPrices(phoneNumbersOf, db.collection('migrationMarks')).then(r => Object.keys(r).length && log(`[PlanLadder] price locks applied: ${JSON.stringify(r)}`)).catch(e => log(`[PlanLadder] price lock failed: ${e.message}`))
