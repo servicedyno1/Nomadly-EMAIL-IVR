@@ -213,15 +213,17 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5, { sms
     })
   } catch (e) { log('search:', errOf(e)); return [] }
 }
+const isPR = (n) => /^\+1(787|939)\d{7}$/.test(String(n || ''))
 const isIbSearched = (n) => searched.has(String(n || ''))
 // After a restart/deploy (or a slow crypto payment) the search is forgotten: find the number in Infobip's list again.
 async function recall(phoneNumber) {
   const num = String(phoneNumber || '')
   if (searched.has(num)) return true
-  if (!selling() || !num.startsWith('+1') || !sellsIn('US')) return false
+  const cc = isPR(num) ? 'PR' : 'US'
+  if (!selling() || !num.startsWith('+1') || !sellsIn(cc)) return false
   try {
-    avail.delete('US|VOICE')
-    const list = await available({ country: 'US', limit: 100, capabilities: 'VOICE' })
+    avail.delete(`${cc}|VOICE`)
+    const list = await available({ country: cc, limit: 100, capabilities: 'VOICE' })
     const hit = list.find(n => e164(n.number) === num && !n.additionalSetupRequired)
     if (hit) searched.set(num, hit.numberKey)
     return !!hit
@@ -299,7 +301,7 @@ async function sendSms(from, to, text) {
 }
 
 const M = module.exports = {
-  enabled, selling, sellsIn, isIb, sipTrunk, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
+  enabled, selling, sellsIn, isPR, isIb, sipTrunk, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
   connectSip,
   voice: { ingest, setSink, _legs: legs, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall },
   searchNumbers, isIbSearched, recall, searchedMeta, remember, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,

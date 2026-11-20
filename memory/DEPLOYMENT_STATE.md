@@ -745,3 +745,11 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - LIVE QA (test acct 5000000000000004): web extra +19048927673 → setup badge "link · about 5 min" (web + bot) → Bird verified in 38 s → bot Replace → +19045905664 ($25, ledger via walletOps, landing +13083290990) → both deleted; Retell 404 + landings gone from Infobip. Wallet now $3.47. Scripts /opt/nomadly/qa_rpn.js, qa_web.js (QA_PORT=5100 now).
 - Unit: js/tests/test_setup_status_replace.js 18/18.
 - ⚠️ Not in GitHub yet — Save to GitHub or the next CI deploy rolls this back.
+
+## 2026-11-20 07:59Z — Infobip numbers on sale in 12 more countries (LIVE app-main-b :5100, release 20261120T075900Z-d068eb5)
+- Owner: sell them at the existing pricing, no test purchase (option C).
+- shared/app-main/backend.env (backup .bak-<ts>): NUMBER_PROVIDERS=retell → retell,infobip; INFOBIP_SELL_COUNTRIES=US → AR,AT,CL,FR,HR,LT,MX,MY,PL,PR,RO,UA (US/CA stay on Retell).
+- Code: AT moved to Infobip INSTANT (INFOBIP_COST AT 24.5); infobip.recall handles PR (+1787/+1939) and signalwire buy never sends PR to Retell.
+- Verified (no purchase): web catalog lists the 14 countries; searches MX 12, FR 12, AT 8, PR 12; add-on $25 (FR $0 on Business); bot extra list = all 12, Business plan number adds FR.
+- Side effect: texting numbers LT/PL/PR (texting-countries, Infobip) are on sale again at their set prices.
+- Unproven (owner skipped test buy): Bird verifying foreign caller IDs (outgoing shows "Setting up" until then); call delivery into those countries' numbers.

@@ -219,7 +219,7 @@ function wrap(t) {
     // A failed Retell buy (low balance, outage…) doesn't refund: the paid order waits and completes on its own.
     const rtBuy = async () => { const meta = rt.searchedMeta(phoneNumber); return (await rt.buyNumber(phoneNumber)) || require('../pending-orders').pendingResult('retell', phoneNumber, meta) }
     if (rt.isRtSearched(phoneNumber)) return rtBuy()
-    if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber) && rt.selling() && /^\+1\d{10}$/.test(String(phoneNumber))) { rt.remember(phoneNumber); return rtBuy() }
+    if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber) && rt.selling() && /^\+1\d{10}$/.test(String(phoneNumber)) && !ib.isPR(phoneNumber)) { rt.remember(phoneNumber); return rtBuy() }
     if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber)) await ib.recall(phoneNumber).catch(() => false)
     if (txs.isTxSearched(phoneNumber) && sells('telnyx')) {
       let r = await txs.buyNumber(phoneNumber)
