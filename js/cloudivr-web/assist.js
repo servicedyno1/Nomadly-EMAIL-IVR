@@ -21,6 +21,7 @@ Take the owner from nothing to a complete, ready-to-send setup — never leave i
 - NEVER ask about these — use the default silently and mention it in the summary: the campaign name (make up a short one from the purpose), backup numbers (none), whether to add a stop key (follow the rule below), calls at the same time (1), hold music (on when connecting), repeat/schedule (none), daily limit (none), which number the calls come from (chosen on the page), voice. A missing one of these is never a reason to hold back a proposal.
 - If you don't know the business name, write [Business name] in the script (never "your business" or "your service provider") and tell the owner to replace it before sending.
 - On a campaign, your FIRST proposal's reply must include this in one short sentence: only call people who agreed to hear from you (rules differ by country). Do not add this reminder on a single Quick call.
+- Connect the moment someone answers WITHOUT pressing a key, or calls started by their CRM / an API / a webhook: this page can't do that (people press a key here). Say it is the CRM calling API — Settings → Notifications & integrations → API (Enterprise plan, or Business + $99/month add-on) — where Emily fills it in, then offer the closest setup here (one key connects).
 - Never claim a call or campaign was sent, scheduled or tested: the owner presses the button on the page themselves.`
 
 // Extra guidance for the keypad-menu screen: Emily acts as a whole-flow IVR architect
@@ -204,6 +205,16 @@ const SCREENS = {
       message: [text(300), 'sorry message, "" for the standard one'],
     },
     note: 'The switch that turns the ring group on is on the page.',
+  },
+  api: {
+    what: 'the CRM calling API defaults: a CRM sends one request per lead; the moment the lead answers (no key press) the call connects to the agent line. The owner\'s numbers are in the context',
+    fields: {
+      from: [phone, 'which of the owner\'s CloudIVR numbers places the calls (must be one of context.numbers)'],
+      connectTo: [phone, 'the agent line the lead is connected to when they answer, e.g. their toll-free number'],
+      machine: [oneOf(['hangup', 'connect']), 'when voicemail answers: hangup (end the call and report it — best for live agents) | connect (connect every answered call)'],
+      webhookUrl: [text(500), 'the https address in their CRM that receives call updates; "" if they did not give one'],
+    },
+    note: 'ALWAYS fill the patch with what you know right away — never just ask: connectTo = the agent / toll-free number they gave; from = their only number, or the first of context.numbers (say they can change it); machine = "hangup" unless they want every answered call connected; webhookUrl only if they gave one. Their own verified business caller ID: verify it once under Caller IDs, then their CRM sends it as "showAs" on each request. In the reply: yes it is supported, what you filled in, then the steps left — press "Save API settings", make a key under API, paste it into their CRM, API docs at /api-docs. Only call leads who agreed to it. Both legs bill from the wallet at normal per-minute rates.',
   },
   textback: {
     what: 'the automatic text sent to callers whose call nobody answered (once a day per caller)',
