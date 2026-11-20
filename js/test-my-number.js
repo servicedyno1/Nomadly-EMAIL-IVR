@@ -41,7 +41,7 @@ let _getTxt = null
 let _selfUrl = ''
 let _col = null
 
-const isFreeTestRing = (from, to) => from === TRIAL_CALLER_ID && !!pendingTargets[to] && Date.now() - pendingTargets[to] < FREE_WINDOW_MS
+const isFreeTestRing = (from, to) => (from === TRIAL_CALLER_ID || require('./ivr-outbound').SYSTEM_CALLERS().includes(from)) && !!pendingTargets[to] && Date.now() - pendingTargets[to] < FREE_WINDOW_MS
 
 function initTestMyNumber(app, deps) {
   _bot = deps.bot
@@ -196,8 +196,10 @@ async function placeTestCall(chatId, num, lang, { to = null } = {}) {
   const release = () => { testHistory[owner] = (testHistory[owner] || []).filter(x => x !== slot); if (!to) delete pendingTargets[owner]; results[owner] = null }
   if (!to) pendingTargets[owner] = slot
   results[owner] = { state: 'calling', to: targetNumber, external: !!to, startedAt: slot }
+  // Same test-call lines as every other free test (SYSTEM_CALLER_IDS rotation), never the number being tested.
+  const fromId = (await require('./ivr-outbound').getTrialCaller({ purpose: 'test_my_number', chatId, to: targetNumber }).catch(() => null))?.callerId || TRIAL_CALLER_ID
   const result = await _telnyxApi.createOutboundCall(
-    TRIAL_CALLER_ID,
+    fromId,
     targetNumber,
     webhookUrl,
     null,   // use default Telnyx call control connection
@@ -241,7 +243,7 @@ async function placeTestCall(chatId, num, lang, { to = null } = {}) {
     }
   }, TEST_TIMEOUT_MS)
 
-  _log(`[TestMyNumber] Test call placed: ${TRIAL_CALLER_ID} → ${targetNumber} (chatId=${chatId}, ccId=${callControlId})`)
+  _log(`[TestMyNumber] Test call placed: ${fromId} → ${targetNumber} (chatId=${chatId}, ccId=${callControlId})`)
 
   return {
     ok: true,
