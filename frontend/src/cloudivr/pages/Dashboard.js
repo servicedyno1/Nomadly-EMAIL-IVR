@@ -14,6 +14,7 @@ import { PurposeHome } from './dashboard/PurposeHome';
 import { TextingHome } from './dashboard/TextingHome';
 import { TaskCards, SetupChecklist } from './dashboard/GuidedHome';
 import { NextStep } from './dashboard/NextStep';
+import { CallingPausedBanner } from '../CallingPausedBanner';
 
 function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
   const body = (
@@ -81,6 +82,7 @@ export default function Dashboard() {
         {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><PlusCircle className="w-4 h-4" />Get a number</Link>}
         {textingOnly && <Link to={cp('/app/texting?add=1')} className="civr-btn civr-btn-primary" data-testid="dashboard-add-texting-button">Add a number</Link>}
       </PageHeader>
+      <CallingPausedBanner />
       {s?.pendingVerification > 0 && (
         <Link to={cp('/app/verification')} className="civr-card civr-trace p-6 mb-6 flex items-center gap-4" data-testid="dashboard-verification-alert">
           <ShieldCheck className="w-6 h-6 text-[#fbbf24]" />

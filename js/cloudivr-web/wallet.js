@@ -58,7 +58,11 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUs
   const rateCache = { at: 0, rates: null }
 
   // Can this account place outgoing calls right now? (browser phone checks before dialing)
-  router.get('/wallet/calling', h(async (req, res) => res.json(await callingState(req.webChatId, await w.balance(req.webChatId)))))
+  router.get('/wallet/calling', h(async (req, res) => {
+    const id = req.webChatId
+    const own = await db.collection('phoneNumbersOf').findOne({ _id: String(id), 'val.numbers': { $elemMatch: { status: { $nin: ['released', 'deleted'] } } } }, { projection: { _id: 1 } })
+    res.json({ ...(await callingState(id, await w.balance(id))), hasNumber: !!own })
+  }))
 
   // Coins per 1 USD for every coin (display only; the exact amount comes with the address). Cached for a minute.
   router.get('/wallet/rates', h(async (req, res) => {
