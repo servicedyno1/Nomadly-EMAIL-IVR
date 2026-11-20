@@ -153,8 +153,9 @@ function variant(kind) {
 // One short browser session per page (hosted browsers end long sessions), local Chrome when no endpoint is set.
 async function openPage(view) {
   const puppeteer = require('puppeteer-core')
-  const ws = process.env.BROWSER_WS_ENDPOINT
-  const exe = process.env.CHROME_PATH || ['/root/bin/chromium', '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(p => fs.existsSync(p))
+  const exe = process.env.CHROME_PATH || ['/opt/nomadly/chrome/headless-shell', '/root/bin/chromium', '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(p => fs.existsSync(p))
+  // Our own Chrome first (no usage cap); the hosted browser only when the server has none.
+  const ws = exe ? null : process.env.BROWSER_WS_ENDPOINT
   const br = ws ? await puppeteer.connect({ browserWSEndpoint: ws, protocolTimeout: 120000 }) : await puppeteer.launch({ executablePath: exe, headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] })
   const page = await br.newPage()
   await page.setViewport(view)

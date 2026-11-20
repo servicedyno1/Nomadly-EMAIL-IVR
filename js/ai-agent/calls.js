@@ -40,7 +40,21 @@ const records = (agent) => agent?.record !== false
 const recRate = (agent) => (records(agent) ? recorder.RECORD_RATE() : 0)
 const leadRate = (number, recorded = false) => Math.max(RATE(), deps.voiceService?.getIvrCallRate?.(number) || 0) + (recorded ? recorder.RECORD_RATE() : 0)
 const esc = (s) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
-const hangup = (ccid) => Promise.resolve(ce.isAe(ccid) ? ce.hangupCall(ccid) : tx(`/calls/${ccid}/actions/hangup`, {})).catch(() => {})
+const isIb = (ccid) => String(ccid).startsWith('ib:')
+const hangup = (ccid) => Promise.resolve(ce.isAe(ccid) ? ce.hangupCall(ccid) : isIb(ccid) ? require('../infobip').voice.hangupCall(ccid) : tx(`/calls/${ccid}/actions/hangup`, {})).catch(() => {})
+// A carrier call (SignalWire / Infobip) is handed to our call engine by SIP, where the agent picks it up (onAiLeg).
+async function toEngine(s, { answer = false } = {}) {
+  if (!engineUp()) throw new Error('call engine offline')
+  s.awaitingLeg = true
+  const user = `ai.${ce.app()}.${s.token}`
+  let ok
+  if (isIb(s.ccid)) {
+    const ib = require('../infobip')
+    if (answer) await ib.voice.answerCall(s.ccid)
+    ok = await ib.connectSip(s.ccid, user, s.other)
+  } else ok = await require('../signalwire/voice').transferCall(s.ccid, `sip:${user}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}`, s.number, { timeoutSecs: 15 })
+  if (!ok) throw new Error('handover to the call engine failed')
+}
 const birdMax = () => Number(process.env.BIRD_MAX_CONCURRENT || 20)
 const engineUp = () => ce.enabled() && ce.connected() && bird.enabled()
 
@@ -112,12 +126,8 @@ async function takeFromIvr({ ccid, chatId, num, agentId, from }) {
   s.answeredAt = Date.now()
   try {
     if (ce.isAe(ccid)) { watchWallet(s); await startMedia(s) }
-    else if (String(ccid).startsWith('sw:')) {
-      if (!engineUp()) throw new Error('call engine offline')
-      s.awaitingLeg = true
-      const ok = await require('../signalwire/voice').transferCall(ccid, `sip:ai.${ce.app()}.${s.token}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}`, num.phoneNumber, { timeoutSecs: 15 })
-      if (!ok) throw new Error('handover to the call engine failed')
-    } else { await tx(`/calls/${ccid}/actions/streaming_start`, streamParams(s.token)); watchWallet(s) }
+    else if (String(ccid).startsWith('sw:') || isIb(ccid)) await toEngine(s)
+    else { await tx(`/calls/${ccid}/actions/streaming_start`, streamParams(s.token)); watchWallet(s) }
     log(`[AIAgent] Keypad key handed ${other} → ${num.phoneNumber} to "${agent.name}"`)
     return true
   } catch (e) {
@@ -148,12 +158,8 @@ async function tryInbound({ payload, chatId, num }) {
       s.answeredAt = Date.now()
       watchWallet(s)
       await startMedia(s)
-    } else if (String(s.ccid).startsWith('sw:')) {
-      // SignalWire number: hand the call to our call engine by SIP, where the agent picks it up (onAiLeg).
-      if (!engineUp()) throw new Error('call engine offline')
-      s.awaitingLeg = true
-      const ok = await require('../signalwire/voice').transferCall(s.ccid, `sip:ai.${ce.app()}.${s.token}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}`, num.phoneNumber, { timeoutSecs: 15 })
-      if (!ok) throw new Error('handover to the call engine failed')
+    } else if (String(s.ccid).startsWith('sw:') || isIb(s.ccid)) {
+      await toEngine(s, { answer: true })
       setTimeout(() => { if (s.awaitingLeg) { log(`[AIAgent] ${s.ccid}: SIP handover never arrived — hanging up`); forget(s); hangup(s.ccid) } }, 25000).unref?.()
     } else {
       await tx(`/calls/${s.ccid}/actions/answer`, streamParams(s.token))
@@ -187,12 +193,8 @@ async function takeFromIvr({ ccid, chatId, num, agentId, from }) {
     if (ce.isAe(ccid)) {
       watchWallet(s)
       await startMedia(s)
-    } else if (String(ccid).startsWith('sw:')) {
-      if (!engineUp()) throw new Error('call engine offline')
-      s.awaitingLeg = true
-      const ok = await require('../signalwire/voice').transferCall(ccid, `sip:ai.${ce.app()}.${s.token}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}`, num.phoneNumber, { timeoutSecs: 15 })
-      if (!ok) throw new Error('handover to the call engine failed')
-    } else {
+    } else if (String(ccid).startsWith('sw:') || isIb(ccid)) await toEngine(s)
+    else {
       await tx(`/calls/${ccid}/actions/streaming_start`, streamParams(s.token))
       watchWallet(s)
     }
@@ -321,6 +323,7 @@ async function finish(s, payload) {
   if (s.done) return
   s.done = true
   forget(s)
+  if (isIb(s.carrierId)) hangup(s.carrierId) // Infobip keeps the caller on the line after our leg ends
   s.bridge?.stop()
   const endAt = Date.now()
   const duration = s.answeredAt ? Math.round((endAt - s.answeredAt) / 1000) : 0
