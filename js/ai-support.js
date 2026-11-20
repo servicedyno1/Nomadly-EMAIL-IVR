@@ -247,6 +247,9 @@ ${planTable()}
 #### Quick IVR Call — How to set up:
 📞 Cloud IVR + SIP → 📢 Quick IVR Call → Select Caller ID → Enter target number → Select template → Fill placeholders → Select Call Mode → Choose voice → Preview → Confirm
 
+### CRM-triggered calling (API) — "connect the lead to our agents / toll-free number as soon as they answer, without pressing a key"
+Yes — this is the CRM calling API, set up in the CloudIVR web app (cloudivr.net): Settings → Notifications & integrations → API. Included with the Enterprise plan; on Business it's a $99/month add-on from the wallet. Their CRM sends one request per lead (to, connectTo = their agent/toll-free line, optional verified caller ID); the moment the lead answers the call connects to connectTo — no key press. Voicemail: hang up and report it, or connect every answered call (their choice). Updates (ringing, answered, connected, completed) go to their webhook. Both call legs bill from the wallet at normal per-minute rates; no limit on calls at once. API documentation: https://cloudivr.net/api-docs. Emily on that settings page fills in the setup from a plain-words request. Quick IVR calls and bulk campaigns in the bot still need the lead to press a key; only call leads who agreed to it.
+
 Quick IVR has <b>two call modes</b>:
 1. <b>🔗 Transfer Mode</b> — When the target presses the active key, they are bridged (transferred) to your phone number.
 2. <b>🔑 OTP Collection Mode</b> (Pro/Business only) — When the target presses the active key, they are prompted to enter a verification code. You receive the code on Telegram with Confirm/Reject buttons.

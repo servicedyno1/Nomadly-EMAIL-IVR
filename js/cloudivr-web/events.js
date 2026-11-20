@@ -71,6 +71,13 @@ function emit(chatId, type, data) {
   }).catch(e => log(`[Webhooks] emit ${type} error: ${e.message}`))
 }
 
+// CRM API call updates: sent whenever the account's webhook is on (they were asked for by the API request itself).
+function emitApi(chatId, type, data) {
+  if (!db) return
+  const id = String(chatId)
+  hookOf(id).then(hook => (hook?.enabled && hook.url ? deliver(id, hook, type, data) : null)).catch(e => log(`[Webhooks] emitApi ${type} error: ${e.message}`))
+}
+
 // Same, when only the number is known (call engine logs); the owner lookup is cached.
 function emitForNumber(phone, type, data) {
   if (!db || !phone) return
@@ -147,4 +154,4 @@ function routes(router, deps) {
 // Test harnesses deliver to a local receiver; production code never calls this.
 const _allowPrivateForTests = (on = true) => safeUrl._allowPrivateForTests(on)
 
-module.exports = { routes, emit, emitForNumber, EVENTS, sign, publicHost, checkHookUrl, _allowPrivateForTests }
+module.exports = { routes, emit, emitApi, emitForNumber, EVENTS, sign, publicHost, checkHookUrl, _allowPrivateForTests }
