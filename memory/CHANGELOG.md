@@ -3864,3 +3864,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Voicemail for +18883476682: switched on as safety net, then switched back OFF at owner request (same day).
 - NOT verified: missed-inbound zero billing on a live call; keypad/menu hand-over to the agent on Infobip calls; why Zoiper's 20:59 sign-in did not ring at 21:02 (presence "until" may be optimistic).
 - Needs "Save to GitHub" (WITH-WEBIVR) or the next auto-deploy reverts it.
+
+## 2026-11-20 — SIP sign-in logging + accurate "Connected" (LIVE on SIP server 188.166.34.29)
+- `/etc/kamailio/kamailio.cfg` (backup `kamailio.cfg.bak-reglog-*`; restarted 22:27Z, 0 calls active): logs `REG <login> exp= transport ip:port ua=` on each sign-in, `RING FAILED <login> rc=` when an incoming call finds no app, `REG GONE <login>` when a sign-in expires/drops. New `event_route[usrloc:contact-expired]` tells the brand API (`/sip-registered/<login>?e=0`, API remembered per login in htable `api`) when the last app on a login is gone; usrloc `timer_interval` 20 s. Read with `journalctl -u kamailio | grep -E "REG |RING FAILED"`.
+- Verified via sip-test domain → preview: REG logged, REG GONE logged ~16 s after expiry (registrar min 60 s), presence `until` set to that moment. `RING FAILED` line not yet seen live.
+- `js/sip-presence.js`: an empty UA (expiry report) no longer wipes the last app name.
+- ⚠️ Repo `ops/sip-server/kamailio.cfg` is STALE vs the server (290 vs ~395 lines) — server file is the source of truth; not synced.
