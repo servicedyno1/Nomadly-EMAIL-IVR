@@ -162,6 +162,15 @@ async function send(chat, media, text, url, brand) {
   return r.data.result.message_id
 }
 
+// Tells the admin a scheduled channel post did not go out.
+let adminBot = null
+const alertFail = (chat, slot, msg) => {
+  const admin = process.env.TELEGRAM_ADMIN_CHAT_ID
+  if (!adminBot || !admin || dryRun()) return
+  const t = String(msg || 'unknown error').replace(/[<>&]/g, '').slice(0, 300)
+  adminBot.sendMessage(admin, `⚠️ <b>Channel ad not posted</b>\n${chat} · ${String(slot).replace(/^.*?(\d{4}-\d\d-\d\dT\d\d:\d\d)$/, '$1 UTC')}\nReason: ${t}`, { parse_mode: 'HTML' }).catch(() => {})
+}
+
 const sigOf = (topicId, v) => `${topicId}|${v.layout}|${v.theme}|${v.font}`
 
 // Posts one (slotKey makes it once-only across the app slots and restarts).
@@ -200,6 +209,7 @@ async function postNow(chat = TARGETS()[0]?.chat, slotKey = `manual:${chat}:${Da
     const msg = e.response?.data?.description || e.message
     await col.updateOne({ _id: slotKey }, { $set: { status: 'failed', error: msg } }).catch(() => {})
     log(`[ChannelAds] post to ${chat} failed: ${msg}`)
+    alertFail(chat, slotKey, msg)
     return { error: msg }
   } finally { if (!keep) for (const f of [media?.file, ...(media?.files || [])].filter(Boolean)) fs.rmSync(f, { force: true }) }
 }
@@ -219,6 +229,7 @@ async function publish(doc) {
     const msg = e.response?.data?.description || e.message
     await col.updateOne({ _id: doc._id }, { $set: { status: 'failed', error: msg } }).catch(() => {})
     log(`[ChannelAds] post to ${doc.chat} failed: ${msg}`)
+    alertFail(doc.chat, doc._id, msg)
     return { error: msg }
   } finally { for (const f of files) fs.rmSync(f, { force: true }) }
 }
@@ -249,6 +260,7 @@ async function init({ db, bot, logger } = {}) {
   if (logger) log = logger
   col = db.collection('channelAdPosts')
   token = bot?.token || process.env.TELEGRAM_BOT_TOKEN_PROD
+  adminBot = bot || null
   if (process.env.CHANNEL_ADS_ON === 'false' || !token) return false
   let me = null
   try { me = (await axios.get(`https://api.telegram.org/bot${token}/getMe`, { timeout: 15000 })).data.result } catch (_) { /* offline */ }
