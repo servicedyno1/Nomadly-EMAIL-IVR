@@ -14,14 +14,15 @@ const TRIAL_CALLER_ID = process.env.TELNYX_TRIAL_CALLER_ID || '+18889020132'
 // is blocked), falling back to the static TRIAL_CALLER_ID only when SignalWire is
 // unavailable or has no pool numbers.
 // System caller IDs for free/test calls take turns (USA MultiTEL + Canada Infobip); every pick is logged.
-const SYSTEM_CALLERS = () => String(process.env.SYSTEM_CALLER_IDS || '+18648308599,+16479457172').split(',').map(s => s.trim()).filter(s => /^\+[1-9]\d{7,14}$/.test(s))
+const SYSTEM_CALLERS = () => String(process.env.SYSTEM_CALLER_IDS || '+18648308599,+19049775682').split(',').map(s => s.trim()).filter(s => /^\+[1-9]\d{7,14}$/.test(s))
 let rot = 0, pickLog = null
 const planFrom = () => Math.min(...Object.values(require('./phone-config').plans).map(p => Number(p.price)).filter(p => p > 0))
 const setPickLogDb = (db) => { pickLog = db.collection('systemCallerPicks'); pickLog.createIndex({ at: -1 }).catch(() => {}) }
 async function getTrialCaller(meta = {}) {
   const pool = SYSTEM_CALLERS()
   if (pool.length) {
-    const callerId = pool[rot++ % pool.length]
+    let callerId = pool[rot++ % pool.length]
+    if (callerId === meta.to && pool.length > 1) callerId = pool[rot++ % pool.length] // never call a test line from itself
     pickLog?.insertOne({ at: new Date(), callerId, purpose: meta.purpose || 'trial', chatId: meta.chatId != null ? String(meta.chatId) : null, to: meta.to || null, bot: process.env.BOT_BRAND || process.env.CLOUDIVR_BRAND || null }).catch(() => {})
     console.log(`[SystemCaller] ${meta.purpose || 'trial'} → ${callerId}${meta.chatId ? ` (chat ${meta.chatId})` : ''}`)
     return { callerId, callerProvider: 'telnyx' }

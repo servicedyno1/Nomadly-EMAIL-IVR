@@ -145,7 +145,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     if (d.err) return bad(res, 400, 'invalid_number', d.err)
     if (req.body.showAs) return bad(res, 400, 'invalid_show_as', 'Custom caller IDs aren’t available on free tests.')
     const kam = (c) => /^kam:/.test(c.credentialId || '') && require('./webrtc-config').publicWebrtc()
-    const answer = (doc, c) => ({ id: doc._id, kind: 'browser', to: doc.to, maxSeconds: MAX_SECONDS, dryRun: !!doc.dryRun, ...(c ? { login: c.sipUsername, password: c.sipPassword, callerNumber: process.env.TELNYX_DEFAULT_ANI || null, ...(kam(c) ? { webrtc: kam(c), domain: require('../phone-config').WEB_SIP_DOMAIN } : {}) } : {}) })
+    const answer = (doc, c) => ({ id: doc._id, kind: 'browser', to: doc.to, maxSeconds: MAX_SECONDS, dryRun: !!doc.dryRun, ...(c ? { login: c.sipUsername, password: c.sipPassword, callerNumber: require('../ivr-outbound').SYSTEM_CALLERS()[0] || process.env.TELNYX_DEFAULT_ANI || null, ...(kam(c) ? { webrtc: kam(c), domain: require('../phone-config').WEB_SIP_DOMAIN } : {}) } : {}) })
     // Same email reconnecting (mic prompt, page reload): hand back its unused line instead of a new one.
     const prev = await calls.findOne({ email, kind: 'browser', to: d.to, createdAt: { $gt: new Date(Date.now() - 30 * 60000) } })
     if (prev) {
