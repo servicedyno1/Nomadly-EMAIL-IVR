@@ -21,6 +21,8 @@ const ivr = { enabled: true, greeting: 'Main', options: {
   8: { action: 'pay', payUrl: 'https://pay.example.com/x', smsFrom: 'mn_abc123', smsText: 'Pay securely here: https://pay.example.com/x' },
   9: { action: 'queue', agents: ['+14155550101', '+14155550102'], maxWait: 30, ringSecs: 10, message: 'Hold for the team', overflow: { action: 'message', message: 'Nobody free, bye' } },
   7: { action: 'pin', prompt: 'Code please', pin: '4821', onOk: { action: 'message', message: 'Welcome staff' }, failMessage: 'Wrong code' },
+  2: { action: 'sms', smsFrom: 'mn_abc123', smsText: 'Our address: 1 Main St', message: 'We texted you our address.' },
+  3: { action: 'sms', smsFrom: 'mn_abc123', smsText: 'Opening hours 9 to 5', after: 'menu' },
 } }
 const open = (id) => { vs.activeCalls[id] = { num: { phoneNumber: '+13346970100', plan: 'business', features: { ivr } }, chatId: 'u1', from: '+14155550199', to: '+13346970100', phase: 'ivr', startedAt: new Date() }; return vs.activeCalls[id] }
 
@@ -52,6 +54,19 @@ const open = (id) => { vs.activeCalls[id] = { num: { phoneNumber: '+13346970100'
   ok(!s.collect && !last('gather') && /Wrong code/.test(last('speak')?.a[1]), 'three wrong pins ends the call')
   s = open('c8'); await press('c8', '8')
   ok(s.phase === 'ivr_sms' && /text/i.test(String(last('speak')?.a[1])), `pay key runs the text path and tells the caller (${last('speak')?.a[1]})`)
+
+  // Text key on its own (not through the pay key): the caller, and only the caller, gets the owner's text from the owner's line.
+  const spenza = require('../../js/spenza.js'), realSend = spenza.sendSms, texts = []
+  spenza.sendSms = async (...a) => { texts.push(a); return { log: {} } }
+  s = open('t1'); await press('t1', '2')
+  ok(texts.length === 1 && JSON.stringify(texts[0]) === JSON.stringify(['u1', 'mn_abc123', '+14155550199', 'Our address: 1 Main St']), `text key sends the owner's text to the caller from the chosen line (${JSON.stringify(texts[0])})`)
+  ok(s.phase === 'ivr_sms' && /We texted you our address/.test(String(last('speak')?.a[1])), 'text key tells the caller with the owner\'s own line')
+  texts.length = 0; s = open('t2'); await press('t2', '3')
+  ok(texts.length === 1 && texts[0][3] === 'Opening hours 9 to 5' && /Main/.test(String(last('gather')?.a[1])), 'text key set to "back to menu" sends the text and reads the menu again')
+  texts.length = 0; msgs.length = 0; spenza.sendSms = async () => ({ error: 'This number can’t send texts right now.' })
+  s = open('t3'); await press('t3', '2')
+  ok(/could not send/i.test(String(last('speak')?.a[1])) && !/We texted you/.test(String(last('speak')?.a[1])), `a text that fails is not announced as sent (${last('speak')?.a[1]})`)
+  spenza.sendSms = realSend
 
   // ── queue ──
   s = open('q1'); await press('q1', '9')
