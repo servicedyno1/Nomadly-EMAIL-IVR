@@ -3870,3 +3870,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Verified via sip-test domain → preview: REG logged, REG GONE logged ~16 s after expiry (registrar min 60 s), presence `until` set to that moment. `RING FAILED` line not yet seen live.
 - `js/sip-presence.js`: an empty UA (expiry report) no longer wipes the last app name.
 - ⚠️ Repo `ops/sip-server/kamailio.cfg` is STALE vs the server (290 vs ~395 lines) — server file is the source of truth; not synced.
+
+## 2026-11-21 — goldmineadwords API add-on + text-key test
+- `goldmineadwords@gmail.com` (5000000000000201): API access add-on granted in prod `apiAccess` WITHOUT charge (wallet $0.21), until 2026-12-21, autoRenew on (renewal = $99 from wallet, lapses if short), `grantedBy: admin`. Number +18336711528 (toll-free, Business, Retell) verified: Retell fallback → own Infobip landing +19489429139 routed to `nomadly` config; Bird caller ID verified/outbound; SIP login present, never signed in.
+- `js/tests/ivr_smart_keys.test.js`: 4 direct text-key tests (41 pass). Test-only, no deploy.
+- Live keypad text/fax call NOT done: prod has no own USA mobile line or fax number (only 2 customer mobile lines, 0 active fax numbers).
+- Scam account meechchop6@gmail.com (5000000000000048): sent manually from web Messages page; still active, owner decision pending.
