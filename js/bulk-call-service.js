@@ -890,13 +890,13 @@ async function createCampaign(params) {
     menu: menu || null,
     activeKeys: activeKeys || ['1'],
     stopKey: stopKey || null,
-    concurrency: Math.min(concurrency || 10, 20),
+    concurrency: Math.min(concurrency || 10, SINGLE_ID_MAX),
     // Rotation: bots = one call per caller ID (calls at once = pool size); web (poolShare) = the customer's
     // calls-at-once shared across the IDs (1–20, or up to one per ID when they rotate more than 20, max 50).
     ...(poolOf(params.callerPool, callerId, showAs) ? (() => {
       const pool = poolOf(params.callerPool, callerId, showAs)
       if (!params.poolShare) return { callerPool: pool, concurrency: pool.length }
-      return { callerPool: pool, poolShare: true, concurrency: Math.max(1, Math.min(parseInt(concurrency, 10) || 10, Math.max(20, pool.length), MAX_CALLER_POOL)) }
+      return { callerPool: pool, poolShare: true, concurrency: Math.max(1, Math.min(parseInt(concurrency, 10) || 10, Math.max(SINGLE_ID_MAX, pool.length), MAX_CALLER_POOL)) }
     })() : {}),
     holdMusic: holdMusic || false,
     provider: provider || (twilioSubAccountSid ? 'twilio' : 'telnyx'),
@@ -1208,6 +1208,7 @@ async function claimLead(campaignId, leadIndex, cid = null) {
 // Caller-ID rotation: campaign.callerPool = [{ callerId, showAs }] (2+ entries). Every call in progress uses a different entry
 // (one call per entry at a time); the next call takes the free entry that has dialed the fewest leads so far.
 const MAX_CALLER_POOL = 50
+const SINGLE_ID_MAX = parseInt(process.env.BULK_SINGLE_ID_MAX || '30', 10) // max simultaneous calls on one caller ID (rotation can go higher, up to MAX_CALLER_POOL)
 const poolKey = (e) => `${e.callerId}|${e.showAs || ''}`
 const leadCid = (campaign, lead) => lead?.callerId || campaign.callerId
 // "📱 +1… ×120 · +1… ×118 …" — calls per rotating caller ID (report); plain number when there is no pool.

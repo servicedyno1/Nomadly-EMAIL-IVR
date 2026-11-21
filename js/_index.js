@@ -29944,8 +29944,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, trans('t.cp_214'), k.of([['1 only'], ['1 and 2'], ['1, 2, and 3'], ['0-9 (any key)'], ['✍️ Custom keys'], ['↩️ Back']]))
     }
     const num = parseInt(message, 10)
-    if (isNaN(num) || num < 1 || num > 20) {
-      return send(chatId, trans('t.cp_215'), k.of([['5'], ['10'], ['15'], ['20']]))
+    if (isNaN(num) || num < 1 || num > 30) {
+      return send(chatId, trans('t.cp_215'), k.of([['10'], ['20'], ['30']]))
     }
     const bulkData = info?.bulkData || {}
     bulkData.concurrency = num
