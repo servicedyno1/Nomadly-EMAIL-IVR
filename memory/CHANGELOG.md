@@ -3882,3 +3882,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Tests: `js/tests/test_announce_caller_2026-11.js` 7/7 (sandbox mongod :27999), hold-music 12/12.
 - Live: 13:21Z call +16479457172 → +19049775682 (test acct 5000000000000004) fwd → +18648308599: "Announcing caller" → speak.ended → bridged. Audio not listened to by a human. Web toggle not checked on screen.
 - ⚠️ DATA CONFLICT: +16479457172 is an active "number" in test account 5000000000000004 AND the Infobip landing number of customer +18337549319 (5000000000000002). A first test call at 13:18Z to it rang that customer's line → one missed-call entry, no charge. Do not use +16479457172 as a test destination.
+
+## 2026-11-21 — Faster bulk calls (LIVE, release da62b967)
+- @pirate_script (1005284399) campaign c5366ea1: bumped concurrency 5→20 live (owner request); was progressing fine, not stuck — just slow at 5-at-a-time with ~60s voicemail calls.
+- Account-wide dial rate: `BULK_TELNYX_DIAL_GAP_MS` 1000→250 in /opt/nomadly/shared/app-main/backend.env (backup .bak-cps-*). = up to 4 new calls/sec shared across ALL campaigns/users (was 1/sec — the real bottleneck at scale). Telnyx 429 / "dials per second" already requeues (isLineLimitError), so overshoot self-corrects, no lost leads.
+- Per-single-caller-ID cap 20→30 (`BULK_SINGLE_ID_MAX` env, default 30): bulk-call-service.js createCampaign + poolShare; web ConcurrencyField max; bot prompt (num>30, buttons 10/20/30). Rotation still up to 50 (MAX_CALLER_POOL).
+- NOT tuned to a verified Telnyx account CPS limit — 250ms is a safe moderate step; can go lower if Telnyx allows higher CPS. Only the dialer-lease-holding process paces, so effective CPS is single-process.

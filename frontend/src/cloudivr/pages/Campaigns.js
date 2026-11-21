@@ -434,8 +434,8 @@ export function CampaignNew() {
 
 // Calls at once: 1–20; with rotation they are shared across the caller IDs (up to one per ID past 20, max 50).
 function ConcurrencyField({ ids, value, onChange }) {
-  const max = ids ? Math.min(50, Math.max(20, ids)) : 20;
+  const max = ids ? Math.min(50, Math.max(30, ids)) : 30;
   const each = ids ? Math.ceil((parseInt(value, 10) || 1) / ids) : 0;
-  const hint = ids ? `1 to ${max} calls at once, shared across your ${ids} caller IDs — about ${each} at a time on each.` : '1 to 20 calls at once. Rotating caller IDs spreads them across several numbers.';
+  const hint = ids ? `1 to ${max} calls at once, shared across your ${ids} caller IDs — about ${each} at a time on each.` : '1 to 30 calls at once. Rotating caller IDs spreads them across several numbers.';
   return <Field label="Calls at the same time" hint={hint}><input type="number" min={1} max={max} className="civr-input" value={value} onChange={onChange} data-testid="campaign-concurrency-input" /></Field>;
 }
