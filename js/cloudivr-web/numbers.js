@@ -756,7 +756,7 @@ function routes(router, deps) {
     const ringTimeout = Math.min(60, Math.max(10, parseInt(req.body.ringTimeout, 10) || 25))
     const bk = mode === 'disabled' ? { list: [] } : parseBackups(req.body.backups, [to, req.num.phoneNumber])
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
-    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list, showCallerId: !!req.body.showCallerId && require('../capabilities').callerPassthrough() }
+    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list, showCallerId: !!req.body.showCallerId && require('../capabilities').callerPassthrough(), announceCaller: !!req.body.announceCaller }
     await setField(req.webChatId, req.num.phoneNumber, 'features.callForwarding', value)
     // Only one answers: "forward every call" switches the AI agent off.
     const ai = req.num.features?.aiAgent

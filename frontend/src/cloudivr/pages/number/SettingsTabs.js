@@ -16,7 +16,7 @@ import { useUnsaved, SaveRow } from '../../guard';
 import { Assist } from '../../Assist';
 import { FormFold } from '../../Emily';
 
-const FWD_LABELS = { mode: 'When to forward', forwardTo: 'Forward to', ringTimeout: 'Ring time', backups: 'Backups', holdMusic: 'Hold music', showCallerId: 'Caller ID shown' };
+const FWD_LABELS = { mode: 'When to forward', forwardTo: 'Forward to', ringTimeout: 'Ring time', backups: 'Backups', holdMusic: 'Hold music', showCallerId: 'Caller ID shown', announceCaller: 'Announce the caller' };
 const FWD_EXAMPLES = ['Forward to my cell +14155550100 if I don’t answer in 20 seconds', 'Always forward to the office, show who is calling', 'Turn forwarding off'];
 const VM_LABELS = { greetingScript: 'Greeting text', language: 'Language', forwardToEmail: 'Email copy', ringTimeout: 'Ring time' };
 // Facts about a number the setup assistant uses to suggest settings that work on it.
@@ -87,7 +87,7 @@ export function OverviewTab({ num, reload }) {
 
 export function ForwardingTab({ num, reload }) {
   const cf = num.features.callForwarding;
-  const [f, setF] = useState({ mode: cf.mode || 'disabled', forwardTo: cf.forwardTo || '', ringTimeout: cf.ringTimeout || 25, holdMusic: !!cf.holdMusic, backups: cf.backups || [], showCallerId: !!cf.showCallerId });
+  const [f, setF] = useState({ mode: cf.mode || 'disabled', forwardTo: cf.forwardTo || '', ringTimeout: cf.ringTimeout || 25, holdMusic: !!cf.holdMusic, backups: cf.backups || [], announceCaller: !!cf.announceCaller, showCallerId: !!cf.showCallerId });
   const [save, busy] = useSave(num, 'forwarding', reload);
   const u = useUnsaved(f);
   const canShowCaller = useShell().catalog?.forwardShowsCaller === true;
@@ -105,6 +105,7 @@ export function ForwardingTab({ num, reload }) {
         <Field label="Ring time before forwarding (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="forwarding-ring-timeout-input" /></Field>
         {f.mode !== 'disabled' && <BackupsField value={f.backups} onChange={v => setF({ ...f, backups: v })} testid="forwarding-backups-input" />}
         <div className="flex items-center justify-between"><span className="text-sm">Play hold music while connecting</span><Toggle checked={f.holdMusic} onChange={v => setF({ ...f, holdMusic: v })} testid="forwarding-hold-music-toggle" label="Play hold music while connecting" /></div>
+        <div className="flex items-center justify-between gap-4"><span className="text-sm">Announce the caller when you answer<span className="block text-xs opacity-60" data-testid="forwarding-announce-caller-hint">Before connecting, your phone hears who is calling and for which number, e.g. “Call from 9 0 8, 6 5 2, 4 8 2 9, to your number ending 1 5 2 8.”</span></span><Toggle checked={f.announceCaller} onChange={v => setF({ ...f, announceCaller: v })} testid="forwarding-announce-caller-toggle" label="Announce the caller when you answer" /></div>
         <Field label="Caller ID on forwarded calls" hint={!canShowCaller ? "The phone you forward to sees your CloudIVR number. Showing the caller's number is not available right now." : (f.showCallerId ? "Shows who is calling on US numbers. Other countries, or if the carrier refuses, show your business number." : "The phone you forward to sees your CloudIVR number.") + " What the other phone displays can vary by its carrier."}>
           <select className="civr-input" value={f.showCallerId && canShowCaller ? 'caller' : 'business'} onChange={e => setF({ ...f, showCallerId: e.target.value === 'caller' })} data-testid="forwarding-caller-id-select">
             <option value="business">My business number</option><option value="caller" disabled={!canShowCaller} data-testid="forwarding-caller-id-caller-option">{canShowCaller ? "The caller's number (US only)" : "The caller's number — unavailable right now"}</option>

@@ -1799,6 +1799,9 @@ const pendingNativeTransfers = {}
 // Bird-verified numbers can be shown; anything else falls back to the business / test number so the call still connects.
 const _cidPresentable = async (n) => process.env.CALLER_ID_PASSTHROUGH_LIVE === 'true' || await require('./bird').presentable(n).catch(() => false)
 
+const _sayNum = (n) => { const d = String(n || '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, ''); return d.length === 10 ? [d.slice(0, 3), d.slice(3, 6), d.slice(6)].map(g => g.split('').join(' ')).join(', ') : d.split('').join(' ') }
+const callerAnnouncement = (from, to) => `Call from ${/\d{5}/.test(String(from || '')) ? _sayNum(from) : 'a hidden number'}, to your number ending ${_sayNum(String(to || '').replace(/\D/g, '').slice(-4))}.`
+
 async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, config) {
   // ── Self-call prevention: reject forwarding to own number or caller's number ──
   const session = activeCalls[callControlId]
@@ -1822,7 +1825,10 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
   // Backup numbers (busy / no answer → next one) need the tracked bridge path, so they always use it.
   const backups = (Array.isArray(config?.backups) ? config.backups : []).filter(b => b && b !== forwardTo).slice(0, 4)
   if (session && backups.length && !session.transferBackups) session.transferBackups = backups
-  const useHoldMusic = config?.holdMusic === true || !!session?.transferBackups?.length
+  // "Announce the caller": the phone that answers hears who is calling and for which number, then is connected.
+  const announce = !!(config?.inbound && config.announceCaller && session)
+  if (session) session.announceCaller = announce
+  const useHoldMusic = config?.holdMusic === true || !!session?.transferBackups?.length || announce
   // Show the caller (callbacks) or the lead (IVR transfers) to the person answering; our number is the fallback if refused.
   const shownRaw = String(config?.presentFrom || '').replace(/[^+\d]/g, '')
   let presentFrom = /^\+\d{8,15}$/.test(shownRaw) && shownRaw !== String(fromNumber || '').replace(/[^+\d]/g, '') ? shownRaw : null
@@ -1906,6 +1912,17 @@ async function handleBridgeTransferAnswered(payload) {
     if (rs) { rs.phase = 'forwarding'; rs.ringGroupAnsweredBy = transfer.forwardTo }
     log(`[Voice] Ring group: ${transfer.forwardTo} answered first for ${rs?.to || transfer.fromNumber}`)
   }
+
+  if (transfer.phase === 'bridged') return true
+  const os = activeCalls[transfer.originalCallControlId]
+  if (os?.announceCaller && !transfer.type && !transfer.announced) {
+    transfer.announced = true; transfer.announcing = true
+    log(`[Voice] Announcing caller ${os.from} to ${transfer.forwardTo} before connecting`)
+    setTimeout(() => { if (activeBridgeTransfers[callControlId]?.announcing) handleSpeakEnded({ call_control_id: callControlId }).catch(() => {}) }, 12000)
+    const spoke = await _telnyxApi.speakOnCall(callControlId, callerAnnouncement(os.from, os.to)).catch(() => null)
+    if (spoke) return true
+  }
+  transfer.announcing = false
 
   log(`[Voice] Bridge transfer destination answered: ${transfer.forwardTo}, bridging with original call`)
 
@@ -5258,6 +5275,7 @@ async function sendIvrText(chatId, option, caller) {
 
 async function handleSpeakEnded(payload) {
   const callControlId = payload.call_control_id
+  if (activeBridgeTransfers[callControlId]?.announcing) { activeBridgeTransfers[callControlId].announcing = false; await handleBridgeTransferAnswered(payload); return }
 
   // Check if there's a pending hold-music transfer waiting for this speak to end
   const pending = pendingHoldTransfers[callControlId]

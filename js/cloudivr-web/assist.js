@@ -192,6 +192,7 @@ const SCREENS = {
       ringTimeout: [int(10, 60), 'seconds to ring before forwarding, 10-60'],
       backups: [phoneCsv(4), 'backup phones, comma separated'],
       holdMusic: [bool, 'hold music while connecting'],
+      announceCaller: [bool, 'true = when the forwarded phone answers it first hears who is calling and for which number, then connects'],
       showCallerId: [bool, 'true = forwarded phone sees the caller\'s number (US; only if LIVE STATUS allows it, else always false), false = sees the business number'],
     },
   },

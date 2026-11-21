@@ -3876,3 +3876,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - `js/tests/ivr_smart_keys.test.js`: 4 direct text-key tests (41 pass). Test-only, no deploy.
 - Live keypad text/fax call NOT done: prod has no own USA mobile line or fax number (only 2 customer mobile lines, 0 active fax numbers).
 - Scam account meechchop6@gmail.com (5000000000000048): sent manually from web Messages page; still active, owner decision pending.
+
+## 2026-11-21 — "Announce the caller" toggle on forwarded calls (LIVE, release ce1480b)
+- `features.callForwarding.announceCaller` (web toggle `forwarding-announce-caller-toggle`, bot button "📣 Announce caller: on/off", setup assistant field). When on, forwarding uses the bridge path; on answer the forwarded phone hears "Call from 9 0 8, 6 5 2, 4 8 2 9, to your number ending 1 5 2 8." then is bridged (`callerAnnouncement`, `handleBridgeTransferAnswered`, `handleSpeakEnded` in voice-service.js). 12 s safety; speak failure → connects anyway. Not applied to ring groups / SIP ring.
+- Tests: `js/tests/test_announce_caller_2026-11.js` 7/7 (sandbox mongod :27999), hold-music 12/12.
+- Live: 13:21Z call +16479457172 → +19049775682 (test acct 5000000000000004) fwd → +18648308599: "Announcing caller" → speak.ended → bridged. Audio not listened to by a human. Web toggle not checked on screen.
+- ⚠️ DATA CONFLICT: +16479457172 is an active "number" in test account 5000000000000004 AND the Infobip landing number of customer +18337549319 (5000000000000002). A first test call at 13:18Z to it rang that customer's line → one missed-call entry, no charge. Do not use +16479457172 as a test destination.
