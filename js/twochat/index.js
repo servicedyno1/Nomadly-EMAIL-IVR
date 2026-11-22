@@ -133,8 +133,34 @@ const nextGap = (ageMs) => (ageMs < 2 * 60 * MIN ? 7 * MIN : 30 * MIN) // longer
 const GIVE_UP_MS = 7 * 24 * 60 * MIN, REMIND_MS = 12 * 60 * MIN
 const adminText = (n) => `🇬🇧 <b>2Chat number to finish: ${n.phoneNumber}</b>\nIn 2Chat → Channels → Virtual numbers → ${n.phoneNumber} → Inbound call handling → call flow: <b>Forward to number → ${n.landingNumber}</b> (nothing before it), then save.\nCloudIVR checks it every few minutes and switches the number on by itself.`
 
+// 2Chat credit watch: its call history shows NO_CREDIT when forwards fail for lack of balance. Alert once; when calls
+// go through again, restart anything that stalled meanwhile (Bird caller-ID linking, forward checks).
+let creditCheckAt = 0
+async function creditWatch() {
+  if (Date.now() - creditCheckAt < 5 * MIN) return
+  creditCheckAt = Date.now()
+  const cdrs = ((await http().get('/voip/call-history', { params: { page_number: 0 } })).data?.cdrs || []).filter(c => Date.now() - new Date(c.created_at).getTime() < 60 * MIN)
+  const latest = cdrs.find(c => c.status), sc = D.db.collection('appSettings'), st = await sc.findOne({ _id: 'twochatCredit' })
+  if (latest?.status === 'NO_CREDIT') {
+    if (!st?.since || Date.now() - new Date(st.alertedAt || 0).getTime() > 60 * MIN) {
+      const text = `🚨 <b>2Chat is out of credit</b> — calls to its UK numbers aren't being forwarded (last at ${String(latest.created_at).slice(11, 16)} UTC to ${latest.received_on_number}). Top up 2Chat; CloudIVR picks everything back up by itself.`
+      D.notifyAdmin(text); D.adminEmail?.('2Chat is out of credit', `<p>${text.replace(/<\/?b>/g, '')}</p>`)
+      await sc.updateOne({ _id: 'twochatCredit' }, { $set: { since: st?.since || new Date(), alertedAt: new Date() } }, { upsert: true })
+    }
+    return
+  }
+  if (!st?.since || !latest) return
+  await sc.updateOne({ _id: 'twochatCredit' }, { $unset: { since: '', alertedAt: '' }, $set: { backAt: new Date() } })
+  const nums = [], col = D.db.collection('phoneNumbersOf')
+  for (const d of await col.find({ 'val.numbers.provider': '2chat' }).toArray()) for (const n of d.val.numbers) if (n.provider === '2chat' && !/released|expired/.test(n.status)) nums.push(n.phoneNumber)
+  await D.db.collection('birdCallerIdVerify').updateMany({ _id: { $in: nums }, status: { $ne: 'verified' } }, { $set: { rounds: 0 }, $unset: { gaveUpAt: '' } })
+  await col.updateMany({ 'val.numbers': { $elemMatch: { provider: '2chat', awaitingForward: true } } }, { $set: { 'val.numbers.$[n].forwardSetup.nextTryAt': new Date(0) } }, { arrayFilters: [{ 'n.provider': '2chat', 'n.awaitingForward': true }] })
+  D.notifyAdmin(`✅ 2Chat credit is back — UK calls forward again; Bird caller-ID linking and forward checks restarted for ${nums.length} number(s).`)
+}
+
 async function tick() {
   if (!D) return
+  await creditWatch().catch(e => log('credit watch:', errOf(e)))
   const col = D.db.collection('phoneNumbersOf'), vcol = D.db.collection('birdCallerIdVerify')
   // Any 2Chat number (web or bot purchase) not yet confirmed forwarding is held as "setting up" until it is.
   const waiting = (x) => x.provider === '2chat' && !x.forwardSetup?.doneAt && ['active', 'provisioning'].includes(x.status)
