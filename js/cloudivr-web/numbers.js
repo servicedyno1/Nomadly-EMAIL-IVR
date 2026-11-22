@@ -496,7 +496,7 @@ function routes(router, deps) {
     phoneNumber: n.phone_number,
     region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
     capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
-    surcharge: ['infobip', 'multitel', 'retell'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
+    surcharge: ['infobip', 'multitel', 'retell', '2chat'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
     provider: n._provider || null,
     ...(n._assigned ? { assigned: true } : {}),
     ...(texting.offerOf(country, type) ? { extraPrice: texting.offerOf(country, type).extraPrice, textPrice: texting.offerOf(country, type).textPrice } : {}),
@@ -561,7 +561,7 @@ function routes(router, deps) {
   const extraPriceOf = (country, type) => texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE
   const searchSimilar = async (country, type, areaCode) => (await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 6))).map(n => ({
     phoneNumber: n.phone_number, capabilities: n._capabilities || { voice: true, sms: false, fax: false },
-    surcharge: ['infobip', 'multitel', 'retell'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
+    surcharge: ['infobip', 'multitel', 'retell', '2chat'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
   }))
 
   // Account currently holding this number (anyone, including the buyer), or null.
@@ -659,7 +659,8 @@ function routes(router, deps) {
       if (order._retriedNumber) selected = order._retriedNumber
       const viaMultitel = order._provider === 'multitel' || String(order.id || '').startsWith('mt:')
       const viaRetell = order._provider === 'retell' || String(order.id || '').startsWith('rt:')
-      const viaInfobip = viaMultitel || viaRetell || order._provider === 'infobip' || String(order.id || '').startsWith('ib:') // own routing, no Telnyx steps
+      const via2chat = order._provider === '2chat' || String(order.id || '').startsWith('tc:')
+      const viaInfobip = viaMultitel || viaRetell || via2chat || order._provider === 'infobip' || String(order.id || '').startsWith('ib:') // own routing, no Telnyx steps
       if (!dryRun() && !viaInfobip && tr.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selected, tr.callControlAppId)
 
       let sipUsername = phoneConfig.generateSipUsername(), sipPassword = phoneConfig.generateSipPassword()
@@ -671,9 +672,9 @@ function routes(router, deps) {
       const caps = { voice: hit.capabilities.voice !== false, sms: !!hit.capabilities.sms, mms: !!hit.capabilities.mms, fax: !!hit.capabilities.fax }
       const expiresAt = coterm ? new Date(coterm) : new Date(); if (!coterm) expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
-        phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaRetell ? 'retell' : viaInfobip ? 'infobip' : 'telnyx', ...(order._landingNumber ? { landingNumber: order._landingNumber } : {}), country, countryName: c.name,
+        phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaRetell ? 'retell' : via2chat ? '2chat' : viaInfobip ? 'infobip' : 'telnyx', ...(order._landingNumber ? { landingNumber: order._landingNumber } : {}), country, countryName: c.name,
         ...(order._needsRegistration || regIssue ? { registration: { status: regIssue ? 'needs_details' : 'pending', level: offer?.level || 0, since: new Date().toISOString(), paid: price } } : {}),
-        type, plan: planKey, planPrice: round2(base), ...(!sub && phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0) ? { numberSurcharge: round2(phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: order._pending ? 'provisioning' : 'active',
+        type, plan: planKey, planPrice: round2(base), ...(!sub && phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0) ? { numberSurcharge: round2(phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: order._pending || order._needsForwarding ? 'provisioning' : 'active', ...(order._needsForwarding ? { awaitingForward: true } : {}),
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
         capabilities: caps, channel: 'web', resold: true, ...(eu ? { endUser: eu } : {}), ...(dryRun() ? { dryRun: true } : {}), ...(sub ? { isSubNumber: true, parentNumber: sub.parentNumber } : {}),
@@ -703,6 +704,7 @@ function routes(router, deps) {
       notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})${sub ? `\nextra number on ${sub.parentNumber}` : ''}\nplan: ${plan.name} $${price}${coupon ? ` (coupon ${coupon.code} −${coupon.discount}%)` : ''}`)
       await searchCache.deleteOne({ _id: chatId })
       if (order._pending) await notify.push(chatId, require('../pending-orders').pendingMsg(selected), null, { kind: 'billing' }).catch(() => {})
+      if (order._needsForwarding) await notify.push(chatId, `⏳ Setting up ${selected} — ready shortly. We'll let you know as soon as calls reach it.`, null, { kind: 'billing' }).catch(() => {})
       return { status: 201, body: { number: publicNumber(doc), pending: !!order._pending, substitutedFrom: selected !== phone && !order._assigned ? phone : null, balance: await w.balance(chatId) } }
     } catch (e) {
       if (prepaid) { log(`[CloudIVR-Web] activating requested number ${phone} for ${chatId} failed: ${e.message}`); return { status: 424, body: { error: 'purchase_failed', message: e.message } } }
@@ -1246,7 +1248,7 @@ function routes(router, deps) {
         if (!order || order._verification) throw new Error('The new number could not be reserved — it may have just been taken. Pick another one.')
         const selected = order._retriedNumber || phone
         // Retell / Infobip / MultiTEL numbers route through our own SIP server: no Telnyx app or credential steps.
-        const viaOwn = ['retell', 'infobip', 'multitel'].includes(order._provider) || /^(rt|ib|mt):/.test(String(order.id || ''))
+        const viaOwn = ['retell', 'infobip', 'multitel', '2chat'].includes(order._provider) || /^(rt|ib|mt|tc):/.test(String(order.id || ''))
         if (live && !viaOwn && tr.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selected, tr.callControlAppId)
         // SIP apps keep their login: the credential moves to the new number.
         let sip = { telnyxSipUsername: old.telnyxSipUsername || null, telnyxSipPassword: old.telnyxSipPassword || null, telnyxCredentialId: old.telnyxCredentialId || null }

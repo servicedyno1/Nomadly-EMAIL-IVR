@@ -3898,3 +3898,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Bird caller ID +448001026744 VERIFIED (code 133528, 20:44 UTC, ~30 s call) — outbound_enabled true.
 - Bird: "insufficient_balance" (balance $4.53) blocks UK calls (esp. 0800); US calls fine. Infobip outbound Calls API → 10309 SERVICE_UNAVAILABLE (needs outbound profile from Infobip).
 - Real-caller lookup NOT yet proven on a live normal call (verification call bypasses it).
+
+## 2026-11-22 (later) — 2Chat UK numbers automated
+- js/twochat/index.js: provider (search = location groups as order-only prefixes, e.g. +4420; buy = reserve group → purchase → diff owned list → Infobip landing via retell.buyLanding; release deletes 2Chat number + landing) + setup watcher (60 s): any 2chat number without forwardSetup.doneAt held 'provisioning'+awaitingForward, admin Telegram+email alert (every 12 h), Bird caller-ID check armed every 5 min (first 2 h) then 30 min, live + customer told once Bird call lands; gives up after 7 days.
+- 2Chat reservations hold only a prefix placeholder and DON'T expire; purchase without number buys ALL reservations → never leave reservations open (cancelled 10 stray ones).
+- 2Chat ignores city_name_or_prefix → area code matched locally.
+- Catalog: GB local/mobile/toll_free via 2chat; addon GB:toll_free = $50 (appSettings.numberAddons); prod NUMBER_PROVIDERS=retell,infobip,2chat. Test js/tests/test_twochat_setup.js 9/9. Deployed 8d9db1bd.
+- @five38spech (8933778402): provisioned +442038079203 (London), landing +13093940247, debited $100 (Pro), then upgraded to Business free (planPrice 120 for renewals). Balance $30.20. Status provisioning until admin sets 2Chat forward → +13093940247.
+- Outbound to UK charged $0.50/min (CALL_FORWARDING_RATE_MIN); UK 09 premium blocked/$10.

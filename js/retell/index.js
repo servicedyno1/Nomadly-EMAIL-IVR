@@ -115,4 +115,4 @@ async function releaseNumber(id) {
   } catch (e) { log(`release ${num}:`, errOf(e)); return false }
 }
 
-module.exports = { owns, enabled, selling, sellsType, isRt, searchNumbers, isRtSearched, remember, searchedMeta, buyNumber, releaseNumber, wasNoFunds, COST }
+module.exports = { owns, enabled, selling, sellsType, isRt, searchNumbers, isRtSearched, remember, searchedMeta, buyNumber, releaseNumber, wasNoFunds, COST, buyLanding, releaseLanding }
