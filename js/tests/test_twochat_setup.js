@@ -38,6 +38,13 @@ const ok = (c, m) => { if (c) { pass++; console.log('  ✓', m) } else { fail++;
   await tc.tick()
   ok((await col.findOne({})).val.numbers[0].status === 'active' && armed.length === 1, 'live number left alone afterwards')
 
+  // Bird's call came through the forward but Bird rejected the code → still live (Bird linking retries separately).
+  await col.updateOne({ _id: '5000000000000099' }, { $push: { 'val.numbers': { phoneNumber: '+442000000003', provider: '2chat', status: 'active', landingNumber: '+17630000003', purchaseDate: new Date().toISOString() } } })
+  await tc.tick()
+  await v.updateOne({ _id: '+442000000003' }, { $set: { status: 'calling', lastCode: '326699', error: 'E21034 The verification code has expired.' } })
+  await tc.tick()
+  ok((await col.findOne({})).val.numbers[2].status === 'active' && told.includes('+442000000003'), 'call through the forward with a rejected code still goes live')
+
   await db.dropDatabase(); await c.close()
   console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)
 })().catch(e => { console.error(e); process.exit(1) })

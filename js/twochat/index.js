@@ -129,7 +129,7 @@ async function realCaller(number) {
 
 // ── Setup watcher: numbers waiting for the admin's 2Chat forward ──
 const MIN = 60000
-const nextGap = (ageMs) => (ageMs < 2 * 60 * MIN ? 5 * MIN : 30 * MIN)
+const nextGap = (ageMs) => (ageMs < 2 * 60 * MIN ? 7 * MIN : 30 * MIN) // longer than a check's 6-min window, so a late Bird call isn't cut off
 const GIVE_UP_MS = 7 * 24 * 60 * MIN, REMIND_MS = 12 * 60 * MIN
 const adminText = (n) => `🇬🇧 <b>2Chat number to finish: ${n.phoneNumber}</b>\nIn 2Chat → Channels → Virtual numbers → ${n.phoneNumber} → Inbound call handling → call flow: <b>Forward to number → ${n.landingNumber}</b> (nothing before it), then save.\nCloudIVR checks it every few minutes and switches the number on by itself.`
 
@@ -148,11 +148,13 @@ async function tick() {
       await set({ forwardSetup: { ...st, alertedAt: new Date() } }); st.alertedAt = new Date()
     }
     const v = await vcol.findOne({ _id: n.phoneNumber })
-    if (v?.status === 'verified' && (!st.armedAt || new Date(v.verifiedAt || 0) >= new Date(st.armedAt))) {
+    // Live once Bird's check call came through the forward — even if Bird then rejected the code (Bird linking retries on its own).
+    const landed = v?.status === 'verified' && (!st.armedAt || new Date(v.verifiedAt || 0) >= new Date(st.armedAt)) || !!v?.lastCode || /couldn't read code/.test(String(v?.error || ''))
+    if (landed) {
       await col.updateOne({ _id: d._id, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.status': 'active', 'val.numbers.$.forwardSetup.doneAt': new Date() }, $unset: { 'val.numbers.$.awaitingForward': '' } })
       log(`${n.phoneNumber} forward works → live`)
       if (require('../phone-config').canAccessFeature(n.plan, 'sipCredentials')) await require('../sip-logins').ensure(col, d._id, { ...n, status: 'active' }).catch(e => log(`SIP login ${n.phoneNumber}: ${e.message}`))
-      D.notifyAdmin(`✅ 2Chat number ${n.phoneNumber} is live (forward to ${n.landingNumber} confirmed, caller ID linked on Bird).`)
+      D.notifyAdmin(`✅ 2Chat number ${n.phoneNumber} is live (forward to ${n.landingNumber} confirmed${v?.status === 'verified' ? ', caller ID linked on Bird' : '; Bird caller ID linking continues on its own'}).`)
       await D.tellCustomer(d._id, n.phoneNumber).catch(e => log(`tell ${d._id}: ${e.message}`))
       continue
     }
@@ -163,7 +165,7 @@ async function tick() {
     }
     if (st.nextTryAt && new Date(st.nextTryAt) > new Date()) continue
     if (await vcol.findOne({ status: 'calling', expiresAt: { $gt: new Date() } })) continue // one Bird verification call at a time
-    const r = await D.birdVerify().arm(n.phoneNumber, { name: 'CloudIVR UK', ttlMs: 4 * MIN }).catch(e => ({ error: e.message }))
+    const r = await D.birdVerify().arm(n.phoneNumber, { name: 'CloudIVR UK', ttlMs: 6 * MIN }).catch(e => ({ error: e.message }))
     await set({ forwardSetup: { ...st, armedAt: new Date(), tries: (st.tries || 0) + 1, nextTryAt: new Date(now + nextGap(age)), lastError: r.error || null } })
     log(`${n.phoneNumber}: checking forward (try ${(st.tries || 0) + 1})${r.error ? ` — ${r.error}` : ''}`)
   }
