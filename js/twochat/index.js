@@ -53,32 +53,55 @@ async function ownedNumbers() {
 }
 const virtualNumberUuid = async (number) => (await ownedNumbers()).find(x => x.phone_number === number)?.uuid || null
 
-// Buy one number from the group → { id: 'tc:DID…', _provider: '2chat', _landingNumber, _needsForwarding, _retriedNumber } | null.
-// Never retried here: a repeat could buy a second number.
+// Landing number: bought on Infobip automatically, or one the admin bought by hand (routed to CloudIVR here).
+async function attachLanding(number) {
+  const ib = require('../infobip'), e = `+${digits(number)}`
+  const hit = ((await ib.http().get('/numbers/1/numbers', { params: { limit: 1000 } })).data?.numbers || []).find(n => `+${digits(n.number)}` === e)
+  if (!hit) throw new Error(`${e} isn't on our Infobip account`)
+  if (D && await D.db.collection('phoneNumbersOf').findOne({ $or: [{ 'val.numbers.landingNumber': e }, { 'val.numbers.phoneNumber': e }] })) throw new Error(`${e} is already in use`)
+  await ib.http().post(`/numbers/2/numbers/${hit.numberKey}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: ib.configId() } })
+  return { number: e, key: hit.numberKey }
+}
+const landingFor = (landing) => (landing ? attachLanding(landing) : require('../retell').buyLanding())
+const done = (got, landing, placeholder) => {
+  const id = `tc:${got.uuid}`
+  return { id, status: 'success', requirements_met: true, phone_numbers: [{ id, phone_number: got.phone_number, status: 'success' }], _provider: '2chat', _landingNumber: landing.number, _needsForwarding: true, ...(got.phone_number !== placeholder ? { _retriedNumber: got.phone_number } : {}), _assigned: true }
+}
+
+// Buy one number from the group → finished order, or a quiet "setting up" hold when 2Chat or Infobip fails
+// (the order queue retries; the admin can finish it by hand on the dashboard). Never retried inside: a repeat could buy twice.
 async function buyNumber(placeholder) {
   const s = searched.get(placeholder)
   if (!selling() || !s?.groupId) return null
-  const rt = require('../retell')
-  let landing = null, res = null
+  let res = null, got = s.bought || null
   try {
-    const before = new Set((await ownedNumbers()).map(x => x.uuid))
-    res = (await http().post('/numbers/reservations', { group_id: s.groupId })).data?.data?.reservation_details
-    if (!res?.uuid) throw new Error('2Chat could not reserve a number there')
-    const p = (await http().post('/numbers/purchase', { number: res.number })).data
-    const got = (await ownedNumbers()).find(x => !before.has(x.uuid))
-    if (!got) throw new Error(`2Chat did not buy it (${JSON.stringify(p?.failed || p).slice(0, 160)})`)
-    res = null
-    try { landing = await rt.buyLanding() } catch (e) { await http().delete(`/voip/virtual-numbers/${got.uuid}`).catch(() => {}); throw e }
+    if (!got) {
+      const before = new Set((await ownedNumbers()).map(x => x.uuid))
+      res = (await http().post('/numbers/reservations', { group_id: s.groupId })).data?.data?.reservation_details
+      if (!res?.uuid) throw new Error('2Chat could not reserve a number there')
+      const p = (await http().post('/numbers/purchase', { number: res.number })).data
+      got = (await ownedNumbers()).find(x => !before.has(x.uuid))
+      if (!got) throw new Error(`2Chat did not buy it (${JSON.stringify(p?.failed || p).slice(0, 160)})`)
+      res = null
+    }
+    const landing = await require('../retell').buyLanding().catch(e => { s.bought = { uuid: got.uuid, phone_number: got.phone_number }; throw new Error(`Infobip landing: ${e.message}`) })
     searched.delete(placeholder)
     log(`Bought ${got.phone_number} (${got.uuid}) in ${s.label} → landing ${landing.number}; waiting for the 2Chat forward`)
-    const id = `tc:${got.uuid}`
-    return { id, status: 'success', requirements_met: true, phone_numbers: [{ id, phone_number: got.phone_number, status: 'success' }], _provider: '2chat', _landingNumber: landing.number, _needsForwarding: true, _retriedNumber: got.phone_number, _assigned: true }
+    return done(got, landing, placeholder)
   } catch (e) {
     if (res?.uuid) await http().delete(`/numbers/reservations/${res.uuid}`).catch(() => {})
     log(`buy ${placeholder}:`, errOf(e))
-    require('../provider-health').alert?.(`🚨 [Providers] 2Chat couldn't sell a ${s.label} number: ${errOf(e).slice(0, 160)}. The customer was refunded. Check the 2Chat balance.`)
-    return null
+    return require('../pending-orders').pendingResult('2chat', placeholder, { ...s, why: errOf(e).slice(0, 200) })
   }
+}
+
+// Admin finished it by hand: a number already bought on our 2Chat account (+ optional own landing number).
+async function adopt(number, landing = null, meta = null) {
+  const e = `+${digits(number)}`
+  const got = meta?.bought?.phone_number === e ? meta.bought : (await ownedNumbers()).find(x => x.phone_number === e)
+  if (!got) throw new Error(`${e} isn't on our 2Chat account yet — buy it there first`)
+  if (D && await D.db.collection('phoneNumbersOf').findOne({ 'val.numbers': { $elemMatch: { phoneNumber: e, status: { $nin: ['released', 'expired'] } } } })) throw new Error(`${e} already belongs to a customer`)
+  return done(got, await landingFor(landing), null)
 }
 
 let D = null
@@ -151,4 +174,11 @@ function init(deps) {
   require('../active-slot').singletonInterval('twochat-forward-setup', () => tick().catch(e => log('tick:', e.message)), MIN)
 }
 
-module.exports = { enabled, selling, sellsType, isTc, searchNumbers, isTcSearched, searchedMeta, remember, buyNumber, releaseNumber, realCaller, init, tick, adminText, COST: { local: 5, mobile: 5, toll_free: 5 } }
+// Admin "Check now": the next watcher pass calls this number straight away.
+async function checkNow(number) {
+  const r = await D.db.collection('phoneNumbersOf').updateOne({ 'val.numbers': { $elemMatch: { phoneNumber: number, provider: '2chat', awaitingForward: true } } }, { $set: { 'val.numbers.$.forwardSetup.nextTryAt': new Date(0) } })
+  if (r.modifiedCount) tick().catch(e => log('tick:', e.message))
+  return { queued: !!r.modifiedCount }
+}
+
+module.exports = { adopt, attachLanding, enabled, selling, sellsType, isTc, searchNumbers, isTcSearched, searchedMeta, remember, buyNumber, releaseNumber, realCaller, init, tick, adminText, COST: { local: 5, mobile: 5, toll_free: 5 } }

@@ -31,9 +31,10 @@ require.cache[path.resolve(__dirname, '../active-slot.js')] = { id: 'as', filena
 
   funds = 0; await PO.tick()
   ok('still no balance → nothing bought, nothing refunded', done.length === 0 && (await db.collection('pendingNumberOrders').countDocuments({ status: 'waiting' })) === 3)
-  funds = 2; await PO.tick()
+  const later = () => db.collection('pendingNumberOrders').updateMany({}, { $set: { nextTryAt: new Date(Date.now() - 1000) } }) // 10 minutes pass (retry gap)
+  funds = 2; await later(); await PO.tick()
   ok('top-up covers two → oldest two bought, queue stops at the third', JSON.stringify(done) === JSON.stringify(['+18000000002', '+18000000003']) && (await db.collection('pendingNumberOrders').countDocuments({ status: 'waiting' })) === 1)
-  funds = 1; await PO.tick()
+  funds = 1; await later(); await PO.tick()
   ok('next top-up → last one bought', done.length === 3 && done[2] === '+18000000004' && (await db.collection('pendingNumberOrders').countDocuments({ status: 'refunded' })) === 0)
 
   await db.dropDatabase(); await cl.close()
