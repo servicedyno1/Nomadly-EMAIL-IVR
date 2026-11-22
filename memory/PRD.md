@@ -21,6 +21,8 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 6. **Early campaign failure alerts** — Telegram when most of first 10 calls fail
 7. **Spenza eSIM safeguard** — no auto-rebuy on provider failures, alert only (deployment unverified)
 8. **Deployment verification** — deploy_verify.sh with retry and Telegram alerts
+9. **UK number via 2Chat (2026-11-22)** — +448001026744 (2Chat 0800) → 2Chat forward → Infobip landing +17638889133 → CloudIVR onarrival21 (provider '2chat'); real-caller lookup from 2Chat call history (not yet proven on live call); Bird caller ID verified. Details in CHANGELOG.md. Pending: Bird top-up for UK outbound, Famulor test route cleanup, Infobip outbound profile.
+
 
 ### Completed 2026-11-14
 9. **Multitel DID provider assessment**

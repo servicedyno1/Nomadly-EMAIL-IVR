@@ -3888,3 +3888,13 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Account-wide dial rate: `BULK_TELNYX_DIAL_GAP_MS` 1000→250 in /opt/nomadly/shared/app-main/backend.env (backup .bak-cps-*). = up to 4 new calls/sec shared across ALL campaigns/users (was 1/sec — the real bottleneck at scale). Telnyx 429 / "dials per second" already requeues (isLineLimitError), so overshoot self-corrects, no lost leads.
 - Per-single-caller-ID cap 20→30 (`BULK_SINGLE_ID_MAX` env, default 30): bulk-call-service.js createCampaign + poolShare; web ConcurrencyField max; bot prompt (num>30, buttons 10/20/30). Rotation still up to 50 (MAX_CALLER_POOL).
 - NOT tuned to a verified Telnyx account CPS limit — 250ms is a safe moderate step; can go lower if Telnyx allows higher CPS. Only the dialer-lease-holding process paces, so effective CPS is single-process.
+
+## 2026-11-22 — UK number via 2Chat (MultiTEL-style)
+- Famulor: key is a workspace (service-account) key; personal Loop fallback-to-SIP cannot be set via API. Famulor can't terminate our outbound (BYO trunks only point Famulor → your carrier). Famulor UK +442081500004 currently routed (Loop number route) to test routing rule `cloudivr-forward-test` (c4844c47…) → US talking clock — restore/clean when user decides.
+- CloudTalk: no number search/buy API, not a SIP trunk provider → rejected. UK 0800 +448002741548 on their account untouched.
+- 2Chat: API search/buy (UK local $5/mo no docs, 577 UK groups). Routing only via dashboard call flow. UK 0800 +448001026744 (user-bought, renews 2026-11-29) → call flow "Forward to number" → Infobip landing +17638889133 (bought 2026-11-22, €0.91/mo, cfg `nomadly`).
+- Added +448001026744 to onarrival21 (acct 5000000000000002) as provider '2chat', landingNumber +17638889133, plan business, planPrice 0, expires 2026-12-22, autoRenew false, no telnyxOrderId.
+- Code: js/twochat/index.js realCaller() (2Chat call-history lookup, 2.5 s timeout); voice-service handleCallInitiated swaps `from` to real caller for 2chat landings; '2chat' added to provider lists (voice-service viaTelnyx, outbound.js, numbers.js presentable, setup-status LINKED). Deployed release 543e92a2. TWOCHAT_API_KEY appended to prod shared backend.env (backup .bak.2chat.*).
+- Bird caller ID +448001026744 VERIFIED (code 133528, 20:44 UTC, ~30 s call) — outbound_enabled true.
+- Bird: "insufficient_balance" (balance $4.53) blocks UK calls (esp. 0800); US calls fine. Infobip outbound Calls API → 10309 SERVICE_UNAVAILABLE (needs outbound profile from Infobip).
+- Real-caller lookup NOT yet proven on a live normal call (verification call bypasses it).
