@@ -2591,7 +2591,7 @@ function _sipPlanNotice(chatId) {
 async function handleCallInitiated(payload) {
   const callControlId = payload.call_control_id
   let to = (payload.to || '').replace(/[^+\d]/g, '')
-  const from = (payload.from || '').replace(/[^+\d]/g, '')
+  let from = (payload.from || '').replace(/[^+\d]/g, '')
   const direction = payload.direction
   const connectionId = payload.connection_id || ''
   const sipConnectionId = process.env.TELNYX_SIP_CONNECTION_ID || ''
@@ -2666,6 +2666,10 @@ async function handleCallInitiated(payload) {
   const landed = !esimLine && _phoneNumbersOf ? await _phoneNumbersOf.findOne({ 'val.numbers': { $elemMatch: { landingNumber: to, status: { $in: ['active', 'suspended'] } } } }).catch(() => null) : null
   const landedNum = landed?.val?.numbers?.find(n => n.landingNumber === to)
   if (landedNum) { log(`[Voice] Landing ${to} → ${landedNum.phoneNumber}`); to = landedNum.phoneNumber }
+  if (landedNum?.provider === '2chat' && from === landedNum.phoneNumber) {
+    const real = await require('./twochat').realCaller(landedNum.phoneNumber)
+    if (real) { log(`[Voice] 2Chat real caller ${real}`); from = real; payload.from = real }
+  }
   // Lookup number owner — get FRESH data from DB
   const owner = await findNumberOwner(esimLine ? esimLine.ivrNumber : to)
   if (esimLine && owner.chatId && String(owner.chatId) !== String(esimLine.chatId)) owner.chatId = null
@@ -3611,7 +3615,7 @@ async function handleOutboundSipCall(payload) {
   const trunkOpt = viaEngine && num.provider === 'multitel' && process.env.CALLER_ID_PASSTHROUGH_TRUNK ? { trunk: process.env.CALLER_ID_PASSTHROUGH_TRUNK } : {}
   // MultiTEL / Infobip numbers whose softphone call reached us over Telnyx (e.g. the free SIP test login) are
   // placed the same way — the test shows our test caller ID, otherwise the number's own.
-  const viaTelnyx = num.provider === 'telnyx' || ['multitel', 'infobip', 'retell'].includes(num.provider) || (!!lookupResult?.isTestCall && num.provider !== 'twilio')
+  const viaTelnyx = num.provider === 'telnyx' || ['multitel', 'infobip', 'retell', '2chat'].includes(num.provider) || (!!lookupResult?.isTestCall && num.provider !== 'twilio')
   if (viaTelnyx || viaEngine) {
     const callerDisplay = num.phoneNumber || 'TEST-SIP'
     log(`[Voice] Outbound SIP (Telnyx): ${callerDisplay} → ${destination} — routing to PSTN`)
@@ -4252,7 +4256,7 @@ async function birdAutoLinkTick() {
   for (const f of await _db.collection('faxNumbers').find({ provider: 'infobip_fax', status: 'active' }, { projection: { _id: 1 } }).toArray()) numbers.add(f._id)
   // Retell numbers are customer numbers too (bought on Retell, so not in the Infobip/MultiTEL lists).
   for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1, 'val.numbers.capabilities': 1, 'val.numbers.provider': 1 } }).toArray())
-    for (const n of d.val?.numbers || []) if ((sw.has(n.phoneNumber) || n.provider === 'retell') && n.capabilities?.voice !== false && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
+    for (const n of d.val?.numbers || []) if ((sw.has(n.phoneNumber) || n.provider === 'retell' || (n.provider === '2chat' && n.status === 'active')) && n.capabilities?.voice !== false && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
   const wanted = [...require('./signalwire').birdWanted].filter(n => sw.has(n))
   const onGiveUp = (n, why) => {
     const msg = `🚨 [Bird] ${n} still can't show as caller ID on outgoing calls after ${BIRD_LINK_ROUNDS} tries (${why || 'no code'}). Calls in work; calls out show "pending". Check Bird → Verified numbers.`

@@ -3,7 +3,7 @@
 // Returns null when the number is ready, else { stage, step, eta, note, nextTryMin, refundAt, callsIn, callsOut }.
 const { LINK_RETRY_MS, LINK_ROUNDS } = require('./bird-callerid-verify')
 const ORDER_MAX_MS = 24 * 3600000
-const LINKED = ['retell', 'infobip', 'multitel', 'infobip_fax']
+const LINKED = ['retell', 'infobip', 'multitel', 'infobip_fax', '2chat']
 const minsUntil = (d) => Math.max(1, Math.ceil((new Date(d).getTime() - Date.now()) / 60000))
 const e164 = (p) => `+${String(p || '').replace(/[^\d]/g, '')}`
 

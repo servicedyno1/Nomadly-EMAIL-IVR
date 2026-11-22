@@ -5,6 +5,7 @@ const voice = require('./voice')
 const ib = require('../infobip')
 const mt = require('../multitel')
 const rt = require('../retell')
+const tc = require('../twochat')
 const ce = require('../callengine')
 const bird = require('../bird')
 const aws = require('../aws')
@@ -182,6 +183,12 @@ function wrap(t) {
   // New numbers: Infobip (default for local numbers) → Telnyx SIP → SignalWire → Infobip → Telnyx old account.
   // Only providers listed in NUMBER_PROVIDERS sell new numbers (owned numbers keep working).
   w.searchNumbers = async (countryCode, numberType, areaCode, limit = 5) => {
+    // 2Chat sells UK numbers (local, mobile, toll-free); an area code with no hit falls back to any UK number.
+    if (tc.selling() && tc.sellsType(String(countryCode || '').toUpperCase(), numberType || 'local')) {
+      const r = await tc.searchNumbers(countryCode, numberType || 'local', areaCode, limit)
+      if (r.length || !areaCode) return r
+      return (await tc.searchNumbers(countryCode, numberType || 'local', null, limit)).map(n => ({ ...n, _areaFallback: true, _requestedAreaCode: String(areaCode), _fallbackRegion: null }))
+    }
     // Retell sells US/CA (local + US toll-free) when listed in NUMBER_PROVIDERS; no area-code hit → other areas, flagged.
     if (rt.selling() && rt.sellsType(String(countryCode || 'US').toUpperCase(), numberType || 'local')) {
       const r = await rt.searchNumbers(countryCode, numberType || 'local', areaCode, limit)
@@ -219,6 +226,7 @@ function wrap(t) {
     // A failed Retell buy (low balance, outage…) doesn't refund: the paid order waits and completes on its own.
     const rtBuy = async () => { const meta = rt.searchedMeta(phoneNumber); return (await rt.buyNumber(phoneNumber)) || require('../pending-orders').pendingResult('retell', phoneNumber, meta) }
     if (rt.isRtSearched(phoneNumber)) return rtBuy()
+    if (tc.isTcSearched(phoneNumber)) return tc.buyNumber(phoneNumber)
     if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber) && rt.selling() && /^\+1\d{10}$/.test(String(phoneNumber)) && !ib.isPR(phoneNumber)) { rt.remember(phoneNumber); return rtBuy() }
     if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber)) await ib.recall(phoneNumber).catch(() => false)
     if (txs.isTxSearched(phoneNumber) && sells('telnyx')) {
@@ -252,7 +260,7 @@ function wrap(t) {
     return t.getNumberCapabilities(phoneNumber)
   }
   w.updateNumber = (id, updates) => (txs.isTx(id) ? Promise.resolve(true) : voice.isSw(id) ? rest.configureNumber(String(id).slice(3)) : t.updateNumber(id, updates))
-  w.releaseNumber = (id) => (rt.isRt(id) ? rt.releaseNumber(id) : txs.isTx(id) ? txs.releaseNumber(id) : voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : mt.isMt(id) ? mt.releaseNumber(id) : bird.isBird(id) ? bird.releaseNumber(id) : t.releaseNumber(id))
+  w.releaseNumber = (id) => (tc.isTc(id) ? tc.releaseNumber(id) : rt.isRt(id) ? rt.releaseNumber(id) : txs.isTx(id) ? txs.releaseNumber(id) : voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : mt.isMt(id) ? mt.releaseNumber(id) : bird.isBird(id) ? bird.releaseNumber(id) : t.releaseNumber(id))
   w.releaseByPhoneNumber = async (phoneNumber) => {
     if (txs.enabled() && await txs.releaseByPhoneNumber(String(phoneNumber).replace(/[^+\d]/g, '')).catch(() => false)) return true
     if (swOn()) { const r = await rest.releaseByPhoneNumber(String(phoneNumber).replace(/[^+\d]/g, '')); if (r !== null) return r }
@@ -260,7 +268,7 @@ function wrap(t) {
   }
   w.listNumbers = async () => [...(swOn() ? await rest.listNumbers() : []), ...((await t.listNumbers().catch(() => [])) || [])]
   w.assignNumberToCallControlApp = async (phoneNumber, appId) => {
-    if (rt.owns(phoneNumber) || require('../pending-orders').isHeld(phoneNumber)) return true // forwards to its Infobip landing number / not bought yet
+    if (rt.owns(phoneNumber) || tc.isTcSearched(phoneNumber) || /^\+44/.test(String(phoneNumber)) && tc.selling() || require('../pending-orders').isHeld(phoneNumber)) return true // forwards to its Infobip landing number / not bought yet
     if (ib.enabled() && (await ib.refreshOwned()).includes(phoneNumber)) return true // routed to our calls config when bought
     if (mt.enabled() && (await mt.refreshOwned()).includes(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } // SIP URI to our server
     if (txs.enabled()) { await txs.refreshOwned(); if (txs.ownsNumber(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } }

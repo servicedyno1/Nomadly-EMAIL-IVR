@@ -1494,7 +1494,7 @@ const isTelnyxIntl = (provider, cc) => provider === 'telnyx' && !['US', 'CA'].in
  * Returns null on failure → caller refunds exactly as before.
  */
 // Which provider an order came from (MultiTEL ids 'mt:', Infobip 'ib:'); used so each number routes through its own provider.
-const providerOfOrder = (o) => o?._provider || (String(o?.id || '').startsWith('rt:') ? 'retell' : String(o?.id || '').startsWith('mt:') ? 'multitel' : String(o?.id || '').startsWith('ib:') ? 'infobip' : 'telnyx')
+const providerOfOrder = (o) => o?._provider || (String(o?.id || '').startsWith('tc:') ? '2chat' : String(o?.id || '').startsWith('rt:') ? 'retell' : String(o?.id || '').startsWith('mt:') ? 'multitel' : String(o?.id || '').startsWith('ib:') ? 'infobip' : 'telnyx')
 async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
   // MultiTEL / Infobip numbers: their own instant buy (with provider backup), never the Telnyx paperwork flow.
   if (require('./multitel').isMtSearched(selectedNumber) || require('./infobip').isIbSearched(selectedNumber)) return telnyxApi.buyNumber(selectedNumber, null, null, { countryCode: ctx.countryCode || 'US', numberType: ctx.numberType || 'local', areaCode: ctx.areaCode || null })
@@ -4254,6 +4254,22 @@ const loadData = async () => {
     },
     activateNumber: (id, phone, r) => require('./live-number').updateLive(phoneNumbersOf, id, phone, { $set: { 'val.numbers.$.status': 'active', 'val.numbers.$.phoneNumber': r.phoneNumber, 'val.numbers.$.telnyxOrderId': r.telnyxOrderId, ...(r.landingNumber ? { 'val.numbers.$.landingNumber': r.landingNumber } : {}), ...(r.needsRegistration ? { 'val.numbers.$.registration': { status: 'pending', since: new Date().toISOString() } } : {}) } }),
   }).catch(e => log('[PendingOrders] init: ' + e.message))
+  {
+    let bv = null
+    require('./twochat').init({
+      db, notifyAdmin,
+      adminEmail: (subject, html) => process.env.CIVR_ADMIN_EMAIL && require('./cloudivr-web/auth').sendMail(process.env.CIVR_ADMIN_EMAIL, subject, html).catch(() => {}),
+      birdVerify: () => (bv = bv || require('./bird-callerid-verify').createBirdVerify({ bird: require('./bird'), transcribe: null, db, log })),
+      tellCustomer: async (id, phone) => {
+        const text = `✅ Your number ${phone} is ready — calls reach it now. Open it to set up forwarding, voicemail or a menu.`
+        if (require('./cloudivr-web/notify').isWebChatId?.(id)) {
+          await require('./cloudivr-web/notify').push(id, text, null, { kind: 'billing' }).catch(() => {})
+          const acc = await db.collection('webAccounts').findOne({ _id: Number(id) }) || await db.collection('webAccounts').findOne({ _id: id })
+          if (acc?.email) await require('./cloudivr-web/auth').sendMail(acc.email, `Your number ${phone} is ready`, `<p>${text}</p>`).catch(() => {})
+        } else bot?.sendMessage(id, text).catch(() => {})
+      },
+    })
+  }
   require('./bird-alert').setTelegram(notifyAdmin)
   planLifecycle.lockLegacyPrices(phoneNumbersOf, db.collection('migrationMarks')).then(r => Object.keys(r).length && log(`[PlanLadder] price locks applied: ${JSON.stringify(r)}`)).catch(e => log(`[PlanLadder] price lock failed: ${e.message}`))
   // Customers' own SignalWire numbers are never lent out as a stand-in caller ID.
@@ -30435,7 +30451,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     let surcharge = getNumberSurcharge(countryCode, numberType)
     // MultiTEL / Infobip numbers: same add-on price as the web checkout.
     // Outside the plan's included countries: the extra-number price (or the admin's country add-on), as on the web.
-    if (['multitel', 'infobip', 'retell'].includes(selectedProvider)) surcharge = phoneConfig.planAddon(planKey, countryCode, numberType, require('./number-addons').get(countryCode, numberType))
+    if (['multitel', 'infobip', 'retell', '2chat'].includes(selectedProvider)) surcharge = phoneConfig.planAddon(planKey, countryCode, numberType, require('./number-addons').get(countryCode, numberType))
     let verifyNote = null
     // Telnyx international: live cost + tell the user BEFORE paying what verification follows
     if (isTelnyxIntl(selectedProvider, countryCode)) {

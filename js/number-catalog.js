@@ -6,6 +6,7 @@ const mtc = require('./multitel/countries')
 const health = () => require('./provider-health')
 const ibOn = () => require('./infobip').selling() && !health().isDown('infobip')
 const rtOn = () => require('./retell').selling()
+const tcOn = () => require('./twochat').selling() && !health().isDown('2chat')
 const mtOn = () => require('./multitel').selling() && !health().isDown('multitel')
 
 function options(cc, type) {
@@ -15,6 +16,7 @@ function options(cc, type) {
     if (ibc.isInstant(cc)) out.push({ provider: 'infobip', level: 0, cost: ibCost, sms: ['US', 'CA', 'LT', 'PL', 'PR', 'ES'].includes(cc) })
   }
   if (rtOn() && require('./retell').sellsType(cc, type)) out.push({ provider: 'retell', level: 0, cost: require('./retell').COST[type], sms: false })
+  if (tcOn() && require('./twochat').sellsType(cc, type)) out.push({ provider: '2chat', level: 0, cost: require('./twochat').COST[type], sms: false })
   const m = mtOn() ? mtc.offer(cc, type) : null
   if (m) out.push({ provider: 'multitel', level: m.level, cost: m.monthly, businessOnly: m.businessOnly, address: m.address, sms: m.sms })
   // "On request" countries are ordered from MultiTEL after payment, only where MultiTEL has no pick-a-number offer.
@@ -28,6 +30,7 @@ function sold() {
   const all = {}
   const add = (cc, t) => { (all[cc] = all[cc] || new Set()).add(t) }
   if (rtOn()) { add('US', 'local'); add('US', 'toll_free'); add('CA', 'local') }
+  if (tcOn()) for (const t of ['local', 'mobile', 'toll_free']) add('GB', t)
   if (ibOn()) for (const cc of Object.keys(ibc.INSTANT)) if (require('./infobip').sellsIn(cc)) add(cc, 'local')
   if (mtOn()) for (const cc of Object.keys(ibc.REQUEST)) add(cc, 'local')
   if (mtOn()) for (const [cc, types] of Object.entries(mtc.OFFERS)) for (const t of Object.keys(types)) add(cc, t)
@@ -36,6 +39,6 @@ function sold() {
 // The US/CA provider chain beyond MultiTEL/Infobip; when nobody in it sells, US/CA show only the types the catalog sells.
 const chainSells = () => String(process.env.TELNYX_FALLBACK || '').toLowerCase() === 'true' || String(process.env.NUMBER_PROVIDERS || 'multitel,infobip').toLowerCase().split(',').some(p => ['telnyx', 'signalwire', 'twilio'].includes(p.trim()))
 const usCaTypes = (cc) => (chainSells() ? ['local', 'toll_free'] : sold()[cc] || [])
-const nameOf = (cc) => ibc.INSTANT[cc] || ibc.REQUEST[cc]?.name || mtc.NAMES[cc] || cc
+const nameOf = (cc) => ibc.INSTANT[cc] || ibc.REQUEST[cc]?.name || mtc.NAMES[cc] || (cc === 'GB' ? 'United Kingdom' : cc)
 
 module.exports = { options, best, sold, nameOf, chainSells, usCaTypes }
