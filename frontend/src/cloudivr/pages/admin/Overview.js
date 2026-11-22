@@ -1,6 +1,7 @@
 import React from 'react';
 import { Load, Stat, fmt } from './common';
 import BirdSpend from './BirdSpend';
+import TwoChatOrders from './TwoChatOrders';
 import SpamWatch from './SpamWatch';
 import EmilyMisuse from './EmilyMisuse';
 import ChannelPosts from './ChannelPosts';
@@ -69,6 +70,7 @@ export default function Overview() {
             </div>
           </div>
           <Funnel />
+          <TwoChatOrders />
           <BirdSpend />
           <SpamWatch />
           <EmilyMisuse />

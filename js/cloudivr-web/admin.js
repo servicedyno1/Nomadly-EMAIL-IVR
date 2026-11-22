@@ -38,6 +38,26 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
     r.post('/admin/channel-posts/now', A, h(async (req, res) => { const ca = require('../channel-ads'), chat = ca.targets().find(t => t.chat === req.body?.chat)?.chat; if (req.body?.chat && !chat) return res.status(400).json({ error: 'Unknown channel' }); ca.postNow(chat).catch(() => {}); res.json({ started: true, chat: chat || ca.targets()[0]?.chat }) }))
     r.get('/admin/emily-misuse', A, h(async (req, res) => res.json({ items: await require('../emily-guard').list({ limit: Number(req.query.limit) || 100 }) })))
     r.get('/admin/bird-spend', A, h(async (req, res) => res.json(await require('../bird-spend').status())))
+    // 2Chat UK numbers: orders the supplier couldn't fill (admin finishes them by hand) and numbers waiting for their forward.
+    r.get('/admin/twochat', A, h(async (req, res) => {
+      const orders = (await require('../pending-orders').waiting('2chat')).map(o => ({ id: o._id, chatId: o.chatId, placeholder: o.phoneNumber, where: o.meta?.label || o.phoneNumber, type: o.meta?.type || 'local', amount: o.amount, why: o.meta?.why || null, bought: o.meta?.bought?.phone_number || null, tries: o.tries || 0, createdAt: o.createdAt }))
+      const setup = []
+      for (const d of await db.collection('phoneNumbersOf').find({ 'val.numbers': { $elemMatch: { provider: '2chat', awaitingForward: true } } }).toArray())
+        for (const n of d.val.numbers.filter(x => x.provider === '2chat' && x.awaitingForward)) setup.push({ chatId: d._id, phoneNumber: n.phoneNumber, landingNumber: n.landingNumber, tries: n.forwardSetup?.tries || 0, lastTry: n.forwardSetup?.armedAt || null, nextTry: n.forwardSetup?.nextTryAt || null, since: n.purchaseDate })
+      res.json({ orders, setup })
+    }))
+    r.post('/admin/twochat/orders/:id/complete', A, h(async (req, res) => {
+      const reason = need(req, res); if (!reason) return
+      const number = String(req.body?.number || '').replace(/[^\d+]/g, ''), landing = String(req.body?.landing || '').replace(/[^\d+]/g, '') || null
+      if (!/^\+?44\d{9,10}$/.test(number)) return bad(res, 400, 'number', 'Enter the UK number you bought on 2Chat, e.g. +442012345678.')
+      if (landing && !/^\+?1\d{10}$/.test(landing)) return bad(res, 400, 'landing', 'The landing number must be a US/Canada number on our Infobip account, e.g. +17635550123.')
+      try {
+        const got = await require('../pending-orders').completeManual(req.params.id, number, landing)
+        await log1(req, 'twochat-complete', req.params.id, reason, got)
+        res.json(got)
+      } catch (e) { bad(res, 400, 'twochat', e.message) }
+    }))
+    r.post('/admin/twochat/check/:number', A, h(async (req, res) => res.json(await require('../twochat').checkNow(decodeURIComponent(req.params.number)))))
     r.post('/admin/bird-spend/topup', A, h(async (req, res) => {
       const reason = need(req, res); if (!reason) return
       try {

@@ -3906,3 +3906,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Catalog: GB local/mobile/toll_free via 2chat; addon GB:toll_free = $50 (appSettings.numberAddons); prod NUMBER_PROVIDERS=retell,infobip,2chat. Test js/tests/test_twochat_setup.js 9/9. Deployed 8d9db1bd.
 - @five38spech (8933778402): provisioned +442038079203 (London), landing +13093940247, debited $100 (Pro), then upgraded to Business free (planPrice 120 for renewals). Balance $30.20. Status provisioning until admin sets 2Chat forward → +13093940247.
 - Outbound to UK charged $0.50/min (CALL_FORWARDING_RATE_MIN); UK 09 premium blocked/$10.
+
+## 2026-11-22 (late) — 2Chat fallback + admin finish
+- Failed 2Chat buys (2Chat or Infobip landing) → quiet pending order (pending-orders provider '2chat'): customer sees only "Setting up your UK number"; admin Telegram+email "needs a hand"; retries every 10 min; refund only after 7 days. If 2Chat bought but landing failed, meta.bought keeps it so retries only buy the landing.
+- Admin dashboard: Overview → "2Chat UK numbers" card (TwoChatOrders.js): finish an order with the 2Chat number bought by hand + optional own Infobip landing (attachLanding routes it to calls config `nomadly`); list of numbers waiting for forward with "Check now". API: GET /admin/twochat, POST /admin/twochat/orders/:id/complete {number, landing, reason}, POST /admin/twochat/check/:number.
+- Tests: test_twochat_orders.js 10/10, test_twochat_setup.js 9/9, test_order_queue_funds.js fixed (test now advances the 10-min retry gap) 5/5, test_retell_bird_link 10/10.
+- Verified in prod: UK (local, mobile, toll-free via 2chat) listed in web countries() and bot plan + extra country lists. Deployed 3a57d94f.
