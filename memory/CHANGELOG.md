@@ -3922,3 +3922,8 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Pending user decision: UK stock of real numbers (2Chat can't show full numbers pre-purchase).
 - Retell deprecation notice (legacy list endpoints, last use 2026-11-22 19:35 UTC from prod IP): that was the agent's one-off diagnostic `POST /v2/list-calls` (now use `/v3/list-calls`, read `items`). App code uses only create/update/get/delete-phone-number + list-available-phone-numbers — not deprecated; no `inbound_agent_id` fields. Prod logs: 0 "Deprecated API usage" errors. No code change needed.
 - Bird link for +442038079203 in 60-min cooldown (until 2026-11-23 00:16 UTC), rounds reset to 0.
+
+## 2026-11-23 19:06Z — Announce caller lost when forwarding disabled (LIVE app-main-a :5000, release 20261123T190557Z-d91da97, workspace deploy)
+- RCA: CPBandz (8712875591, +18884690905) turned Announce on then tapped "Disable Forwarding" to use keypad-menu forwards; that button wrote {enabled:false} and dropped announceCaller. Bot + web also hid the toggle whenever forwarding was off, so IVR-only users couldn't see it.
+- Fix: Disable Forwarding keeps announceCaller; bot forwarding screen shows the toggle when forwarding is off; web toggle moved outside the "mode != off" block with keypad-menu hint. Restored announceCaller=true for CPBandz.
+- Test: js/tests/test_announce_caller_2026-11.js 9/9 (new: keypad menu forward announces + connects with forwarding off). Not user-confirmed. Save to GitHub needed.
