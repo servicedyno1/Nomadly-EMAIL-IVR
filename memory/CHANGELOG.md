@@ -3912,3 +3912,13 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Admin dashboard: Overview → "2Chat UK numbers" card (TwoChatOrders.js): finish an order with the 2Chat number bought by hand + optional own Infobip landing (attachLanding routes it to calls config `nomadly`); list of numbers waiting for forward with "Check now". API: GET /admin/twochat, POST /admin/twochat/orders/:id/complete {number, landing, reason}, POST /admin/twochat/check/:number.
 - Tests: test_twochat_orders.js 10/10, test_twochat_setup.js 9/9, test_order_queue_funds.js fixed (test now advances the 10-min retry gap) 5/5, test_retell_bird_link 10/10.
 - Verified in prod: UK (local, mobile, toll-free via 2chat) listed in web countries() and bot plan + extra country lists. Deployed 3a57d94f.
+
+## 2026-11-22 (night)
+- +442038079203 (@five38spech) live since 21:41:59 UTC (forward proven). Watcher now goes live when Bird's call lands through the forward even if Bird rejects the code; check window 6 min, gap 7 min.
+- 2Chat credit watch (twochat creditWatch, every 5 min via call-history NO_CREDIT): admin alert (hourly max); on recovery resets Bird link rounds + forward checks. Test test_twochat_credit.js 4/4.
+- Admin gets "🔗 Linked to Bird" Telegram message on every caller-ID verification (createBirdVerify onVerified). Test test_bird_link_notify.js.
+- Bird E13002 (too many verification messages) → autoLink pauses 60 min per number without using a round.
+- Bird verification calls come from Bird's own UK number (+442039967362); caller ID not selectable.
+- Pending user decision: UK stock of real numbers (2Chat can't show full numbers pre-purchase).
+- Retell deprecation notice (legacy list endpoints, last use 2026-11-22 19:35 UTC from prod IP): that was the agent's one-off diagnostic `POST /v2/list-calls` (now use `/v3/list-calls`, read `items`). App code uses only create/update/get/delete-phone-number + list-available-phone-numbers — not deprecated; no `inbound_agent_id` fields. Prod logs: 0 "Deprecated API usage" errors. No code change needed.
+- Bird link for +442038079203 in 60-min cooldown (until 2026-11-23 00:16 UTC), rounds reset to 0.
