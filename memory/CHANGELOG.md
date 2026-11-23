@@ -3933,3 +3933,4 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Retired unfilled orders ESIM-0050/0051/0052 (no auto-reorder). Bought ESIM-0053 +19342380756 and ESIM-0054 +19342384051 via core.provisionOne (one-off, BULK_ESIM_WORKER=false). Both passed the delivery check → available/healthy by 21:28Z.
 - Spenza credit $28.52 → $8.52 (lines $10 each). Forecast had $42.72 committed → credit is low for texts/renewals.
 - No tester and no monitor line at present.
+- 21:33Z: ESIM-0009 (+16316900468) Spenza subscription CANCEL_SCHEDULED (ends 2026-12-12, no renewal); marked failed. Cleared 4 stuck "submitted" msgs (2 system line checks, 2 customer INTERAC-style texts from Nomadly:8640218860 and Nomadly:1607345598, not prepaid) → failed.
