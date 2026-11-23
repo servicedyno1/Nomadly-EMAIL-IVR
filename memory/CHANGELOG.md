@@ -3927,3 +3927,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - RCA: CPBandz (8712875591, +18884690905) turned Announce on then tapped "Disable Forwarding" to use keypad-menu forwards; that button wrote {enabled:false} and dropped announceCaller. Bot + web also hid the toggle whenever forwarding was off, so IVR-only users couldn't see it.
 - Fix: Disable Forwarding keeps announceCaller; bot forwarding screen shows the toggle when forwarding is off; web toggle moved outside the "mode != off" block with keypad-menu hint. Restored announceCaller=true for CPBandz.
 - Test: js/tests/test_announce_caller_2026-11.js 9/9 (new: keypad menu forward announces + connects with forwarding off). Not user-confirmed. Save to GitHub needed.
+
+## 2026-11-23 21:22Z — BulkSMS eSIM pool: 2 lines bought after Spenza top-up (prod data only, no code change)
+- Pool was 3 sending lines (0006, 0007, 0046) + 0009 "suspect". Orders since Nov 20 never filled ("no number after 24 h") while Spenza credit was empty.
+- Retired unfilled orders ESIM-0050/0051/0052 (no auto-reorder). Bought ESIM-0053 +19342380756 and ESIM-0054 +19342384051 via core.provisionOne (one-off, BULK_ESIM_WORKER=false). Both passed the delivery check → available/healthy by 21:28Z.
+- Spenza credit $28.52 → $8.52 (lines $10 each). Forecast had $42.72 committed → credit is low for texts/renewals.
+- No tester and no monitor line at present.
