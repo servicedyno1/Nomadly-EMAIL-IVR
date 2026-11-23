@@ -90,6 +90,22 @@ const dials = () => of('dial')
   ok('hidden caller wording', /^Call from a hidden number, to your number ending 0 8 8 1\.$/.test(of('speak', leg)[0]?.[2] || ''), of('speak', leg)[0]?.[2])
   await hook('call.speak.ended', { call_control_id: leg }); await end(cc, leg)
 
+  // 5. Keypad menu forward with plain forwarding switched off (bot "Disable Forwarding" keeps the toggle)
+  calls = []
+  const off = { enabled: false, mode: 'disabled', forwardTo: null, announceCaller: true }
+  const ivrNum = { phoneNumber: num, status: 'active', plan: 'pro', provider: 'telnyx', features: { voicemail: { enabled: false }, ringGroup: { enabled: false }, callForwarding: off, ivr: { enabled: true, language: 'en', greeting: 'Menu', options: { 1: { action: 'forward', forwardTo: dest } } } } }
+  await phoneNumbersOf.updateOne({ _id: chat }, { $set: { 'val.numbers.0': ivrNum } })
+  cc = 'v3:ann-5'
+  voice.activeCalls[cc] = { num: ivrNum, chatId: chat, from: caller, to: num, phase: 'ivr', startedAt: new Date() }
+  await hook('call.gather.ended', { call_control_id: cc, digits: '1' })
+  await waitFor(() => of('speak', cc).length); await hook('call.speak.ended', { call_control_id: cc }); await waitFor(() => dials().length)
+  leg = dials()[0]?.[3]
+  await hook('call.answered', { call_control_id: leg, from: num, to: dest }); await waitFor(() => of('speak', leg).length)
+  ok('keypad menu forward announces the caller', /^Call from 4 1 5, 5 5 5, 0 1 2 3/.test(of('speak', leg)[0]?.[2] || ''), JSON.stringify(calls.map(c => c[0])))
+  await hook('call.speak.ended', { call_control_id: leg }); await waitFor(() => of('bridge').length)
+  ok('keypad menu forward connects after the announcement', of('bridge').length === 1)
+  await end(cc, leg)
+
   for (const r of results) console.log(`${r.pass ? '✅' : '❌'} ${r.name}${r.pass || !r.detail ? '' : ' — ' + r.detail}`)
   const bad = results.filter(r => !r.pass).length
   console.log(`\n${results.length - bad} passed, ${bad} failed`)

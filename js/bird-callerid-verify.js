@@ -18,7 +18,7 @@ function extractCode(text, len = 6) {
   return m ? m[0] : null
 }
 
-function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts = 3 }) {
+function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts = 3, onVerified = null }) {
   const col = () => db.collection('birdCallerIdVerify')
   const e164 = (p) => `+${String(p || '').replace(/[^\d]/g, '')}`
 
@@ -58,6 +58,7 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
     await col().updateOne({ _id: n, status: { $ne: 'verified' } }, { $set: { attempts, lastCode: code, status: ok ? 'verified' : (attempts >= maxAttempts ? 'failed' : 'calling'), verifiedAt: ok ? new Date() : null, outboundEnabled: !!r.outbound_enabled, error: r.error || null } })
     log(`[BirdVerify] ${n}: submitted ${code} → ${ok ? 'VERIFIED' : `not yet (${r.error || r.status})`}`)
     if (ok) bird.forgetCallerIds?.()
+    if (ok && onVerified) Promise.resolve(onVerified(n)).catch(e => log(`[BirdVerify] onVerified ${n}: ${e.message}`))
     return { handled: true, code, status: ok ? 'verified' : 'retry', outbound_enabled: !!r.outbound_enabled }
   }
 
@@ -84,8 +85,14 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
         continue
       }
       if (d && d.armedAt > new Date(now - retryMs)) continue
+      if (d?.cooldownUntil && d.cooldownUntil > now) continue
       // The verification window never outlasts the retry gap, so a call that never arrives doesn't hold up the next try.
       const r = await arm(n, { ttlMs: Math.min(10 * 60000, retryMs) })
+      // Bird's per-recipient limit (E13002): wait an hour without using up a try — retrying only extends the block.
+      if (/E13002|too many verification/i.test(r.error || '')) {
+        await col().updateOne({ _id: n }, { $set: { status: 'failed', armedAt: now, error: r.error, cooldownUntil: new Date(now.getTime() + 60 * 60000) } }, { upsert: true })
+        return { number: n, error: r.error, cooldown: '60 min' }
+      }
       await col().updateOne({ _id: n }, { $inc: { rounds: 1 }, ...(r.error ? { $set: { status: 'failed', armedAt: now, error: r.error } } : {}) }, { upsert: true })
       return r.error ? { number: n, error: r.error } : { armed: n }
     }

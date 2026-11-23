@@ -31992,7 +31992,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
         ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], [annBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
-        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
+        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [annBtn(num.features?.callForwarding)]]
       const preview = phoneConfig.formatCallFlowPreview(num, info?.userLanguage || 'en')
       // audit #22 — surface the forwarding wallet floor HERE with a pre-filled
       // deposit, so a low-balance user tops up before setting a forward number.
@@ -32649,7 +32649,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const holdLabel = f.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = f.enabled
         ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], [annBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', _bl)], [pc.disableForwarding]]
-        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
+        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [annBtn(num.features?.callForwarding)]]
       return send(chatId, `${prefix ? prefix + '\n\n' : ''}${cpTxt.forwardingStatus(num.phoneNumber, f, walletBal)}`, k.of(btns))
     }
     if (isBackPress(message)) return showFwdMenu()
@@ -32756,8 +32756,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return showManageScreen(chatId, num)
     }
     if (message === pc.disableForwarding) {
-      await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', { enabled: false, mode: 'disabled', forwardTo: null })
-      num.features.callForwarding = { enabled: false, mode: 'disabled', forwardTo: null }
+      // Keep "announce caller" — keypad-menu forwards still use it.
+      const off = { enabled: false, mode: 'disabled', forwardTo: null, announceCaller: !!num.features?.callForwarding?.announceCaller }
+      await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', off)
+      num.features.callForwarding = off
       await saveInfo('cpActiveNumber', num)
       send(chatId, cpTxt.forwardingDisabled(num.phoneNumber))
       await set(state, chatId, 'action', a.cpManageNumber)
@@ -32770,8 +32772,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', value)
       num.features.callForwarding = value
       await saveInfo('cpActiveNumber', num)
-      const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [value.holdMusic ? pc.holdMusicOn : pc.holdMusicOff], [cidBtn(value)], [annBtn(value)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
-      return send(chatId, value.announceCaller ? '📣 <b>Announce caller is on.</b>\nWhen the phone you forward to answers, it first hears who is calling and for which of your numbers, then the call connects.' : '📣 <b>Announce caller is off.</b> Forwarded calls connect straight away.', { parse_mode: 'HTML', ...k.of(btns) })
+      const btns = value.enabled
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [value.holdMusic ? pc.holdMusicOn : pc.holdMusicOff], [cidBtn(value)], [annBtn(value)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [annBtn(value)]]
+      return send(chatId, value.announceCaller ? '📣 <b>Announce caller is on.</b>\nWhen the phone you forward to answers, it first hears who is calling and for which of your numbers, then the call connects. This also works when a keypad menu option forwards the call.' : '📣 <b>Announce caller is off.</b> Forwarded calls connect straight away.', { parse_mode: 'HTML', ...k.of(btns) })
     }
     // ── Toggle caller ID shown on forwarded calls ──
     if (String(message || '').startsWith('🪪 Caller ID')) {
@@ -32850,7 +32854,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
         ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], [annBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
-        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
+        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [annBtn(num.features?.callForwarding)]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, fwd, walletBal), k.of(btns))
     }
     let forwardTo = message.replace(/[^+\d]/g, '')
@@ -32917,7 +32921,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
         ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], [annBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
-        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
+        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [annBtn(num.features?.callForwarding)]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, fwd, walletBal), k.of(btns))
     }
     // Any input other than the explicit confirm tap → re-show the confirmation

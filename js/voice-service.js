@@ -4202,7 +4202,7 @@ function birdVerify() {
   if (_birdVerify) return _birdVerify
   const { createBirdVerify } = require('./bird-callerid-verify.js')
   const { transcribe } = require('./voicemail-transcribe.js')
-  _birdVerify = createBirdVerify({ bird: require('./bird'), transcribe, db: _db, log })
+  _birdVerify = createBirdVerify({ bird: require('./bird'), transcribe, db: _db, log , onVerified: async (n) => { const d = await _db.collection('phoneNumbersOf').findOne({ 'val.numbers.phoneNumber': n }); const num = d?.val?.numbers?.find(x => x.phoneNumber === n); _notifyAdmin?.(`🔗 <b>Linked to Bird</b>: ${n}${num ? ` (${num.provider}, ${d._id})` : ''} can now be used as caller ID on outbound calls.`) }})
   return _birdVerify
 }
 // This brand's active numbers that sit on the Telnyx SIP trunk.
