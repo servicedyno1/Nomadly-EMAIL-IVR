@@ -625,9 +625,10 @@ async function _executeBroadcast(bot, db, broadcastId, filteredChatIds, message,
             method === 'HTML' || method === 'Markdown' || method === 'MarkdownV2'
               ? method
               : null
-          const sendOpts = parseMode
-            ? { parse_mode: parseMode, disable_web_page_preview: true }
-            : {}
+          const sendOpts = {
+            ...(parseMode ? { parse_mode: parseMode, disable_web_page_preview: true } : {}),
+            ...(opts.reply_markup ? { reply_markup: opts.reply_markup } : {}),
+          }
 
           if (isPhoto) {
             await bot.sendPhoto(chatId, message)

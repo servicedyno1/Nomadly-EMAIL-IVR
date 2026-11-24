@@ -1,5 +1,5 @@
 'use strict'
-// 2Chat UK numbers (local, mobile, toll-free). Each one gets its own Infobip landing number; an admin sets the
+// 2Chat numbers (COUNTRIES below; no-ID locations only). Each one gets its own Infobip landing number; an admin sets the
 // 2Chat call flow "Forward to number → landing" once (no API for it). The watcher below spots when that works
 // (Bird's caller-ID call arrives on the landing), then switches the number live and tells the customer.
 const axios = require('axios')
@@ -10,8 +10,19 @@ const enabled = () => !!process.env.TWOCHAT_API_KEY
 const selling = () => enabled() && String(process.env.NUMBER_PROVIDERS || '').toLowerCase().split(',').map(x => x.trim()).includes('2chat')
 const http = () => axios.create({ baseURL: BASE, headers: { 'X-User-API-Key': process.env.TWOCHAT_API_KEY }, timeout: 20000 })
 const errOf = (e) => String(e.response?.data?.error_message || e.response?.data?.message || e.message)
-const TYPES = { local: 'local', mobile: 'mobile', toll_free: 'tollfree' }
-const sellsType = (cc, type) => cc === 'GB' && !!TYPES[type]
+const TYPES = { local: 'local', mobile: 'mobile', national: 'national', toll_free: 'tollfree' }
+// Where 2Chat sells (approved 23 Nov 2026). Retell keeps US/CA; types Infobip sells in a country stay with Infobip.
+const COUNTRIES = {
+  GB: ['local', 'mobile', 'toll_free'], IL: ['local', 'mobile', 'national', 'toll_free'], CO: ['local', 'mobile', 'toll_free'],
+  BR: ['local'], PA: ['local'], SV: ['local'], GT: ['local'], IS: ['local'], VN: ['local', 'toll_free'], KE: ['local', 'toll_free'],
+  MX: ['toll_free'], AR: ['toll_free'], LT: ['national', 'toll_free'], PE: ['mobile'], NL: ['mobile'], DK: ['mobile'],
+  BO: ['national'], CZ: ['toll_free'], HU: ['toll_free'], RS: ['toll_free'], EE: ['toll_free'], UA: ['toll_free'], CY: ['toll_free'],
+  KR: ['toll_free'], UG: ['toll_free'], NZ: ['toll_free'],
+}
+const sellsType = (cc, type) => !!COUNTRIES[cc]?.includes(type)
+const FLAG = (cc) => String.fromCodePoint(...[...String(cc || 'GB')].map(c => 0x1f1e6 + c.charCodeAt(0) - 65))
+const mine = new Set() // numbers bought on our 2Chat account (they forward to a landing number, no carrier routing step)
+const owns = (n) => mine.has(String(n || ''))
 const isTc = (id) => String(id || '').startsWith('tc:')
 
 const searched = new Map() // placeholder (bare prefix, e.g. +4420) → { cc, type, groupId, label }
@@ -27,13 +38,14 @@ async function searchNumbers(countryCode, numberType = 'local', areaCode = null,
       .filter(g => !g.requirements?.length && (g.features || ['voice']).includes('voice') && digits(g.prefix).length > 2)
     // 2Chat ignores its own prefix filter, so match the area code (020, 161…) or a town name here.
     const want = String(areaCode || '').trim(), d = digits(want).replace(/^0/, '')
-    if (want) groups = groups.filter(g => (d ? digits(g.prefix).startsWith(`44${d}`) : false) || (!d && String(g.location || '').toLowerCase().includes(want.toLowerCase())))
-    if (type === 'local' && !areaCode) groups = [...groups.filter(g => /^London$/i.test(g.location)), ...groups.filter(g => !/^London$/i.test(g.location))]
+    const dial = (g) => (String(g.prefix).match(/^\+(\d+)/) || [])[1] || ''
+    if (want) groups = groups.filter(g => (d ? digits(g.prefix).startsWith(`${dial(g)}${d}`) : false) || (!d && String(g.location || '').toLowerCase().includes(want.toLowerCase())))
+    if (cc === 'GB' && type === 'local' && !areaCode) groups = [...groups.filter(g => /^London$/i.test(g.location)), ...groups.filter(g => !/^London$/i.test(g.location))]
     const seen = new Set()
     return groups.filter(g => !seen.has(digits(g.prefix)) && seen.add(digits(g.prefix))).slice(0, limit).map(g => {
       const num = `+${digits(g.prefix)}`
       searched.set(num, { cc, type, groupId: g.id, label: g.prefix })
-      return { record_type: 'available_phone_number', phone_number: num, _assigned: true, region_information: [{ region_type: 'location', region_name: type === 'toll_free' ? `Freephone ${g.prefix}` : `${g.location} ${g.prefix}` }],
+      return { record_type: 'available_phone_number', phone_number: num, _assigned: true, region_information: [{ region_type: 'location', region_name: type === 'toll_free' ? `${cc === 'GB' ? 'Freephone' : 'Toll-free'} ${g.prefix}` : `${g.location} ${g.prefix}` }],
         cost_information: { currency: 'USD', monthly_cost: String(g.price?.monthly_price || '5'), upfront_cost: String(g.price?.setup_price || '0') }, _capabilities: { voice: true, sms: false, mms: false, fax: false }, _provider: '2chat' }
     })
   } catch (e) { log('search:', errOf(e)); return [] }
@@ -85,7 +97,7 @@ async function buyNumber(placeholder) {
       res = null
     }
     const landing = await require('../retell').buyLanding().catch(e => { s.bought = { uuid: got.uuid, phone_number: got.phone_number }; throw new Error(`Infobip landing: ${e.message}`) })
-    searched.delete(placeholder)
+    searched.delete(placeholder); mine.add(got.phone_number)
     log(`Bought ${got.phone_number} (${got.uuid}) in ${s.label} → landing ${landing.number}; waiting for the 2Chat forward`)
     return done(got, landing, placeholder)
   } catch (e) {
@@ -101,7 +113,9 @@ async function adopt(number, landing = null, meta = null) {
   const got = meta?.bought?.phone_number === e ? meta.bought : (await ownedNumbers()).find(x => x.phone_number === e)
   if (!got) throw new Error(`${e} isn't on our 2Chat account yet — buy it there first`)
   if (D && await D.db.collection('phoneNumbersOf').findOne({ 'val.numbers': { $elemMatch: { phoneNumber: e, status: { $nin: ['released', 'expired'] } } } })) throw new Error(`${e} already belongs to a customer`)
-  return done(got, await landingFor(landing), null)
+  const r = done(got, await landingFor(landing), null)
+  mine.add(got.phone_number)
+  return r
 }
 
 let D = null
@@ -131,7 +145,7 @@ async function realCaller(number) {
 const MIN = 60000
 const nextGap = (ageMs) => (ageMs < 2 * 60 * MIN ? 7 * MIN : 30 * MIN) // longer than a check's 6-min window, so a late Bird call isn't cut off
 const GIVE_UP_MS = 7 * 24 * 60 * MIN, REMIND_MS = 12 * 60 * MIN
-const adminText = (n) => `🇬🇧 <b>2Chat number to finish: ${n.phoneNumber}</b>\nIn 2Chat → Channels → Virtual numbers → ${n.phoneNumber} → Inbound call handling → call flow: <b>Forward to number → ${n.landingNumber}</b> (nothing before it), then save.\nCloudIVR checks it every few minutes and switches the number on by itself.`
+const adminText = (n) => `${FLAG(n.country)} <b>2Chat number to finish: ${n.phoneNumber}</b>\nIn 2Chat → Channels → Virtual numbers → ${n.phoneNumber} → Inbound call handling → call flow: <b>Forward to number → ${n.landingNumber}</b> (nothing before it), then save.\nCloudIVR checks it every few minutes and switches the number on by itself.`
 
 // 2Chat credit watch: its call history shows NO_CREDIT when forwards fail for lack of balance. Alert once; when calls
 // go through again, restart anything that stalled meanwhile (Bird caller-ID linking, forward checks).
@@ -143,7 +157,7 @@ async function creditWatch() {
   const latest = cdrs.find(c => c.status), sc = D.db.collection('appSettings'), st = await sc.findOne({ _id: 'twochatCredit' })
   if (latest?.status === 'NO_CREDIT') {
     if (!st?.since || Date.now() - new Date(st.alertedAt || 0).getTime() > 60 * MIN) {
-      const text = `🚨 <b>2Chat is out of credit</b> — calls to its UK numbers aren't being forwarded (last at ${String(latest.created_at).slice(11, 16)} UTC to ${latest.received_on_number}). Top up 2Chat; CloudIVR picks everything back up by itself.`
+      const text = `🚨 <b>2Chat is out of credit</b> — calls to its numbers aren't being forwarded (last at ${String(latest.created_at).slice(11, 16)} UTC to ${latest.received_on_number}). Top up 2Chat; CloudIVR picks everything back up by itself.`
       D.notifyAdmin(text); D.adminEmail?.('2Chat is out of credit', `<p>${text.replace(/<\/?b>/g, '')}</p>`)
       await sc.updateOne({ _id: 'twochatCredit' }, { $set: { since: st?.since || new Date(), alertedAt: new Date() } }, { upsert: true })
     }
@@ -155,7 +169,7 @@ async function creditWatch() {
   for (const d of await col.find({ 'val.numbers.provider': '2chat' }).toArray()) for (const n of d.val.numbers) if (n.provider === '2chat' && !/released|expired/.test(n.status)) nums.push(n.phoneNumber)
   await D.db.collection('birdCallerIdVerify').updateMany({ _id: { $in: nums }, status: { $ne: 'verified' } }, { $set: { rounds: 0 }, $unset: { gaveUpAt: '' } })
   await col.updateMany({ 'val.numbers': { $elemMatch: { provider: '2chat', awaitingForward: true } } }, { $set: { 'val.numbers.$[n].forwardSetup.nextTryAt': new Date(0) } }, { arrayFilters: [{ 'n.provider': '2chat', 'n.awaitingForward': true }] })
-  D.notifyAdmin(`✅ 2Chat credit is back — UK calls forward again; Bird caller-ID linking and forward checks restarted for ${nums.length} number(s).`)
+  D.notifyAdmin(`✅ 2Chat credit is back — calls forward again; Bird caller-ID linking and forward checks restarted for ${nums.length} number(s).`)
 }
 
 async function tick() {
@@ -191,7 +205,7 @@ async function tick() {
     }
     if (st.nextTryAt && new Date(st.nextTryAt) > new Date()) continue
     if (await vcol.findOne({ status: 'calling', expiresAt: { $gt: new Date() } })) continue // one Bird verification call at a time
-    const r = await D.birdVerify().arm(n.phoneNumber, { name: 'CloudIVR UK', ttlMs: 6 * MIN }).catch(e => ({ error: e.message }))
+    const r = await D.birdVerify().arm(n.phoneNumber, { name: 'CloudIVR', ttlMs: 6 * MIN }).catch(e => ({ error: e.message }))
     await set({ forwardSetup: { ...st, armedAt: new Date(), tries: (st.tries || 0) + 1, nextTryAt: new Date(now + nextGap(age)), lastError: r.error || null } })
     log(`${n.phoneNumber}: checking forward (try ${(st.tries || 0) + 1})${r.error ? ` — ${r.error}` : ''}`)
   }
@@ -199,6 +213,8 @@ async function tick() {
 
 function init(deps) {
   D = deps
+  D.db.collection('phoneNumbersOf').find({ 'val.numbers.provider': '2chat' }, { projection: { 'val.numbers': 1 } }).toArray()
+    .then(ds => { for (const d of ds) for (const n of d.val.numbers) if (n.provider === '2chat') mine.add(n.phoneNumber) }).catch(e => log('owned:', e.message))
   require('../active-slot').singletonInterval('twochat-forward-setup', () => tick().catch(e => log('tick:', e.message)), MIN)
 }
 
@@ -209,4 +225,4 @@ async function checkNow(number) {
   return { queued: !!r.modifiedCount }
 }
 
-module.exports = { adopt, attachLanding, enabled, selling, sellsType, isTc, searchNumbers, isTcSearched, searchedMeta, remember, buyNumber, releaseNumber, realCaller, init, tick, adminText, COST: { local: 5, mobile: 5, toll_free: 5 } }
+module.exports = { COUNTRIES, owns, adopt, attachLanding, enabled, selling, sellsType, isTc, searchNumbers, isTcSearched, searchedMeta, remember, buyNumber, releaseNumber, realCaller, init, tick, adminText, COST: { local: 5, mobile: 5, national: 5, toll_free: 5 } }

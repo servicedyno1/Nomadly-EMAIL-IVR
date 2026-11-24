@@ -18,6 +18,7 @@ const OFFERS = [
   ['PL', 'Poland', 'infobip', 'local', 19.52, 19.52, ['48'], false],
   ['PR', 'Puerto Rico', 'infobip', 'local', 0.98, 0.98, ['1787', '1939'], true],
   ['ES', 'Spain', 'infobip', 'local', 39.03, 9.76, ['34'], false],
+  ['AT', 'Austria', 'infobip', 'local', 25.56, 58.99, ['43'], true],
   ['GB', 'United Kingdom', 'multitel', 'mobile', 0.70, 0, ['44'], true],
   // USA local: calls at once; texting needs the customer's 10DLC registration (cloudivr-web/ten-dlc.js) before texts send.
   ['US', 'United States', 'multitel', 'local', 0.60, 0, ['1'], true],
@@ -25,7 +26,7 @@ const OFFERS = [
 // Our cost per sent text segment, by sending provider and destination country.
 const SMS_COST = {
   multitel: { BR: 0.08924, CA: 0.0164, CO: 0.06785, DK: 0.088895, LT: 0.064745, NL: 0.07935, PE: 0.4807, PL: 0.05405, PR: 0.13225, ES: 0.1426, GB: 0.05865, US: 0.0164 },
-  infobip: { BR: 0.0294, CA: 0.0093, CO: 0.0052, DK: 0.044, LT: 0.047, NL: 0.093, PE: 0.268, PL: 0.036, PR: 0.037, ES: 0.071, GB: 0.044, US: 0.0083 },
+  infobip: { AT: 0.085, BR: 0.0294, CA: 0.0093, CO: 0.0052, DK: 0.044, LT: 0.047, NL: 0.093, PE: 0.268, PL: 0.036, PR: 0.037, ES: 0.071, GB: 0.044, US: 0.0083 },
 }
 const FLAG = (cc) => String.fromCodePoint(...[...cc].map(c => 0x1f1e6 + c.charCodeAt(0) - 65))
 const up = (x) => Math.ceil(Math.round(x * 10000) / 100) / 100

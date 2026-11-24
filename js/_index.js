@@ -748,6 +748,7 @@ function numLine(r, i, cc, type) {
   const c = r?._capabilities || {}
   const caps = [c.voice && 'calls', c.sms && 'texts'].filter(Boolean).join(' + ')
   const place = r?.region_information?.[0]?.region_name || ''
+  if (r?._onRequest) return `${i + 1}. ${place}${caps ? ` · ${caps}` : ''} · ⏳ ready after the carrier assigns it`
   const instant = !phoneConfig.botNeedsAddress(String(cc || 'US'), type || 'local')
   return `${i + 1}. <code>${r.phone_number}${r?._assigned ? '…' : ''}</code>${place ? ` · ${place}` : ''}${caps ? ` · ${caps}` : ''}${instant ? ' · ⚡ instant' : ''}`
 }
@@ -1497,7 +1498,7 @@ const isTelnyxIntl = (provider, cc) => provider === 'telnyx' && !['US', 'CA'].in
 const providerOfOrder = (o) => o?._provider || (String(o?.id || '').startsWith('tc:') ? '2chat' : String(o?.id || '').startsWith('rt:') ? 'retell' : String(o?.id || '').startsWith('mt:') ? 'multitel' : String(o?.id || '').startsWith('ib:') ? 'infobip' : 'telnyx')
 async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
   // MultiTEL / Infobip numbers: their own instant buy (with provider backup), never the Telnyx paperwork flow.
-  if (require('./multitel').isMtSearched(selectedNumber) || require('./infobip').isIbSearched(selectedNumber)) return telnyxApi.buyNumber(selectedNumber, null, null, { countryCode: ctx.countryCode || 'US', numberType: ctx.numberType || 'local', areaCode: ctx.areaCode || null })
+  if (require('./multitel').isMtSearched(selectedNumber) || require('./infobip').isIbSearched(selectedNumber) || require('./infobip/requests').isSearched(selectedNumber) || require('./twochat').isTcSearched(selectedNumber)) return telnyxApi.buyNumber(selectedNumber, null, null, { countryCode: ctx.countryCode || 'US', numberType: ctx.numberType || 'local', areaCode: ctx.areaCode || null })
   const { countryCode = 'US', numberType = 'local', areaCode = null } = ctx
   const retry = { countryCode, numberType, areaCode }
   if (!isTelnyxIntl('telnyx', countryCode)) {
@@ -4236,6 +4237,7 @@ const loadData = async () => {
     notifyAdmin(`[${brand}] ${html}`)
     if (process.env.CIVR_ADMIN_EMAIL) require('./cloudivr-web/auth').sendMail(process.env.CIVR_ADMIN_EMAIL, `[${brand}] ${subject}`, `<p>${html.replace(/\n/g, '<br>')}</p>`).catch(() => {})
   } })
+  require('./infobip/requests').init({ db })
   require('./pending-orders').init({
     db, notifyAdmin,
     send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}),
@@ -15614,12 +15616,13 @@ All verified numbers generated during sourcing.`))
       emailval: () => _synthMenuTap(user.emailValidation),
       emailblast: () => _synthMenuTap(user.emailBlast),
       refer: () => _synthMenuTap(user.referEarn),
+      numbers: () => _synthMenuTap(phoneConfig.getBtn('en').buyPhoneNumber, a.submenu5), // one tap → pick a plan + any country
       // Web-app ads (channel posts / old keyboards): the invite card with the website button.
       web_hosta: () => (webAccess.websiteUrl() ? send(chatId, webAccess.webAccessMessage(info?.userLanguage || 'en').text, webAccess.webAccessMessage(info?.userLanguage || 'en').opts) : goto.displayMainMenuButtons()),
       web_cloudivr: () => (webAccess.cloudivrUrl() ? send(chatId, webAccess.cloudivrWebMessage(info?.userLanguage || 'en').text, webAccess.cloudivrWebMessage(info?.userLanguage || 'en').opts) : goto.displayMainMenuButtons()),
     }[_hub]
-    async function _synthMenuTap(label) {
-      await set(state, chatId, 'action', 'none')
+    async function _synthMenuTap(label, inAction = 'none') {
+      await set(state, chatId, 'action', inAction)
       return bot.processUpdate({
         update_id: Date.now(),
         message: { message_id: (msg?.message_id || 0) + 1, from: msg?.from, chat: msg?.chat, date: Math.floor(Date.now() / 1000), text: label },
@@ -15957,6 +15960,30 @@ All verified numbers generated during sourcing.`))
       return alertResellerApplication(doc)
     } else { clearResellerPanel(chatId, r.clearPanel); return sendResellerPrompt(chatId, r) }
   }
+
+  // /companydetails — company details an "assigned after order" number needs (Infobip asks after payment, nothing to upload).
+  if (message === '/companydetails' || (action === 'ibreqDetails' && !isCancelPress(message) && !isMainMenuPress(message))) {
+    const PO = require('./pending-orders'), IR = require('./infobip/requests')
+    const waiting = await PO.needingDetails(chatId)
+    const o = waiting.find(x => x.phoneNumber === info?.ibreqPhone) || waiting[0]
+    if (!o) { await set(state, chatId, 'action', 'none'); return send(chatId, '✅ No number is waiting for company details.') }
+    const need = IR.missing(o.meta || {}), got = message === '/companydetails' || o.phoneNumber !== info?.ibreqPhone ? {} : { ...(info?.ibreqGot || {}) }
+    if (message !== '/companydetails' && o.phoneNumber === info?.ibreqPhone && info?.ibreqKey) got[info.ibreqKey] = String(message || '').trim()
+    const next = need.find(k => !String(got[k] || '').trim())
+    if (next) {
+      await set(state, chatId, 'action', 'ibreqDetails'); await set(state, chatId, 'ibreqPhone', o.phoneNumber); await set(state, chatId, 'ibreqKey', next); await set(state, chatId, 'ibreqGot', got)
+      return send(chatId, `${message === '/companydetails' ? PO.detailsText(o) + '\n\n' : ''}✍️ Send your <b>${IR.LABELS[next]}</b>:`, { parse_mode: 'HTML' })
+    }
+    try {
+      await PO.setDetails(chatId, o.phoneNumber, got)
+      await set(state, chatId, 'action', 'none')
+      return send(chatId, `✅ Thanks — your details went to the carrier. We'll message you as soon as your ${o.meta?.countryName || ''} number is live.`)
+    } catch (e) {
+      await set(state, chatId, 'ibreqGot', {})
+      return send(chatId, `⚠️ ${e.message}. Send /companydetails to try again.`)
+    }
+  }
+
 
   // /testsip — generate OTP for SIP test page
   if (message === '/testsip') {
