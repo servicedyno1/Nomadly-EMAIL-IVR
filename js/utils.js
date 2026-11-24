@@ -569,6 +569,7 @@ const sendMessageToAllUsers = async (bot, message, method, nameOf, myChatId, db,
         adminChatId: myChatId,
         message,
         method,
+        replyMarkup: opts.reply_markup || null,
         chatIds: filteredChatIds,
         totalUsers: chatIds.length,
         skippedPermanent,
@@ -582,7 +583,7 @@ const sendMessageToAllUsers = async (bot, message, method, nameOf, myChatId, db,
       log(`[Broadcast] Job ${broadcastId} created — ${total} users to send`)
     }
 
-    await _executeBroadcast(bot, db, broadcastId, filteredChatIds, message, method, myChatId, 0, 0, 0, 0, skippedPermanent, chatIds.length)
+    await _executeBroadcast(bot, db, broadcastId, filteredChatIds, message, method, myChatId, 0, 0, 0, 0, skippedPermanent, chatIds.length, opts)
   } catch (error) {
     log(`Broadcast error: ${error.message}`)
     bot.sendMessage(myChatId, `Broadcast failed: ${error.message}`)
@@ -593,7 +594,7 @@ const sendMessageToAllUsers = async (bot, message, method, nameOf, myChatId, db,
  * Core broadcast execution — shared by fresh starts and resumptions.
  * @param {number} startIndex - index into chatIds to resume from
  */
-async function _executeBroadcast(bot, db, broadcastId, filteredChatIds, message, method, myChatId, startIndex, successCount, errorCount, newlyDeadCount, skippedPermanent, totalUsersRaw) {
+async function _executeBroadcast(bot, db, broadcastId, filteredChatIds, message, method, myChatId, startIndex, successCount, errorCount, newlyDeadCount, skippedPermanent, totalUsersRaw, opts = {}) {
   const total = filteredChatIds.length
   const { BATCH_SIZE, DELAY_BETWEEN_BATCHES, DELAY_BETWEEN_MESSAGES, MAX_RETRIES, RETRY_DELAY } = BROADCAST_CONFIG
   const totalBatches = Math.ceil(total / BATCH_SIZE)
@@ -781,7 +782,8 @@ async function recoverBroadcast(bot, db) {
       _executeBroadcast(
         bot, db, broadcastId, chatIds, job.message, job.method,
         job.adminChatId, startIndex, job.successCount || 0, job.errorCount || 0,
-        job.newlyDeadCount || 0, job.skippedPermanent || 0, job.totalUsers || total
+        job.newlyDeadCount || 0, job.skippedPermanent || 0, job.totalUsers || total,
+        job.replyMarkup ? { reply_markup: job.replyMarkup } : {}
       ).catch(e => {
         log(`[Broadcast] Recovery: Resume failed for ${broadcastId}: ${e.message}`)
         bot.sendMessage(job.adminChatId, `❌ Broadcast resume failed: ${e.message}`).catch(() => {})

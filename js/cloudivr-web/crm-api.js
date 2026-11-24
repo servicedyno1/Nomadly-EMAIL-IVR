@@ -26,6 +26,7 @@ async function access(chatId) {
   const a = await db.collection('apiAccess').findOne({ _id: String(chatId) })
   const addon = a?.until && new Date(a.until) > new Date() ? { until: a.until, autoRenew: a.autoRenew !== false } : null
   if (plans.has('enterprise')) return { on: true, via: 'enterprise', canBuy: false, addon: null, price: ADDON_PRICE }
+  if (a?.grant && addon) return { on: true, via: 'grant', canBuy: false, addon, price: ADDON_PRICE } // owner-granted (test / complimentary)
   if (plans.has('business') && addon) return { on: true, via: 'addon', canBuy: false, addon, price: ADDON_PRICE }
   return { on: false, via: null, canBuy: plans.has('business'), addon, price: ADDON_PRICE }
 }

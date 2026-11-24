@@ -246,7 +246,7 @@ function createBulkSms({ db, h, walletOps, log = console.log }) {
   async function apiCampaignStatus(chatId, id) {
     const cp = await campaignOf(cidOf({ webChatId: chatId }), id); if (!cp) return null
     const b = await B.db().collection('bsBookings').findOne({ campaignId: cp._id }), r = await B.report(cp._id).catch(() => ({}))
-    return { id: cp._id, status: b?.status || cp.status, texts: cp.parts, sent: r.sent || 0, failed: r.failed || 0, replies: r.replies || 0, price: b?.price ?? null }
+    return { id: cp._id, status: b?.status || cp.status, texts: b?.volume ?? cp.volume ?? null, sent: r.sent || 0, failed: r.failed || 0, replies: r.replies || 0, price: b?.price ?? null }
   }
   const apiSend = (chatId, to, text, optOut) => sendSingle({ webChatId: chatId }, to, text, null, optOut, true)
   return (instance = { routes, deliver, BRAND, apiCampaign, apiCampaignStatus, apiSend })

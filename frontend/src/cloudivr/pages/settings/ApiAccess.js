@@ -104,15 +104,17 @@ export function ApiAccess() {
     <div id="settings-api" className="civr-card p-6 space-y-6 lg:col-span-2 scroll-mt-24" data-testid="settings-api-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold flex items-center gap-2"><KeyRound className="w-4 h-4" />API — CRM calling</h3>
-          <p className="text-xs text-[#a1a1aa] mt-1">Both call legs bill from your wallet at normal per-minute rates.</p>
+          <h3 className="font-semibold flex items-center gap-2"><KeyRound className="w-4 h-4" />API — calls &amp; texts</h3>
+          <p className="text-xs text-[#a1a1aa] mt-1">Calls bill both legs at normal per-minute rates; texts are $1 each or $0.10 in a 500+ campaign — all from your wallet.</p>
         </div>
         <a href={cp('/api-docs')} target="_blank" rel="noreferrer" className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="api-docs-link"><BookOpen className="w-4 h-4" />API docs</a>
       </div>
       {!a.on ? <Locked a={a} onBuy={buy} busy={busy} /> : (
         <>
           <div className="text-sm" data-testid="api-status">
-            {a.via === 'enterprise' ? <span className="civr-pill civr-pill-on">Included with Enterprise</span> : (
+            {a.via === 'enterprise' ? <span className="civr-pill civr-pill-on">Included with Enterprise</span> : a.via === 'grant' ? (
+              <span className="flex flex-wrap items-center gap-2"><span className="civr-pill civr-pill-on" data-testid="api-grant-pill">Complimentary access</span><span className="text-xs text-[#a1a1aa]">Ends {when(a.addon?.until)}</span></span>
+            ) : (
               <span className="flex flex-wrap items-center gap-2"><span className="civr-pill civr-pill-on">Add-on · ${a.price}/month</span>
                 <span className="text-xs text-[#a1a1aa]">{a.addon?.autoRenew ? `Renews ${when(a.addon.until)}` : `Ends ${when(a.addon?.until)}`}</span>
                 <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => renew(!a.addon?.autoRenew)} data-testid="api-renew-toggle">{a.addon?.autoRenew ? 'Stop renewal' : 'Keep renewing'}</button></span>

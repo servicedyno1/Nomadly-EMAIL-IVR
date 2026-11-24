@@ -274,3 +274,7 @@
 ## 2026-11-17 note
 - Alice (civr.alice@example.com / AliceTest#2026) now has a legal profile in the preview DB, so campaign validateOnly / outgoing-call routes no longer return 428. Emily harness: `node scripts/emily_e2e.js all 1` (restores +13346970100 menu).
 - Production live keypad probe: copy scripts/ivr_live_probe.js to the app droplet, run from the app-main release dir (see file header). Uses owner's +18667977419 (restores its menu) and caller ID +18648308599.
+
+## PRODUCTION CloudIVR API test account (2026-11-24)
+- `api-test@cloudivr.net` (chatId 5999999999999102, `qa: true`) — complimentary API access (`apiAccess.grant: true`, 30 days), $25 admin test credit.
+- Password + API key were sent ONLY to the admin Telegram chat (not stored here). Re-run `node scripts/setup_api_test_account.js` from the live app-main release to rotate both (revokes old keys; credit is not re-added).

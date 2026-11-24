@@ -3,135 +3,69 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { cp } from '../paths';
 import { Wordmark } from '../Brand';
+import { Sidebar } from './apidocs/Sidebar';
+import { Endpoint } from './apidocs/Endpoint';
+import { Overview, Auth, Pricing, Webhooks, Errors } from './apidocs/Sections';
+import * as D from './apidocs/content';
 
-const BASE = `${window.location.origin}/cloudivr-web`;
+const G = ({ id, children }) => <h2 id={id} className="pt-12 text-xs font-semibold uppercase tracking-wider text-slate-400">{children}</h2>;
+const C = ({ children }) => <code className="bg-slate-100 text-slate-900 px-1.5 py-0.5 rounded text-[0.85em]">{children}</code>;
 
-const START = `curl -X POST ${BASE}/v1/calls \\
-  -H "Authorization: Bearer civr_live_YOUR_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "to": "+14155550123",
-    "connectTo": "+18005550100",
-    "from": "+14155550100",
-    "machine": "hangup",
-    "metadata": { "leadId": "L-1042" }
-  }'`;
+const Calls = () => (
+  <>
+    <G>Calls</G>
+    <Endpoint id="start-call" method="POST" path="/v1/calls" title="Start a call" params={D.CALL_PARAMS} body={D.CALL_BODY} response={D.CALL_REPLY} status={201}>
+      <p>Rings the lead from your CloudIVR number. The moment they answer — no key to press — they are connected to <C>connectTo</C>.</p>
+      <p>Each step (ringing, answered, connected, completed) is posted to your <a href="#webhooks" className="text-emerald-700 underline">webhook</a>.</p>
+    </Endpoint>
+    <Endpoint id="get-call" method="GET" path="/v1/calls/{id}" reqPath="/v1/calls/call_3f9a1c" title="Get a call" response={D.CALL_DONE}>
+      <p>The latest state of a call you started. <C>outcome</C> is set once it ends: connected, voicemail, no_answer, busy, agent_no_answer or hung_up.</p>
+    </Endpoint>
+    <Endpoint id="list-numbers" method="GET" path="/v1/numbers" title="List your numbers" response={D.NUMBERS_REPLY}>
+      <p>Your active CloudIVR numbers — any of them can be used as <C>from</C>.</p>
+    </Endpoint>
+  </>
+);
 
-const REPLY = `{
-  "id": "call_3f9a…",
-  "status": "queued",
-  "to": "+14155550123",
-  "connectTo": "+18005550100",
-  "from": "+14155550100",
-  "machine": "hangup",
-  "metadata": { "leadId": "L-1042" }
-}`;
-
-const EVENT = `POST https://your-crm.example.com/cloudivr
-X-CloudIVR-Event: api_call.completed
-X-CloudIVR-Signature: <hex HMAC-SHA256 of the raw body with your signing secret>
-
-{
-  "id": "evt_…",
-  "type": "api_call.completed",
-  "created": "2026-11-20T14:12:09.000Z",
-  "data": {
-    "id": "call_3f9a…", "status": "completed", "outcome": "connected",
-    "to": "+14155550123", "connectTo": "+18005550100",
-    "answeredBy": "human", "duration": 184, "connectedDuration": 181,
-    "metadata": { "leadId": "L-1042" }
-  }
-}`;
-
-const SMS_ONE = `curl -X POST ${BASE}/v1/sms \\
-  -H "Authorization: Bearer civr_live_…" \\
-  -H "Content-Type: application/json" \\
-  -d '{"to":"+14155550123","text":"Your appointment is tomorrow at 10am."}'`;
-const SMS_BULK = `curl -X POST ${BASE}/v1/sms/campaigns \\
-  -H "Authorization: Bearer civr_live_…" \\
-  -H "Content-Type: application/json" \\
-  -d '{"numbers":["+14155550123","+14165550199", "…500+"],
-       "text":"Hi! Your order is ready for pickup today.",
-       "consent":true, "sendAt":"now"}'`;
-const SMS_BULK_REPLY = `{
-  "id": "cp_…", "booking": "bk_…", "status": "scheduled",
-  "numbers": 520, "sendable": 512, "skipped": 8, "texts": 520,
-  "price": 52, "startsAt": "2026-12-01T15:00:00.000Z"
-}`;
-const FIELDS = [
-  ['to', 'required', 'The lead’s number with country code.'],
-  ['connectTo', 'required', 'Where the call goes the moment the lead answers — e.g. your agents’ toll-free number.'],
-  ['from', 'optional', 'One of your CloudIVR numbers to call from. Default: the one set in Settings → API.'],
-  ['showAs', 'optional', 'A caller ID you verified in CloudIVR, shown instead of the from number.'],
-  ['machine', 'optional', '"hangup" (default): when voicemail answers, end the call and report it. "connect": connect every answered call.'],
-  ['metadata', 'optional', 'Any JSON object (under 2,000 characters), sent back in every update — e.g. your lead id.'],
-];
-
-const STEPS = [
-  ['api_call.ringing', 'The lead’s phone is ringing.'],
-  ['api_call.answered', 'The lead answered (answeredBy: human or machine).'],
-  ['api_call.connected', 'Your agent line picked up and the two are talking.'],
-  ['api_call.completed', 'The call ended. outcome: connected, voicemail, no_answer, busy, agent_no_answer or hung_up.'],
-];
-
-const ERRORS = [
-  ['401 invalid_api_key', 'Missing or wrong key.'],
-  ['403 api_not_enabled', 'The account has no API access (Enterprise, or Business + API add-on).'],
-  ['400 invalid_to / invalid_connect_to / invalid_from', 'A number is missing, not in +country format, or not yours.'],
-  ['402 insufficient_balance', 'The wallet can’t cover a minute of the call.'],
-  ['409 do_not_call', 'The lead is on your do-not-call list.'],
-  ['424 call_failed', 'The call could not be placed (message says why).'],
-];
-
-const Code = ({ children, testid }) => <pre className="bg-slate-900 text-slate-100 text-xs sm:text-sm rounded-xl p-4 overflow-x-auto" data-testid={testid}><code>{children}</code></pre>;
-const H2 = ({ children }) => <h2 className="text-base md:text-lg font-semibold text-slate-900 mt-10 mb-3">{children}</h2>;
+const Texts = () => (
+  <>
+    <G>Texts · USA &amp; Canada</G>
+    <Endpoint id="send-text" method="POST" path="/v1/sms" title="Send a text" params={D.SMS_PARAMS} body={D.SMS_BODY} response={D.SMS_REPLY} status={201}>
+      <p>Sends one text from a real mobile number. <b>$1 per text</b>; your wallet needs at least $20. If it can’t be sent you get the $1 back straight away.</p>
+    </Endpoint>
+    <Endpoint id="start-campaign" method="POST" path="/v1/sms/campaigns" title="Start a campaign" params={D.CAMPAIGN_PARAMS} body={D.CAMPAIGN_BODY} response={D.CAMPAIGN_REPLY} status={201}>
+      <p>Numbers and text in one request — the campaign is booked and paid in one go. <b>$0.10 a text, 500 minimum ($50)</b>, 10% off when <C>sendAt</C> is 24 h+ ahead.</p>
+      <p>Refused requests are never charged (low balance, no free slot, scam text, under 500).</p>
+    </Endpoint>
+    <Endpoint id="get-campaign" method="GET" path="/v1/sms/campaigns/{id}" reqPath="/v1/sms/campaigns/cp_8d21" title="Campaign progress" response={D.CAMPAIGN_STATUS}>
+      <p>How far a campaign has got: <C>status</C> (scheduled, running, completed or cancelled), texts sent and failed so far, and replies received.</p>
+    </Endpoint>
+  </>
+);
 
 export default function ApiDocs() {
   return (
     <div className="min-h-screen bg-white text-slate-700" data-testid="api-docs-page">
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-slate-200/80">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
-          <Link to={cp()} className="font-display text-2xl font-extrabold mr-auto flex items-center gap-2" data-testid="api-docs-logo-link"><Wordmark accent="#059669" iconClass="w-7 h-7" /></Link>
-          <Link to={cp('/app/settings#api')} className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 py-3" data-testid="api-docs-settings-link"><ArrowLeft className="w-4 h-4" />Settings → API</Link>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
+          <Link to={cp()} className="font-display text-2xl font-extrabold flex items-center gap-2" data-testid="api-docs-logo-link"><Wordmark accent="#059669" iconClass="w-7 h-7" /></Link>
+          <span className="hidden sm:inline text-sm text-slate-400 mr-auto">API docs</span>
+          <Link to={cp('/app/settings#api')} className="ml-auto sm:ml-0 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 py-3" data-testid="api-docs-settings-link"><ArrowLeft className="w-4 h-4" />Get a key</Link>
         </div>
       </header>
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">CRM calling API</h1>
-        <p className="mt-4 text-base">Your CRM starts a call to a lead with one request. The moment the lead answers — no key to press — the call is connected to your agent line, showing your CloudIVR number or a verified caller ID. Each step is sent to your webhook.</p>
-        <p className="mt-3 text-sm text-slate-500">Included with the Enterprise plan; on Business it’s a $99/month add-on. Both call legs (lead + agent line) are billed from your wallet at the normal per-minute rates. Only call people who agreed to hear from you.</p>
-
-        <H2>1. Get a key</H2>
-        <p className="text-sm">In CloudIVR: Settings → API → New key. It’s shown once — store it in your CRM. Send it on every request as <code className="bg-slate-100 px-1 rounded">Authorization: Bearer civr_live_…</code>.</p>
-
-        <H2>2. Start a call</H2>
-        <Code testid="api-docs-start">{START}</Code>
-        <div className="mt-4 overflow-x-auto"><table className="w-full text-sm" data-testid="api-docs-fields"><tbody>
-          {FIELDS.map(([k, req, d]) => <tr key={k} className="border-t border-slate-200"><td className="py-2 pr-3 font-mono text-slate-900">{k}</td><td className="py-2 pr-3 text-xs text-slate-500">{req}</td><td className="py-2">{d}</td></tr>)}
-        </tbody></table></div>
-        <p className="mt-4 text-sm">Reply <code className="bg-slate-100 px-1 rounded">201</code>:</p>
-        <Code testid="api-docs-reply">{REPLY}</Code>
-        <p className="mt-3 text-sm">Check a call any time: <code className="bg-slate-100 px-1 rounded">GET {BASE}/v1/calls/&#123;id&#125;</code>. Your numbers: <code className="bg-slate-100 px-1 rounded">GET {BASE}/v1/numbers</code>.</p>
-
-        <H2>3. Receive updates</H2>
-        <p className="text-sm">Add your https URL in Settings → Notifications &amp; integrations → Webhooks and switch it on. Updates for API calls are always sent there:</p>
-        <ul className="mt-3 space-y-1.5 text-sm" data-testid="api-docs-events">{STEPS.map(([k, d]) => <li key={k}><span className="font-mono text-slate-900">{k}</span> — {d}</li>)}</ul>
-        <div className="mt-4"><Code testid="api-docs-event">{EVENT}</Code></div>
-        <p className="mt-3 text-sm">Check the signature: HMAC-SHA256 of the raw body with your signing secret, hex — compare it with <code className="bg-slate-100 px-1 rounded">X-CloudIVR-Signature</code>.</p>
-
-        <H2>4. Send texts (USA &amp; Canada)</H2>
-        <p className="text-sm" data-testid="api-docs-sms-prices">Texts go out from real mobile numbers and are paid from your wallet: a <b>single text is $1</b> (keep at least $20 in the wallet); a <b>campaign is $0.10 a text with a 500-text minimum ($50)</b>, 10% less when <code className="bg-slate-100 px-1 rounded">sendAt</code> is 24 h+ ahead. Only text people who agreed to hear from you — scam, prize and phishing texts are refused.</p>
-        <p className="mt-3 text-sm font-medium">One text</p>
-        <Code testid="api-docs-sms-one">{SMS_ONE}</Code>
-        <p className="mt-4 text-sm font-medium">A campaign (numbers + text in one request — booked and paid straight away)</p>
-        <Code testid="api-docs-sms-bulk">{SMS_BULK}</Code>
-        <p className="mt-3 text-sm"><code className="bg-slate-100 px-1 rounded">sendAt</code>: "now" or a whole UTC hour such as 2026-12-01T15:00:00Z. Optional: <code className="bg-slate-100 px-1 rounded">optOut</code> (default true adds “Reply STOP to opt out”), <code className="bg-slate-100 px-1 rounded">replies</code> (true = replies in your CloudIVR inbox, +$20), <code className="bg-slate-100 px-1 rounded">name</code>. Reply <code className="bg-slate-100 px-1 rounded">201</code>:</p>
-        <Code testid="api-docs-sms-reply">{SMS_BULK_REPLY}</Code>
-        <p className="mt-3 text-sm">Progress: <code className="bg-slate-100 px-1 rounded">GET {BASE}/v1/sms/campaigns/&#123;id&#125;</code> → status, sent, failed, replies. You are never charged when a request is refused (402 low_balance, 409 no slot, 400 scam / too_few).</p>
-
-        <H2>Errors</H2>
-        <ul className="space-y-1.5 text-sm" data-testid="api-docs-errors">{ERRORS.map(([k, d]) => <li key={k}><span className="font-mono text-slate-900">{k}</span> — {d}</li>)}</ul>
-        <p className="mt-10 text-xs text-slate-500">There is no limit on how many calls run at once; each needs enough in the wallet for its first minute.</p>
-      </main>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:flex lg:gap-10 pt-6 lg:pt-12 pb-24">
+        <Sidebar />
+        <main className="min-w-0 flex-1">
+          <Overview />
+          <Auth />
+          <Pricing />
+          <Calls />
+          <Texts />
+          <G>Reference</G>
+          <Webhooks />
+          <Errors />
+        </main>
+      </div>
     </div>
   );
 }

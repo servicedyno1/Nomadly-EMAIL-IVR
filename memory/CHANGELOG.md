@@ -3961,3 +3961,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Test js/tests/test_web_bulksms.js 25/25 (throwaway DB, no real sends).
 - 2026-11-24 later: CRM API SMS — POST /v1/sms (single, always $1, $20 wallet min, refunded on failure), POST /v1/sms/campaigns (numbers+text+consent+sendAt now|ISO hour; book+pay from wallet; never charged on refusal), GET /v1/sms/campaigns/:id. Same keyAuth (Enterprise / Business+add-on). bulksms.js exports instance(). Docs section "4. Send texts" in pages/ApiDocs.js. Test 32/32.
 - Launch: dashboard BulkSmsBanner (dismissible, localStorage civr-bulksms-banner-off, "first test free"); landing top ribbon (landing-new-ribbon), Bento tile feature-tile-bulksms (New), pricing line pricing-bulksms-line.
+
+## 2026-11-24 — API test account, launch broadcast, API docs redesign
+- `crm-api.access()`: owner grant (`apiAccess.grant: true` + `until`) → API on regardless of plan (`via: 'grant'`, "Complimentary access" pill in Settings → API).
+- Prod test account `api-test@cloudivr.net` (5999999999999102) via `scripts/setup_api_test_account.js`; creds/key to admin Telegram chat only. Key verified on live API (numbers + validation errors); no real SMS sent by agent.
+- Fixed `utils.js` admin broadcast: `opts` was undefined inside `_executeBroadcast` (every send would throw); reply_markup now passed + persisted for crash recovery.
+- `scripts/numbers_launch_announce.js` (idempotent, `announcements` id `numbers-40-countries-2026-11`, 5 languages, inline "🌍 Get my number" → `t.me/NomadlyBot?start=open_numbers`). SENT 2026-11-24: 1265 delivered, 307 failed (dead chats), 92 skipped.
+- API docs rebuilt (`pages/ApiDocs.js` + `pages/apidocs/*`): sidebar scroll-spy, mobile chip nav, endpoint cards with cURL/Node/Python tabs + copy, pricing table, webhook signature verify snippets, full error table. Campaign status `texts` now returns volume.
