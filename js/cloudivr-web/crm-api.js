@@ -125,6 +125,27 @@ function publicRoutes(r, { h }) {
     if (!c) return bad(res, 404, 'not_found', 'No call with that id on this account.')
     res.json(pubCall(c))
   }))
+  // SMS (USA/Canada, shared mobile-number pool) — same prices as the bot: single text $1 ($20 wallet minimum),
+  // campaign $0.10 a text with 500 minimum ($50). Paid from the CloudIVR wallet.
+  const sms = () => require('./bulksms').instance()
+  r.post('/v1/sms', keyAuth, h(async (req, res) => {
+    if (!sms()) return bad(res, 503, 'sms_unavailable', 'SMS is not available right now.')
+    const b = req.body || {}, to = norm(b.to)
+    if (!/^\+1\d{10}$/.test(to)) return bad(res, 400, 'invalid_to', '"to" must be a USA / Canada mobile in E.164 (+1…).')
+    if (!String(b.text || '').trim()) return bad(res, 400, 'invalid_text', '"text" is required.')
+    const x = await sms().apiSend(req.apiChatId, to, String(b.text), b.optOut)
+    if (x.error) return bad(res, x.error === 'low_balance' ? 402 : 400, x.error, x.message)
+    res.status(201).json({ status: 'sent', to, segments: x.segments, charged: x.charged, balance: x.balance })
+  }))
+  r.post('/v1/sms/campaigns', keyAuth, h(async (req, res) => {
+    if (!sms()) return bad(res, 503, 'sms_unavailable', 'SMS is not available right now.')
+    const out = await sms().apiCampaign(req.apiChatId, req.body || {}); res.status(out.status).json(out.body)
+  }))
+  r.get('/v1/sms/campaigns/:id', keyAuth, h(async (req, res) => {
+    const c = sms() && await sms().apiCampaignStatus(req.apiChatId, String(req.params.id))
+    if (!c) return bad(res, 404, 'not_found', 'No campaign with that id on this account.')
+    res.json(c)
+  }))
   r.get('/v1/numbers', keyAuth, h(async (req, res) => {
     const nums = ((await db.collection('phoneNumbersOf').findOne({ _id: req.apiChatId }))?.val?.numbers || []).filter(n => n.status === 'active').map(n => n.phoneNumber)
     res.json({ numbers: nums })

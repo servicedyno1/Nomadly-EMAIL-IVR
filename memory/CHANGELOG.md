@@ -3959,3 +3959,5 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Extra web-only scam screen (prize/giveaway, Interac/e-Transfer, CRA/IRS refunds, locked accounts, parcel fees) — core screenContent let the Nov prize scam through; bots NOT changed.
 - Frontend pages/BulkSms.js + pages/bulksms/{ReviewCards,Wizard,StepNumbers,StepMessage,StepTest,StepWhen,CampaignList,SingleText,Inbox}.js; route /app/bulk-sms; nav "Bulk SMS" under Calls & campaigns.
 - Test js/tests/test_web_bulksms.js 25/25 (throwaway DB, no real sends).
+- 2026-11-24 later: CRM API SMS — POST /v1/sms (single, always $1, $20 wallet min, refunded on failure), POST /v1/sms/campaigns (numbers+text+consent+sendAt now|ISO hour; book+pay from wallet; never charged on refusal), GET /v1/sms/campaigns/:id. Same keyAuth (Enterprise / Business+add-on). bulksms.js exports instance(). Docs section "4. Send texts" in pages/ApiDocs.js. Test 32/32.
+- Launch: dashboard BulkSmsBanner (dismissible, localStorage civr-bulksms-banner-off, "first test free"); landing top ribbon (landing-new-ribbon), Bento tile feature-tile-bulksms (New), pricing line pricing-bulksms-line.

@@ -861,3 +861,4 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Same engine/pool/prices/rules as the bots (brand CloudIVR). Wizard numbers→message→test→when+pay (wallet), campaigns with live progress, single texts (free intro → review → $1, one-guard), replies inbox, saved lists, review cards.
 - Web-only scam-text screen added (prize, Interac, CRA/IRS, locked account, parcel fee). Bots still use only the core screen (let the Nov prize scam through) — offer to apply to bots.
 - Not yet: a real paid campaign end-to-end on production (no test account / pool credit low $8.52).
+- 2026-11-24: Bulk SMS launch placements live (dashboard banner, landing ribbon in nav header, product tile, pricing line) + CRM API SMS endpoints (/v1/sms, /v1/sms/campaigns, GET status). API SMS not yet exercised with a real key (no test account with API access).

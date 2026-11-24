@@ -43,6 +43,21 @@ X-CloudIVR-Signature: <hex HMAC-SHA256 of the raw body with your signing secret>
   }
 }`;
 
+const SMS_ONE = `curl -X POST ${BASE}/v1/sms \\
+  -H "Authorization: Bearer civr_live_…" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to":"+14155550123","text":"Your appointment is tomorrow at 10am."}'`;
+const SMS_BULK = `curl -X POST ${BASE}/v1/sms/campaigns \\
+  -H "Authorization: Bearer civr_live_…" \\
+  -H "Content-Type: application/json" \\
+  -d '{"numbers":["+14155550123","+14165550199", "…500+"],
+       "text":"Hi! Your order is ready for pickup today.",
+       "consent":true, "sendAt":"now"}'`;
+const SMS_BULK_REPLY = `{
+  "id": "cp_…", "booking": "bk_…", "status": "scheduled",
+  "numbers": 520, "sendable": 512, "skipped": 8, "texts": 520,
+  "price": 52, "startsAt": "2026-12-01T15:00:00.000Z"
+}`;
 const FIELDS = [
   ['to', 'required', 'The lead’s number with country code.'],
   ['connectTo', 'required', 'Where the call goes the moment the lead answers — e.g. your agents’ toll-free number.'],
@@ -102,6 +117,16 @@ export default function ApiDocs() {
         <ul className="mt-3 space-y-1.5 text-sm" data-testid="api-docs-events">{STEPS.map(([k, d]) => <li key={k}><span className="font-mono text-slate-900">{k}</span> — {d}</li>)}</ul>
         <div className="mt-4"><Code testid="api-docs-event">{EVENT}</Code></div>
         <p className="mt-3 text-sm">Check the signature: HMAC-SHA256 of the raw body with your signing secret, hex — compare it with <code className="bg-slate-100 px-1 rounded">X-CloudIVR-Signature</code>.</p>
+
+        <H2>4. Send texts (USA &amp; Canada)</H2>
+        <p className="text-sm" data-testid="api-docs-sms-prices">Texts go out from real mobile numbers and are paid from your wallet: a <b>single text is $1</b> (keep at least $20 in the wallet); a <b>campaign is $0.10 a text with a 500-text minimum ($50)</b>, 10% less when <code className="bg-slate-100 px-1 rounded">sendAt</code> is 24 h+ ahead. Only text people who agreed to hear from you — scam, prize and phishing texts are refused.</p>
+        <p className="mt-3 text-sm font-medium">One text</p>
+        <Code testid="api-docs-sms-one">{SMS_ONE}</Code>
+        <p className="mt-4 text-sm font-medium">A campaign (numbers + text in one request — booked and paid straight away)</p>
+        <Code testid="api-docs-sms-bulk">{SMS_BULK}</Code>
+        <p className="mt-3 text-sm"><code className="bg-slate-100 px-1 rounded">sendAt</code>: "now" or a whole UTC hour such as 2026-12-01T15:00:00Z. Optional: <code className="bg-slate-100 px-1 rounded">optOut</code> (default true adds “Reply STOP to opt out”), <code className="bg-slate-100 px-1 rounded">replies</code> (true = replies in your CloudIVR inbox, +$20), <code className="bg-slate-100 px-1 rounded">name</code>. Reply <code className="bg-slate-100 px-1 rounded">201</code>:</p>
+        <Code testid="api-docs-sms-reply">{SMS_BULK_REPLY}</Code>
+        <p className="mt-3 text-sm">Progress: <code className="bg-slate-100 px-1 rounded">GET {BASE}/v1/sms/campaigns/&#123;id&#125;</code> → status, sent, failed, replies. You are never charged when a request is refused (402 low_balance, 409 no slot, 400 scam / too_few).</p>
 
         <H2>Errors</H2>
         <ul className="space-y-1.5 text-sm" data-testid="api-docs-errors">{ERRORS.map(([k, d]) => <li key={k}><span className="font-mono text-slate-900">{k}</span> — {d}</li>)}</ul>

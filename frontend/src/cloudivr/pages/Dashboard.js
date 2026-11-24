@@ -1,3 +1,4 @@
+import { BulkSmsBanner } from './dashboard/BulkSmsBanner';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Wallet, Hash, Clock, MessageSquare, ShieldCheck, ArrowRight, PlusCircle, Radio, ChevronDown } from 'lucide-react';
@@ -83,6 +84,7 @@ export default function Dashboard() {
         {textingOnly && <Link to={cp('/app/texting?add=1')} className="civr-btn civr-btn-primary" data-testid="dashboard-add-texting-button">Add a number</Link>}
       </PageHeader>
       <CallingPausedBanner />
+      {!textingOnly && <BulkSmsBanner />}
       {s?.pendingVerification > 0 && (
         <Link to={cp('/app/verification')} className="civr-card civr-trace p-6 mb-6 flex items-center gap-4" data-testid="dashboard-verification-alert">
           <ShieldCheck className="w-6 h-6 text-[#fbbf24]" />

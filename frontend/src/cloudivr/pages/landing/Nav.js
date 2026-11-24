@@ -14,7 +14,7 @@ const TryLink = ({ className, testid, onDone, children }) => <a href={`${cp()}#t
 function MobileMenu({ onClose, account }) {
   useEffect(() => { const o = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = o; }; }, []);
   return (
-    <div className="lg:hidden fixed inset-x-0 top-16 bottom-0 z-[45] bg-white text-slate-900 overflow-y-auto civr-l-swap" data-testid="landing-mobile-menu">
+    <div className="lg:hidden fixed inset-x-0 top-24 bottom-0 z-[45] bg-white text-slate-900 overflow-y-auto civr-l-swap" data-testid="landing-mobile-menu">
       <div className="px-4 sm:px-6 py-6 flex flex-col gap-8">
         <div className="flex flex-col border-b border-slate-200 pb-4">
           {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={`${cp()}${href}`} onClick={(e) => { goTo(href, e); onClose(); }} className="px-3 py-3 min-h-[48px] text-base font-medium text-slate-700" data-testid={`mobile-menu-link-${id}`}>{label}</a>)}
@@ -44,6 +44,7 @@ export function LandingNav() {
   return (
     <>
     <header className={`civr-l-navbar fixed top-0 inset-x-0 z-50 text-slate-900 ${scrolled > 8 ? 'scrolled' : ''}`} data-testid="civr-nav">
+      <a href={cp('/app/bulk-sms')} className="block text-center text-xs sm:text-sm h-8 leading-8 px-4 bg-emerald-500 text-slate-950 font-medium hover:bg-emerald-400 transition-colors truncate" data-testid="landing-new-ribbon"><b>New:</b> Bulk SMS to USA &amp; Canada — $0.10 a text, first test free →</a>
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-1 min-[420px]:gap-2 sm:gap-4">
         <Link to={cp()} className="font-display text-2xl font-extrabold tracking-tight min-h-[44px] flex items-center gap-2 mr-auto lg:mr-6" data-testid="civr-nav-logo"><Wordmark accent="#059669" iconClass="w-7 h-7 sm:w-8 sm:h-8" textClass="max-[419px]:sr-only" /></Link>
         <nav className="hidden lg:flex items-center gap-1 mr-auto" aria-label="Main">

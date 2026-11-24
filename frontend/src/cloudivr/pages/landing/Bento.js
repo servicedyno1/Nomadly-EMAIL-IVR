@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Bot, Workflow, Megaphone, MessageSquareText, Printer, Smartphone } from 'lucide-react';
+import { ArrowRight, Bot, Workflow, Megaphone, MessageSquareText, MessagesSquare, Printer, Smartphone } from 'lucide-react';
 import { Reveal, Wave, useInView, useStep } from './kit';
 import { goTo } from './menu';
 import { cp } from '../../paths';
@@ -60,6 +60,10 @@ export function Bento({ fax }) {
           <Tile id="fax" span="lg:col-span-2" Icon={Printer} title="Fax online" text={`Send and receive faxes as PDFs. ${fax?.freePages ?? 25} free pages a month.`} delay={240}
             action={<Link to={cp('/pricing#pricing-fax')} className={more} data-testid="feature-tile-fax-link">Fax numbers<ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>}>
             <div className="lx-demo grid place-items-center"><div className="lx-page"><i /><i style={{ width: '60%' }} /><i /><i style={{ width: '45%' }} /><i /><i style={{ width: '70%' }} /></div></div>
+          </Tile>
+          <Tile id="bulksms" span="lg:col-span-6" Icon={MessagesSquare} title={<>Bulk SMS <span className="ml-2 align-middle text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950" data-testid="feature-tile-bulksms-new">New</span></>} text="Text 500 to 20,000 USA & Canada mobiles from real mobile numbers — $0.10 a text. Test it free on your own phone first, then send now or schedule it. Also by API." delay={100}
+            action={<Link to={cp('/app/bulk-sms')} className={more} data-testid="feature-tile-bulksms-link">Send your first campaign<ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>}>
+            <div className="lx-demo grid sm:grid-cols-3 gap-3 text-xs">{[['Numbers', '1,240 mobiles'], ['Test text', 'Arrived ✓'], ['Sending', '68%']].map(([l, v]) => <div key={l}><div className="text-slate-300">{l}</div><div className="font-semibold text-emerald-300 mt-1">{v}</div></div>)}</div>
           </Tile>
           <Reveal delay={120} className="lx-tile lg:col-span-6 sm:!flex-row sm:items-center gap-6" data-testid="feature-tile-esim">
             <div className="lx-qr shrink-0" aria-hidden="true">{QR.map((c, i) => <i key={i} className={c === 'o' ? 'o' : ''} />)}</div>

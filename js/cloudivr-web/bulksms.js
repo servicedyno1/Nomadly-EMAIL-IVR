@@ -37,12 +37,14 @@ function createBulkSms({ db, h, walletOps, log = console.log }) {
   const pub = (cp) => ({ id: cp._id, name: cp.name, status: cp.status, volume: cp.volume, parts: cp.parts, content: cp.content, withLinks: !!cp.withLinks, replies: !!cp.replies, optOut: cp.optOut !== false, createdAt: cp.createdAt, stats: cp.stats || null })
 
   // Single text / reply: free intro texts, then $1 each with a $20 wallet minimum (charged on send, refunded on failure).
-  async function sendSingle(req, to, text, sessionId, optOut) {
-    const cid = cidOf(req), chatId = req.webChatId, bill = await B.singleTextMode(cid).catch(() => ({ paid: false }))
+  // api: true → always the paid rate ($1 a text, $20 wallet minimum — same as the bot after its free intro texts).
+  async function sendSingle(req, to, text, sessionId, optOut, api = false) {
+    const cid = cidOf(req), chatId = req.webChatId, mode = await B.singleTextMode(cid).catch(() => ({ paid: false })), c = await B.cfg()
+    const bill = api ? { paid: true, price: B.SINGLE_TEXT_PRICE ?? 1, minBalance: B.SINGLE_TEXT_MIN_BALANCE ?? 20 } : mode
     let free = null
     if (bill.paid) {
       const bal = await w.balance(chatId).catch(() => 0)
-      if (bal >= bill.minBalance) free = await B.winbackTake(cid).catch(() => null)
+      if (bal >= bill.minBalance && !api) free = await B.winbackTake(cid).catch(() => null)
       if (bal < bill.minBalance || (!free && !(await debit(chatId, bill.price)))) return { error: 'low_balance', message: `Single texts cost $${bill.price} each and need at least $${bill.minBalance} in your wallet (you have $${r2(bal)}). Top up and send again.` }
     }
     const scam = scamOf([String(text || '')]); if (scam) { if (bill.paid) await (free ? B.winbackGive(cid) : credit(chatId, bill.price)).catch(() => {}); return scam }
@@ -215,7 +217,40 @@ function createBulkSms({ db, h, walletOps, log = console.log }) {
       await notify.push(n.chatId, `Bulk SMS — ${text}`, null, n.type === 'inbound' ? { kind: 'sms', meta: { bulksmsSession: n.sessionId || null } } : null).catch(e => log(`[BulkSMS web] notice: ${e.message}`))
     }
   }
-  return { routes, deliver, BRAND }
+  // CRM API: one call = numbers + text → campaign booked (now or a chosen UTC day/hour) and paid from the wallet.
+  async function apiCampaign(chatId, b) {
+    const req = { webChatId: chatId }, cid = cidOf(req), c = await B.cfg()
+    if (b.consent !== true) return { status: 428, body: { error: 'consent_required', message: 'Send "consent": true to confirm every number agreed to get your texts.' } }
+    const raw = Array.isArray(b.numbers) ? b.numbers.join('\n') : String(b.numbers || '')
+    const p = await B.parseContacts(cid, raw, { plusOne: true })
+    if (p.contacts.length < c.minVolume) return { status: 400, body: { error: 'too_few', message: `Found ${p.contacts.length} USA/Canada mobile numbers — a campaign needs at least ${c.minVolume}.` } }
+    const list = p.contacts.slice(0, c.maxVolume), k = await B.checkNumbers(cid, list)
+    if (!k.sendable) return { status: 400, body: { error: 'no_mobile', message: msgOf({ error: 'err_no_mobile' }) } }
+    const optOut = b.optOut !== false, ck = B.checkContent(String(b.text || ''), undefined, optOut)
+    if (ck.error) return { status: 400, body: { error: ck.error, message: msgOf(ck) } }
+    const scam = scamOf(ck.parts); if (scam) { B.adminAlert(`🚫 API Bulk SMS scam text refused — ${cid}: “${ck.parts[0].slice(0, 160)}”`); return { status: 400, body: scam } }
+    const sc = await B.screenContent(cid, ck.parts); if (sc.error) return { status: 400, body: { error: sc.error, message: msgOf(sc) } }
+    const cr = await B.createCampaign(cid, { name: String(b.name || ck.parts[0]).slice(0, 40), content: ck.parts, contacts: list, skip: k.skip, linksUnchecked: !!sc.unchecked, optOut, consent: true })
+    if (cr.error) return { status: 400, body: { error: cr.error, message: msgOf(cr) } }
+    if (b.replies) await B.setReplies(cid, cr.campaign._id, true)
+    const at = b.sendAt && b.sendAt !== 'now' ? new Date(b.sendAt) : null
+    if (at && isNaN(at)) return { status: 400, body: { error: 'send_at', message: 'sendAt must be "now" or an ISO time, e.g. 2026-12-01T15:00:00Z (whole UTC hours).' } }
+    const bk = await B.createBooking(cid, { campaignId: cr.campaign._id, ...(at ? { date: at.toISOString().slice(0, 10), hour: at.getUTCHours() } : { now: true }) })
+    if (bk.error) return { status: 409, body: { error: bk.error, message: msgOf(bk), campaignId: cr.campaign._id } }
+    const x = bk.booking
+    if (!(await debit(chatId, x.price))) { await B.cancelBooking(x._id, { cid }).catch(() => {}); return { status: 402, body: { error: 'low_balance', message: `This campaign costs $${x.price}. Top up your CloudIVR wallet and try again.` } } }
+    const cf = await B.confirmBooking(x._id, { method: 'wallet', amount: x.price })
+    if (cf.error) { await credit(chatId, x.price); return { status: 409, body: { error: cf.error, message: `${msgOf(cf)} You were not charged.` } } }
+    return { status: 201, body: { id: cr.campaign._id, booking: x._id, status: 'scheduled', numbers: list.length, sendable: k.sendable, skipped: k.skip.length, texts: x.volume, price: x.price, startsAt: new Date(`${x.date}T${String(x.hour).padStart(2, '0')}:00:00Z`).toISOString(), estimatedEnd: x.estimatedCompletion } }
+  }
+  async function apiCampaignStatus(chatId, id) {
+    const cp = await campaignOf(cidOf({ webChatId: chatId }), id); if (!cp) return null
+    const b = await B.db().collection('bsBookings').findOne({ campaignId: cp._id }), r = await B.report(cp._id).catch(() => ({}))
+    return { id: cp._id, status: b?.status || cp.status, texts: cp.parts, sent: r.sent || 0, failed: r.failed || 0, replies: r.replies || 0, price: b?.price ?? null }
+  }
+  const apiSend = (chatId, to, text, optOut) => sendSingle({ webChatId: chatId }, to, text, null, optOut, true)
+  return (instance = { routes, deliver, BRAND, apiCampaign, apiCampaignStatus, apiSend })
 }
+let instance = null
 
-module.exports = { createBulkSms, BRAND }
+module.exports = { createBulkSms, BRAND, instance: () => instance }

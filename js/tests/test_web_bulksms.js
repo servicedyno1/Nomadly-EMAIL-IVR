@@ -74,6 +74,22 @@ const ok = (c, m, x = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS' : 
   ok(!!(await db.collection('webNotifications').findOne({ chatId, text: /Bulk SMS/ })) || true, 'notice pushed to the inbox')
   ok(!(await db.collection('bsNotify').findOne({ brand: 'CloudIVR', sent: false })), 'notice marked delivered (sent once)')
 
+  // CRM API (same engine): single = paid rate always, refunded when not sent; campaign = consent + 500 minimum, never charged on failure.
+  const api = require('../cloudivr-web/bulksms').instance()
+  const before = await w.balance(chatId)
+  let y = await api.apiSend(chatId, '+14155550111', 'Your appointment is tomorrow at 10am.')
+  ok(y.error && (await w.balance(chatId)) === before, 'API single text not sent (no lines here) → $1 refunded', y.message)
+  await w.debit(chatId, before - 10)
+  y = await api.apiSend(chatId, '+14155550111', 'Your appointment is tomorrow at 10am.')
+  ok(y.error === 'low_balance' && /\$20/.test(y.message), 'API single text needs $20 in the wallet', y.message)
+  ok((await api.apiCampaign(chatId, { numbers: ['+14155550111'], text: 'hi' })).status === 428, 'API campaign needs consent: true')
+  ok((await api.apiCampaign(chatId, { numbers: ['+14155550111'], text: 'hi', consent: true })).body.error === 'too_few', 'API campaign under 500 refused')
+  ok((await api.apiCampaign(chatId, { numbers: nums.split('\n'), text: 'You have won a cash prize, claim now', consent: true })).body.error === 'scam', 'API campaign scam text refused')
+  const bal2 = await w.balance(chatId)
+  y = await api.apiCampaign(chatId, { numbers: nums.split('\n'), text: 'Hi, your order is ready for pickup today.', consent: true })
+  ok([201, 402, 409].includes(y.status) && (y.status === 201 || (await w.balance(chatId)) === bal2), `API campaign → ${y.status} ${y.body.error || ''} (never charged unless booked)`, y.body.message || `$${y.body.price}`)
+  if (y.body.campaignId || y.body.id) ok(!!(await api.apiCampaignStatus(chatId, y.body.campaignId || y.body.id)), 'API campaign status readable')
+
   srv.close(); await db.dropDatabase(); await cl.close()
   console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)
 })().catch(e => { console.error(e); process.exit(1) })
