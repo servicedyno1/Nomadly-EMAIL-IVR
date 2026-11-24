@@ -1,207 +1,251 @@
 {
-  "project_name": "CloudIVR Signed-In UX Refresh 2026",
-  "version": "2026.2.0",
-  "archetype": "The Performance Pro & Tactical Modern Minimalist (Audio Telephony SaaS)",
-  "context_type": "DASHBOARDS_AND_APP_SUITE",
-  "theme_strategy": {
-    "default_theme": "dark",
-    "supported_themes": ["dark", "light"],
-    "implementation_notes": "Dark mode is the primary anchor default as requested. Light mode remains fully supported via html[data-civr-theme='light']. Switching operates via localStorage civr.theme and updates document.documentElement.dataset.civrTheme."
-  },
-  "typography": {
-    "font_family_primary": "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    "font_family_headings": "'Barlow Condensed', 'DM Sans', sans-serif",
-    "font_family_mono": "'JetBrains Mono', SFMono-Regular, Menlo, monospace",
-    "hierarchy": {
-      "h1_hero_page": "font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight",
-      "h2_section": "font-display text-xl sm:text-2xl font-bold tracking-tight leading-snug",
-      "h3_subsection": "text-lg sm:text-xl font-semibold tracking-tight",
-      "h4_card_title": "text-base sm:text-lg font-semibold",
-      "body_base": "text-sm sm:text-base leading-relaxed text-[var(--c-text)]",
-      "body_muted": "text-xs sm:text-sm text-[var(--c-muted)] leading-normal",
-      "overlines_labels": "text-xs font-semibold uppercase tracking-[0.08em] text-[var(--c-muted)]",
-      "telephony_numbers": "font-mono text-base sm:text-lg tracking-tight font-medium"
+  "target_page": "CloudIVR Web App - Bulk SMS (/app/frontend/src/cloudivr/pages/BulkSms.js)",
+  "app_type": "saas_app",
+  "design_system": {
+    "theme": "dark_primary_civr",
+    "css_classes": {
+      "card": "civr-card",
+      "button": "civr-btn",
+      "button_primary": "civr-btn civr-btn-primary",
+      "button_ghost": "civr-btn civr-btn-ghost",
+      "button_sm": "civr-btn-sm",
+      "input": "civr-input",
+      "pill": "civr-pill",
+      "pill_ok": "civr-pill civr-pill-ok",
+      "pill_warn": "civr-pill civr-pill-warn",
+      "pill_bad": "civr-pill civr-pill-bad",
+      "pill_on": "civr-pill civr-pill-on",
+      "label": "civr-label",
+      "rise_animation": "civr-rise",
+      "tabstrip": "civr-tabstrip"
     },
-    "rules": [
-      "Headings use Barlow Condensed or DM Sans with bold weights, tight letter spacing, and never default to unstyled sans.",
-      "Telephony numbers, currencies, and timestamps strictly utilize JetBrains Mono with tabular numbers.",
-      "No text size smaller than 12px anywhere in the app to maintain WCAG legibility.",
-      "Heading to subtitle jump must never exceed 2 Tailwind steps."
+    "tokens": {
+      "--c-bg": "#0a0a0a",
+      "--c-card": "#141414",
+      "--c-card-hover": "#1a1a1a",
+      "--c-border": "#262626",
+      "--c-border-hover": "#3a3a3a",
+      "--c-text": "#f3f4f6",
+      "--c-text-2": "#c4c4cc",
+      "--c-muted": "#a1a1aa",
+      "--c-accent": "#818cf8",
+      "--c-accent-strong": "#6366f1",
+      "--c-emerald": "#34d399",
+      "--c-amber": "#fbbf24",
+      "--c-rose": "#fb7185"
+    },
+    "fonts": {
+      "display": "'Barlow Condensed', sans-serif",
+      "body": "'DM Sans', sans-serif",
+      "mono": "'JetBrains Mono', monospace"
+    },
+    "shared_components": [
+      "PageHeader",
+      "Spinner",
+      "ErrorNote",
+      "Empty",
+      "WalletPay",
+      "DateTimePicker",
+      "Toggle",
+      "ShortNote"
     ]
   },
-  "colors": {
-    "tokens_dark_default": {
-      "--c-bg": "#0c0e12",
-      "--c-surface-1": "#13171f",
-      "--c-surface-2": "#1a202c",
-      "--c-surface-subtle": "#10131a",
-      "--c-card": "#13171f",
-      "--c-card-hover": "#171c26",
-      "--c-border": "rgba(255, 255, 255, 0.08)",
-      "--c-border-hover": "rgba(255, 255, 255, 0.16)",
-      "--c-hairline": "rgba(255, 255, 255, 0.05)",
-      "--c-text": "#f3f5f8",
-      "--c-text-2": "#c2cbdb",
-      "--c-muted": "#8490a5",
-      "--c-accent": "#3b82f6",
-      "--c-accent-hover": "#60a5fa",
-      "--c-accent-strong": "#2563eb",
-      "--c-accent-soft": "rgba(59, 130, 246, 0.12)",
-      "--c-ring": "rgba(59, 130, 246, 0.35)",
-      "--c-success": "#10b981",
-      "--c-success-soft": "rgba(16, 185, 129, 0.14)",
-      "--c-warning": "#f59e0b",
-      "--c-warning-soft": "rgba(245, 158, 11, 0.14)",
-      "--c-danger": "#f87171",
-      "--c-danger-soft": "rgba(239, 68, 68, 0.14)",
-      "--shadow-card": "none",
-      "--shadow-card-hover": "0 8px 24px -12px rgba(0, 0, 0, 0.65)",
-      "--radius-card": "14px",
-      "--radius-ctl": "10px",
-      "--radius-full": "9999px"
-    },
-    "tokens_light": {
-      "--c-bg": "#f8fafc",
-      "--c-surface-1": "#ffffff",
-      "--c-surface-2": "#f1f5f9",
-      "--c-surface-subtle": "#f8fafc",
-      "--c-card": "#ffffff",
-      "--c-card-hover": "#f8fafc",
-      "--c-border": "#e2e8f0",
-      "--c-border-hover": "#cbd5e1",
-      "--c-hairline": "#edf2f7",
-      "--c-text": "#0f172a",
-      "--c-text-2": "#334155",
-      "--c-muted": "#64748b",
-      "--c-accent": "#2563eb",
-      "--c-accent-hover": "#1d4ed8",
-      "--c-accent-strong": "#1e40af",
-      "--c-accent-soft": "rgba(37, 99, 235, 0.08)",
-      "--c-ring": "rgba(37, 99, 235, 0.25)",
-      "--c-success": "#059669",
-      "--c-success-soft": "#ecfdf5",
-      "--c-warning": "#d97706",
-      "--c-warning-soft": "#fffbeb",
-      "--c-danger": "#dc2626",
-      "--c-danger-soft": "#fef2f2",
-      "--shadow-card": "0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.02)",
-      "--shadow-card-hover": "0 8px 24px -12px rgba(15, 23, 42, 0.15)",
-      "--radius-card": "14px",
-      "--radius-ctl": "10px",
-      "--radius-full": "9999px"
-    }
+  "pricing_and_rules": {
+    "plain_sms_unit": "$0.10 / text",
+    "link_sms_unit": "Higher link tier ($0.12 - $0.14 dynamic from cfg)",
+    "min_volume": 500,
+    "max_volume": 50000,
+    "early_schedule_discount": "10% off when scheduled 24h+ in advance",
+    "replies_forwarding_fee": "$20 optional fee for incoming conversation sessions",
+    "single_sms_tier": "Initial free intro text; subsequently $1.00 each with $20 minimum wallet balance required",
+    "abuse_guard": "Single texts blocked until preceding single text is reviewed (arrived? + rating); repetitive single text usage prompts transition to bulk campaigns."
   },
-  "layout_and_spacing": {
-    "spacing_scale": "Tailwind 8pt scale: p-2 (8px), p-4 (16px), p-6 (24px), p-8 (32px), p-12 (48px)",
-    "container_max_width": "max-w-[1400px] mx-auto",
-    "page_padding": "px-4 sm:px-6 md:px-10 pt-5 md:pt-8 pb-32 lg:pb-16",
-    "box_border_reduction_strategy": [
-      "Eliminate heavy double borders and nested boxes: Replace outer-border + inner-border card nesting with seamless hairline dividers (border-b border-[var(--c-hairline)]) and subtle background tint shifts.",
-      "Cardless deconstruction on dashboard: Replace the 4 chunky stat boxes with an integrated linear ribbon or bento stat bar featuring quiet icons, prominent values, and no thick surrounding bounding boxes.",
-      "Number cards declutter: Group and tuck secondary feature badges (Calls, Voicemail, Preview, Add Texting, Forwarding, IVR, Hours, Fax) into a clean primary row status + secondary popover/accordion drawer.",
-      "Single obvious action: Restrict each card and page to ONE primary CTA button (.civr-btn-primary). Demote secondary options to ghost (.civr-btn-ghost), text links, or an ellipsis action menu.",
-      "Hairline borders (1px with 8% opacity in dark theme, #e2e8f0 in light) to remove the 'grid cage' look."
-    ]
-  },
-  "component_specifications": {
-    "theme_css_file": "/app/frontend/src/cloudivr/theme-2026.css",
-    "civr_card": {
-      "selector": ".civr .civr-card",
-      "style": "background: var(--c-card); border: 1px solid var(--c-border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;",
-      "hover": "border-color: var(--c-border-hover);",
-      "interactive_link_hover": "transform: translateY(-1px); box-shadow: var(--shadow-card-hover);"
+  "page_layout": {
+    "header": {
+      "title": "Bulk SMS & Outreach",
+      "sub": "Broadcast compliant SMS across USA & Canada on our shared mobile number pool. Single testing, automated delivery verification, and campaign tracking.",
+      "actions": [
+        "Primary action: New Campaign (+ button) or Switch Tab",
+        "Live wallet balance display with quick top-up link"
+      ]
     },
-    "civr_btn": {
-      "selector": ".civr .civr-btn",
-      "style": "min-height: 44px; border-radius: var(--radius-ctl); padding: 10px 18px; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;",
-      "primary": "background: var(--c-accent-strong); color: #ffffff; box-shadow: 0 4px 14px -6px rgba(37, 99, 235, 0.6);",
-      "primary_hover": "background: var(--c-accent-hover); transform: translateY(-1px); box-shadow: 0 8px 20px -8px rgba(37, 99, 235, 0.7);",
-      "ghost": "background: transparent; color: var(--c-text-2); border: 1px solid var(--c-border);",
-      "ghost_hover": "background: var(--c-accent-soft); border-color: var(--c-accent); color: var(--c-accent);"
-    },
-    "civr_pill": {
-      "selector": ".civr .civr-pill",
-      "style": "min-height: 28px; padding: 4px 12px; border-radius: var(--radius-full); font-size: 12px; font-weight: 600; line-height: 1; border: 1px solid var(--c-border); background: var(--c-surface-2); color: var(--c-text-2);",
-      "pill_on": "background: var(--c-accent-soft); border-color: color-mix(in srgb, var(--c-accent) 40%, transparent); color: var(--c-accent);",
-      "pill_ok": "background: var(--c-success-soft); border-color: color-mix(in srgb, var(--c-success) 40%, transparent); color: var(--c-success);",
-      "pill_warn": "background: var(--c-warning-soft); border-color: color-mix(in srgb, var(--c-warning) 40%, transparent); color: var(--c-warning);",
-      "pill_bad": "background: var(--c-danger-soft); border-color: color-mix(in srgb, var(--c-danger) 40%, transparent); color: var(--c-danger);"
-    },
-    "civr_input": {
-      "selector": ".civr .civr-input",
-      "style": "min-height: 44px; border-radius: var(--radius-ctl); padding: 0 14px; font-size: 15px; background: var(--c-surface-subtle); border: 1px solid var(--c-border); color: var(--c-text); transition: border-color 0.15s ease, box-shadow 0.15s ease;",
-      "focus": "outline: none; border-color: var(--c-accent); box-shadow: 0 0 0 3px var(--c-ring);"
-    },
-    "dashboard_stats_strip": {
-      "selector": ".civr-stats",
-      "style": "display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 12px; background: var(--c-surface-1); border: 1px solid var(--c-border); border-radius: var(--radius-card);",
-      "stat_item": "padding: 12px 16px; border-radius: 10px; transition: background-color 0.15s ease; hover:bg-[var(--c-surface-2)];",
-      "stat_value": "font-mono text-2xl font-bold tracking-tight text-[var(--c-text)] mt-1"
-    },
-    "numbers_list_card": {
-      "selector": ".civr-card[data-testid^='number-card-']",
-      "refreshed_structure": {
-        "header": "Clean flex row: Flag + Mono phone number + Status Pill (Top). Quiet subtitle with country and plan name.",
-        "badges_reduction": "Display ONLY primary capabilities (Calls / Texts / Fax) as compact icons/pills. Avoid stacking 8 separate badges.",
-        "switches_collapse": "Group quick-switches into an unobtrusive drawer or 1-tap popover so card heights stay slim and uniform.",
-        "primary_action": "Single obvious 'Settings' or 'Manage' ghost button with clear Chevron indicator, alongside an icon button for copy/actions."
-      }
-    },
-    "number_detail_tabs": {
-      "selector": "[data-testid='number-groups']",
-      "style": "Segmented rounded pill group with active highlight, horizontal swipeable overflow without scrollbar, clear touch targets min 44px on mobile."
-    },
-    "mobile_navigation_refinement": {
-      "selector": "[data-testid='mobile-bottom-nav']",
-      "style": "position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; height: calc(64px + env(safe-area-inset-bottom)); background: rgba(12, 14, 18, 0.94); backdrop-filter: blur(20px) saturate(160%); border-top: 1px solid var(--c-border); display: grid; grid-template-columns: repeat(5, 1fr);",
-      "thumb_reach_action": "High-priority items (Home, Numbers, Inbox, Wallet, More) have 48px+ touch targets centered for easy one-hand thumb activation.",
-      "floating_action_safe_area": "Main forms and dialers maintain padding-bottom to avoid overlap with bottom nav."
-    }
-  },
-  "visual_enhancers": {
-    "glassmorphism": "Used selectively on Mobile Bottom Nav and TopBar: backdrop-filter: blur(20px) saturate(160%); border-bottom: 1px solid var(--c-hairline); Never use 100% transparent backgrounds.",
-    "textures": "Subtle 4% noise overlay (.civr-grain) for analog warmth, preventing sterile flat digital appearance.",
-    "selection_state": "::selection { background: var(--c-accent-soft); color: var(--c-accent); }"
-  },
-  "motion_and_micro_interactions": {
-    "entry_animation": "civrRise: opacity 0 -> 1, transform translateY(10px) -> translateY(0) in 0.35s cubic-bezier(0.2, 0.7, 0.2, 1)",
-    "hover_lift": "Interactive cards and primary buttons lift by -1px on hover with smooth shadow expansion.",
-    "button_press": "active:scale-[0.98] with instant tactile response.",
-    "reduced_motion": "@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }"
-  },
-  "accessibility_and_wcag": {
-    "contrast_ratio": "APCA & WCAG AA certified: Body text #c2cbdb against #0c0e12 (>7:1), Headings #f3f5f8 (>12:1), Accent #3b82f6 against dark surface (>4.5:1).",
-    "touch_targets": "Strict 44x44px minimum for all buttons, inputs, segmented tabs, and phone icons on mobile.",
-    "focus_visibility": ":focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; } on every interactive node.",
-    "testing_data_testids": "All interactive buttons, inputs, links, tabs, and informational numbers MUST retain or declare descriptive data-testid attributes in kebab-case."
-  },
-  "image_urls": {
-    "avatars": [
+    "tabs": [
       {
-        "category": "user_profile",
-        "description": "Clean portrait avatar for signed-in account menu",
-        "url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3OTUwMDMzMTJ8MA&ixlib=rb-4.1.0&q=85"
+        "id": "campaigns",
+        "label": "Campaigns",
+        "description": "Active, scheduled, completed outreach batches with live delivery progress and metrics"
       },
       {
-        "category": "team_support",
-        "description": "Friendly support agent avatar for in-app support drawer",
-        "url": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdHxlbnwwfHx8fDE3OTUwMDMzMTJ8MA&ixlib=rb-4.1.0&q=85"
+        "id": "wizard",
+        "label": "New Campaign",
+        "description": "4-step guided campaign generator"
+      },
+      {
+        "id": "single",
+        "label": "Single Text",
+        "description": "One-off text with arrival verification and anti-abuse review workflow"
+      },
+      {
+        "id": "inbox",
+        "label": "Replies Inbox",
+        "description": "2-way conversations thread viewer and response console (for campaigns with replies enabled)"
+      },
+      {
+        "id": "lists",
+        "label": "Saved Lists",
+        "description": "Managed verified contact groups and audience sets"
       }
     ]
   },
-  "instructions_to_main_agent": [
-    "1. Keep all existing route logic and JS component files (.js not .tsx) intact; achieve maximum refresh primarily through /app/frontend/src/cloudivr/theme-2026.css and theme tokens.",
-    "2. Ensure Dark theme is the default experience in localStorage civr.theme and theme.js while maintaining flawless light theme token pairing.",
-    "3. Replace the boxy number cards by updating .civr-card styling: hairline borders, calm dark slate background (#13171f), clean layout, removing heavy box shadows and redundant badges.",
-    "4. Refactor the 4-box Dashboard stats into a sleek unified stat ribbon (.civr-stats) to eliminate box clutter and heavy boundaries.",
-    "5. Enforce single obvious main action hierarchy on cards and headers (.civr-btn-primary for the primary next step, .civr-btn-ghost for all others).",
-    "6. Improve mobile phone usability by ensuring minimum 44px tap targets, thumb-accessible bottom tab bar with crystal glassmorphism, and responsive padding.",
-    "7. Never remove or alter existing data-testid attributes across any components."
+  "wizard_stepper_flow": {
+    "step_1_numbers": {
+      "name": "Numbers & Contacts",
+      "input_methods": ["Paste raw numbers (textarea)", "Load CSV / XLSX / TXT file", "Pick from saved lists"],
+      "code_prompt": "When numbers lack country prefix: Prompt 'Add +1 to N numbers without country code?' or skip.",
+      "validation_summary_card": {
+        "display": "Grid of pills showing Sendable, Skipped Landlines, Invalid, Duplicates, and Opted-out counts",
+        "save_list_checkbox": "Optional 'Save as contact list' with name field"
+      },
+      "cta": "Proceed to Message Content"
+    },
+    "step_2_message": {
+      "name": "Message & Screening",
+      "fields": [
+        "Message textarea with live character counter, GSM-7 segment indicator, and live price estimation",
+        "Opt-out line switch: 'Reply STOP to opt out' (appends compliance text to segment calculations)",
+        "Link & scam detector: Instant inline screening displaying link fee elevation or flagging high-risk words",
+        "Consent confirmation checkbox: 'I confirm every recipient consented to receive SMS messages from our business' (Mandatory 428 gate)"
+      ],
+      "cta": "Proceed to Test Text"
+    },
+    "step_3_test": {
+      "name": "Test & Deliverability",
+      "description": "Optional deliverability test text to personal mobile number (First test free, subsequent require wallet funds)",
+      "feedback_gate": {
+        "prompt": "Did your test text arrive?",
+        "options": ["Yes, arrived", "Arrived in spam folder", "Did not arrive"],
+        "smart_remediation": "If spam/no: query AI tips API to display highlighted risky words and generate 1-click 'Use safer rewrite' suggestion."
+      },
+      "cta": "Continue to Scheduling"
+    },
+    "step_4_schedule_and_pay": {
+      "name": "Schedule & Pay",
+      "options": [
+        "Send now (standard price)",
+        "Send later today (select next hour slot)",
+        "Schedule future date & time (calendar datepicker + hourly capacity slot selector; shows 10% discount badge when 24h+ ahead)"
+      ],
+      "forwarding_toggle": "Enable Replies Forwarding (+$20 fee): opens 2-way inbox thread with inbound notifications",
+      "booking_summary": {
+        "fields": ["Booking Code", "Scheduled Departure", "Estimated Completion Time", "Gross Total Price", "Hold Duration (minutes)"],
+        "payment": "WalletPay component with wallet debit, credit/card (Mollie), and crypto fallback."
+      }
+    }
+  },
+  "single_text_and_review_ux": {
+    "composer": "To (+1 USA/Canada number) + message input + opt-out footer toggle",
+    "cost_badge": "Free test remaining OR $1.00 each (Requires min $20 wallet balance)",
+    "review_gate_card": {
+      "condition": "Triggered after single text delivery",
+      "title": "Did your text to [Number] arrive?",
+      "arrived_options": ["Yes", "In Spam", "No", "Not Sure"],
+      "rating": "1 to 5 stars selection + optional feedback comment",
+      "enforcement": "Further single texts remain blocked until review is submitted. High frequency usage displays a nudge advising bulk campaigns for cheaper rates."
+    }
+  },
+  "system_states": {
+    "empty": "Empty state with Megaphone / MessageSquare icon, helpful explanation of SMS pool, and 'Create First Campaign' CTA",
+    "loading": "SkeletonRows and SkeletonPage components matching CloudIVR theme",
+    "errors": "ErrorNote with inline retry button and 402 wallet deposit redirect",
+    "quiet_hours": "Banner notification: 'Quiet hours in effect (9:00 PM - 8:00 AM recipient local time). Messages will queue and resume at 8:00 AM.'",
+    "pool_unavailable": "Warning banner: 'SMS number pool is undergoing routine carrier sync. Scheduling remains open.'"
+  },
+  "data_testid_manifest": [
+    "bulksms-page",
+    "bulksms-header",
+    "bulksms-tab-campaigns",
+    "bulksms-tab-wizard",
+    "bulksms-tab-single",
+    "bulksms-tab-inbox",
+    "bulksms-tab-lists",
+    "bulksms-wallet-balance",
+    "bulksms-topup-btn",
+    "wizard-step-indicator",
+    "wizard-step-1-tab",
+    "wizard-step-2-tab",
+    "wizard-step-3-tab",
+    "wizard-step-4-tab",
+    "wizard-leads-input",
+    "wizard-file-upload-btn",
+    "wizard-list-select",
+    "wizard-plus1-prompt-btn",
+    "wizard-stat-sendable",
+    "wizard-stat-landlines",
+    "wizard-stat-invalid",
+    "wizard-stat-duplicates",
+    "wizard-stat-optedout",
+    "wizard-save-list-check",
+    "wizard-save-list-name",
+    "wizard-step1-next-btn",
+    "wizard-message-input",
+    "wizard-optout-toggle",
+    "wizard-char-counter",
+    "wizard-segment-counter",
+    "wizard-price-estimate",
+    "wizard-screening-warning",
+    "wizard-consent-check",
+    "wizard-step2-next-btn",
+    "wizard-test-phone-input",
+    "wizard-test-send-btn",
+    "wizard-test-feedback-modal",
+    "wizard-feedback-yes-btn",
+    "wizard-feedback-spam-btn",
+    "wizard-feedback-no-btn",
+    "wizard-ai-risky-words",
+    "wizard-ai-rewrite-btn",
+    "wizard-step3-next-btn",
+    "wizard-schedule-now-radio",
+    "wizard-schedule-later-radio",
+    "wizard-schedule-datepicker",
+    "wizard-schedule-hour-select",
+    "wizard-discount-badge",
+    "wizard-replies-toggle",
+    "wizard-summary-code",
+    "wizard-summary-total",
+    "wizard-wallet-pay-btn",
+    "campaign-row-status",
+    "campaign-row-progress-bar",
+    "campaign-row-cancel-btn",
+    "single-to-input",
+    "single-message-input",
+    "single-optout-toggle",
+    "single-send-btn",
+    "single-balance-warning",
+    "review-card-container",
+    "review-arrived-yes",
+    "review-arrived-spam",
+    "review-arrived-no",
+    "review-star-1",
+    "review-star-2",
+    "review-star-3",
+    "review-star-4",
+    "review-star-5",
+    "review-comment-input",
+    "review-submit-btn",
+    "inbox-conversation-list",
+    "inbox-thread-item",
+    "inbox-reply-input",
+    "inbox-reply-send-btn",
+    "state-empty-campaigns",
+    "state-loading-spinner",
+    "state-quiet-hours-banner",
+    "state-pool-unavailable-alert"
   ],
-  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": {
-    "anti_slop_rule": "Avoid generic centered templates and uniform gray boxes. Emphasize crisp Swiss typographic hierarchy, tactical spacing, and precise hairline separators.",
-    "gradient_policy": "NO full-screen muddy gradients. Use subtle dark solid planes with subtle accent glowing highlights (<15% opacity).",
-    "transition_policy": "NO universal transition: all. Target specific properties: transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease.",
-    "data_testid_preservation": "All tests rely on kebab-case data-testid attributes. Never break existing test hooks."
-  }
+  "instructions_to_main_agent": [
+    "Implement /app/frontend/src/cloudivr/pages/BulkSms.js matching existing CloudIVR theme tokens and civr-* styling exactly.",
+    "Wire frontend hooks directly to existing backend endpoints (/bulksms, /bulksms/contacts, /bulksms/content, /bulksms/campaigns, /bulksms/campaigns/:id/test, /bulksms/campaigns/:id/when, /bulksms/campaigns/:id/book, /bulksms/bookings/:id/pay, /bulksms/reviews/:id, /bulksms/send-one, /bulksms/conversations).",
+    "Adhere strictly to anti-abuse guidelines: gate single text continuation behind positive review completion, and display bulk redirection notice upon heavy single-text volume.",
+    "Do not introduce unstyled HTML select or input tags; use civr-input and consistent Lucide React icons.",
+    "Ensure every interactive button, input, tab, and card status element is assigned the matching data-testid from the data_testid_manifest."
+  ]
 }
