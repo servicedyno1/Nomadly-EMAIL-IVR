@@ -181,6 +181,8 @@ function _publicNumber(n, numbers) {
   return {
     phoneNumber: n.phoneNumber, country: n.country, countryName: n.countryName, type: n.type,
     plan: n.plan, planName: plan.name || n.plan, planPrice: n.planPrice, status: n.status, autoRenew: n.autoRenew !== false,
+    assigning: n.status === 'provisioning' && require('../infobip/requests').isSearched(n.phoneNumber),
+    companyDetails: n.companyDetails?.needs?.length ? { needs: n.companyDetails.needs, localOnly: !!n.companyDetails.localOnly } : null,
     registration: n.registration ? { status: n.registration.status, documentsSent: !!n.registration.documentsSent, needsDetails: n.registration.status === 'needs_details', ...(n.registration.status === 'needs_details' ? { level: n.registration.level || 0, refundBy: new Date(new Date(n.registration.since).getTime() + 14 * 864e5).toISOString() } : {}) } : null,
     renewalPrice: lifecycle.renewalPrice(n), holdUntil: lifecycle.onHold(n) ? n._holdUntil : null, suspendReason: lifecycle.onHold(n) ? n._suspendReason || null : null,
     purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, parentNumber: n.parentNumber || null, dryRun: !!n.dryRun,
@@ -498,7 +500,7 @@ function routes(router, deps) {
     capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
     surcharge: ['infobip', 'multitel', 'retell', '2chat'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
     provider: n._provider || null,
-    ...(n._assigned ? { assigned: true } : {}),
+    ...(n._assigned ? { assigned: true } : {}), ...(n._onRequest ? { onRequest: true } : {}),
     ...(texting.offerOf(country, type) ? { extraPrice: texting.offerOf(country, type).extraPrice, textPrice: texting.offerOf(country, type).textPrice } : {}),
     cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
   })).map(r => ({ ...r, planAddons: Object.fromEntries(Object.keys(phoneConfig.plans).map(k => [k, phoneConfig.planAddon(k, country, type, r.surcharge)])) }))
@@ -526,7 +528,8 @@ function routes(router, deps) {
     const verification = own || offer ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)
     if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers can't be ordered online right now. Pick another country or type.`)
-    const found = await unheld((await hot.get(searchArgs(country, type, areaCode, req.query.texting === '1'))).list.filter(stillOffered))
+    // "Assigned after order" countries: a fresh per-buyer placeholder each search (never cached / shared).
+    const found = own === 'ibreq' ? require('../infobip/requests').searchNumbers(country, type) : await unheld((await hot.get(searchArgs(country, type, areaCode, req.query.texting === '1'))).list.filter(stillOffered))
     if (own === 'multitel' && !found.length && require('../multitel').isBlocked()) return bad(res, 503, 'provider_unavailable', 'Numbers in this country are temporarily unavailable. Please try again later.')
     if (own && !found.length) return res.json({ numbers: [], fallback: null, unavailable: true, message: `No ${c.name} ${TYPE_NAMES[type] || type} numbers can be picked online right now. Try another type, or message support and we'll order one for you.` })
     const results = toResults(found, country, type)
@@ -691,6 +694,8 @@ function routes(router, deps) {
       // from the first minute — don't wait for the customer to open the SIP page.
       if (doc.status === 'active' && phoneConfig.canAccessFeature(planKey, 'sipCredentials')) await require('../sip-logins').ensure(phoneNumbersOf, chatId, doc).catch(e => log(`[CloudIVR-Web] SIP login setup for ${selected}: ${e.message}`))
       if (order._pending) await require('../pending-orders').enqueue({ chatId, phoneNumber: selected, order, amount: price, email })
+      const needs = order._queue === 'ibreq' ? require('../infobip/requests').missing(order._meta || {}) : []
+      if (needs.length) await require('../live-number').updateLive(phoneNumbersOf, chatId, selected, { $set: { 'val.numbers.$.companyDetails': { needs, localOnly: order._meta?.clientType === 'LOCAL' } } })
       await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: doc.provider, country })
       if (doc.registration?.status === 'pending') deps.numberDocs?.submit({ chatId, email, phoneNumber: selected, country, countryName: c.name, type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${selected}: ${e.message}`))
       await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
@@ -1022,6 +1027,15 @@ function routes(router, deps) {
     await require('../live-number').updateLive(phoneNumbersOf, chatId, n.phoneNumber, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live || process.env.SIP_SERVER_SECRET ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live || process.env.SIP_SERVER_SECRET ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || (process.env.SIP_SERVER_SECRET ? `kam:${user}` : n.telnyxCredentialId || null) } })
     return { username: user, password: pass }
   }
+
+  // "Assigned after order" numbers: the company details the carrier needs, typed in after payment (no uploads).
+  router.post('/numbers/:phone/company-details', withNumber(async (req, res) => {
+    const n = req.num
+    if (!n.companyDetails?.needs?.length) return bad(res, 409, 'not_waiting', 'This number is not waiting for company details.')
+    try { await require('../pending-orders').setDetails(req.webChatId, n.phoneNumber, { companyName: req.body?.companyName, companyAddress: req.body?.companyAddress }) } catch (e) { return bad(res, 400, 'details', e.message) }
+    await require('../live-number').updateLive(phoneNumbersOf, req.webChatId, n.phoneNumber, { $unset: { 'val.numbers.$.companyDetails': '' } })
+    res.json({ ok: true })
+  }))
 
   // After payment: send the carrier details for a number that needs them, or cancel it for a full refund.
   const regOffer = (n) => countries().find(x => x.code === n.country)?.offers?.[n.type] || null

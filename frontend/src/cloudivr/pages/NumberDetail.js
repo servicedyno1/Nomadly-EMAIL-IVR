@@ -28,6 +28,7 @@ import { ReachChip } from '../SmsReach';
 import { SetupGuide } from './number/SetupGuide';
 import { Crumbs } from '../SectionTabs';
 import { NumberRegistration } from './number/NumberRegistration';
+import { CompanyDetails } from './number/CompanyDetails';
 import { SetupBadge, useSetupPoll } from './number/SetupBadge';
 
 // Tabs in 5 groups. Group → [id, label, sub-tabs]; sub-tab → [id, label, access gate, component]. Tab ids are unchanged (old ?tab= links work).
@@ -112,11 +113,12 @@ export default function NumberDetail() {
       <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label flex items-center gap-1.5" data-testid="number-detail-country"><Flag code={n.country} />{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
-          <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{pv.phone(n.phoneNumber)}</h1>
+          <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{n.assigning ? 'Number being assigned' : pv.phone(n.phoneNumber)}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2"><CapBadges caps={caps} testid="number-detail-caps" /><span className="inline-flex items-center gap-0.5" data-testid="number-detail-actions"><NumberActions n={n} reload={reload} testid="number-detail" /></span></div>
           <div className="mt-3"><Capacity capacity={n.capacity} testid="number-detail-capacity" /></div>
           {n.setup && <div className="mt-3"><SetupBadge setup={n.setup} detail testid="number-detail-setup" /></div>}
           <NumberRegistration n={n} reload={reload} />
+          <CompanyDetails n={n} reload={reload} />
           {caps.includes('texts') && <div className="mt-3"><ReachChip phone={n.phoneNumber} testid="number-sms-reach" /></div>}
         </div>
         <div className="flex flex-wrap items-center gap-2">

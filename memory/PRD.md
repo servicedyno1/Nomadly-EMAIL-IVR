@@ -850,3 +850,9 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 
 ## 2026-11-20 — Review posts to @Hostbay
 - 4–5★ BulkSMS reviews (delivered single texts or campaigns) from any of the 4 bots post right away to @Hostbay: AI-written unique salesy copy, masked number, no eSIM mention, link to @Nomadlybot. LIVE all brands; unit-tested; no live channel post yet.
+
+## 2026-11-24 — Number country expansion (LIVE)
+- Sell every no-ID country/type from 2Chat + Infobip, plus Infobip countries that only need typed company details (AU, DK, SE, DE-local-company). Retell keeps US/CA exclusively. Infobip wins over 2Chat for the same type. Pricing = existing formula (plan + add-on; GB toll-free +$50).
+- Company details asked only after payment (bot /companydetails, web number page form) and auto-submitted to Infobip.
+- 44 countries live on bot + web. Texting flags shown where Infobip numbers support SMS, but Infobip two-way texting is UNPROVEN (US Infobip numbers need 10DLC; test text never arrived).
+- Open: decide keep/release test number +97233741505 (2Chat Israel, $5/mo); Infobip DO test request 4a214332… pending; set add-ons for costly 2Chat countries; prove texting on a non-US Infobip number; Retell legacy API migration still pending; bot purchase of new countries not yet tried end-to-end via Telegram.

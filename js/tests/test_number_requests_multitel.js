@@ -45,7 +45,7 @@ const nr = require('../cloudivr-web/number-requests').createNumberRequests({ db,
   ok('nothing bought twice', bought.length === 2)
   const cat = require('../number-catalog')
   ok('AT local is an instant pick (not request)', !cat.best('AT', 'local')?.request && ['multitel', 'infobip'].includes(cat.best('AT', 'local')?.provider))
-  ok('DK local is a MultiTEL request', cat.best('DK', 'local')?.request && cat.best('DK', 'local')?.provider === 'multitel')
+  ok('DK local is assigned by Infobip after the order (MultiTEL request flow retired for it)', cat.best('DK', 'local')?.provider === 'ibreq' || (!require('../infobip').selling() && cat.best('DK', 'local')?.provider === 'multitel'))
   console.log(fails ? `${fails} failed` : 'all passed')
   process.exit(fails ? 1 : 0)
 })()

@@ -67,11 +67,11 @@ function Results({ res, isOn, onPick, planTexting, planId }) {
       {res.numbers.map((n, i) => (
         <button key={n.phoneNumber} type="button" onClick={() => onPick(n)} data-testid={`buy-result-${i}`} aria-pressed={isOn(n)} data-selected={isOn(n) ? 'true' : 'false'}
           className={`civr-card text-left p-4 ${isOn(n) ? 'civr-trace' : ''}`}>
-          <div className="flex items-center justify-between"><span className="font-mono text-lg" data-testid={`buy-result-${i}-number`}>{n.assigned ? `${n.phoneNumber} …` : n.phoneNumber}</span>{isOn(n) && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
+          <div className="flex items-center justify-between"><span className="font-mono text-lg" data-testid={`buy-result-${i}-number`}>{n.onRequest ? 'Assigned after order' : n.assigned ? `${n.phoneNumber} …` : n.phoneNumber}</span>{isOn(n) && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
           <div className="text-xs text-[#a1a1aa] mt-1 break-words">{place(n.region)}</div>
-          {n.assigned && <div className="text-xs text-[var(--c-muted)] mt-1" data-testid={`buy-result-${i}-assigned`}>A number starting {n.phoneNumber} is assigned when you buy</div>}
+          {n.assigned && <div className="text-xs text-[var(--c-muted)] mt-1" data-testid={`buy-result-${i}-assigned`}>{n.onRequest ? 'The carrier assigns your number after payment — usually within a few days. We message you when it is live.' : `A number starting ${n.phoneNumber} is assigned when you buy`}</div>}
           <div className="flex gap-2 mt-4">
-            {n.capabilities.voice && <span className="civr-pill">Calls</span>}{n.capabilities.sms && planTexting && <span className="civr-pill" title="Texting is an optional add-on you can switch on in the number’s settings" data-testid={`buy-texts-optional-${i}`}>Texts optional</span>}
+            {n.capabilities.voice && <span className="civr-pill">Calls</span>}{n.capabilities.sms && (planTexting ? <span className="civr-pill" title="Texting is an optional add-on you can switch on in the number’s settings" data-testid={`buy-texts-optional-${i}`}>Texts optional</span> : <span className="civr-pill" data-testid={`buy-texts-${i}`}>Texts</span>)}
             {planId && (addonOf(n, planId) > 0 ? <span className="civr-pill civr-pill-warn" data-testid={`buy-result-${i}-addon`}>+{money(addonOf(n, planId))}/mo country charge</span> : <span className="civr-pill" data-testid={`buy-result-${i}-free`}>Free with plan</span>)}
           </div>
         </button>
