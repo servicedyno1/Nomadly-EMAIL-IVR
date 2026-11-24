@@ -191,6 +191,9 @@ function createCloudIvrWeb(deps) {
     r.post('/campaigns', permission('campaign'))
     r.post('/calls/quick', permission('quick'))
     require('./esim').routes(r, { h, legalProfile })
+    const bulkSms = require('./bulksms').createBulkSms({ db, h, walletOps: require('./wallet').walletOps, log })
+    bulkSms.routes(r)
+    require('../active-slot').singletonInterval('cloudivr-bulksms-notices', () => bulkSms.deliver().catch(e => log(`[BulkSMS web] deliver: ${e.message}`)), 5000)
     const offers = createOffers(db, { log })
     offers.routes(r, { h })
     offersRef = offers

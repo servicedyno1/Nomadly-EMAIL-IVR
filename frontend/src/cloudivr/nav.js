@@ -6,7 +6,7 @@ import { cp } from './paths';
 export const NAV = [
   ['home', '', [['', 'Home', Home, 'nav-dashboard'], ['messages', 'Inbox', MessagesSquare, 'nav-messages']]],
   ['numbers', 'Numbers', [['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['esim', 'eSIM', Smartphone, 'nav-esim'], ['fax', 'Fax', Printer, 'nav-fax']]],
-  ['calls', 'Calls & campaigns', [['quick-call', 'Make a call', PhoneOutgoing, 'nav-calls'], ['campaigns', 'Campaigns', Megaphone, 'nav-campaigns'], ['contacts', 'Contacts & audio', Contact, 'nav-contacts'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone']]],
+  ['calls', 'Calls & campaigns', [['quick-call', 'Make a call', PhoneOutgoing, 'nav-calls'], ['campaigns', 'Campaigns', Megaphone, 'nav-campaigns'], ['bulk-sms', 'Bulk SMS', MessageSquareText, 'nav-bulk-sms'], ['contacts', 'Contacts & audio', Contact, 'nav-contacts'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone']]],
   ['ai', 'AI', [['receptionist', 'AI receptionist', BotMessageSquare, 'nav-ai']]],
   ['account', 'Account', [['wallet', 'Wallet & billing', Wallet, 'nav-wallet'], ['settings', 'Settings', Settings, 'nav-settings'], ['help', 'Help center', BookOpen, 'nav-help']]],
 ];

@@ -28,6 +28,7 @@ import Contacts from './pages/Contacts';
 import Texting from './pages/Texting';
 import NumberLookup from './pages/NumberLookup';
 import TravelEsim from './pages/TravelEsim';
+import BulkSms from './pages/BulkSms';
 import Esim from './pages/Esim';
 import EsimLineDetail from './pages/esim/LineDetail';
 import TextCall from './pages/TextCall';
@@ -227,6 +228,7 @@ export default function Shell() {
               <Route path="international-texting" element={<Navigate to={cp('/app/buy?purpose=texting')} replace />} />
               <Route path="lookup" element={<NumberLookup />} />
               <Route path="travel-esim" element={<TravelEsim />} />
+              <Route path="bulk-sms" element={<BulkSms />} />
               <Route path="esim" element={<Esim />} />
               <Route path="esim/:id" element={<EsimLineDetail />} />
               <Route path="quick-call" element={<QuickCall />} />

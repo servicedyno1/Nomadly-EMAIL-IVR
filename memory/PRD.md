@@ -856,3 +856,8 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Company details asked only after payment (bot /companydetails, web number page form) and auto-submitted to Infobip.
 - 44 countries live on bot + web. Texting flags shown where Infobip numbers support SMS, but Infobip two-way texting is UNPROVEN (US Infobip numbers need 10DLC; test text never arrived).
 - Open: decide keep/release test number +97233741505 (2Chat Israel, $5/mo); Infobip DO test request 4a214332… pending; set add-ons for costly 2Chat countries; prove texting on a non-US Infobip number; Retell legacy API migration still pending; bot purchase of new countries not yet tried end-to-end via Telegram.
+
+## 2026-11-24 — CloudIVR web Bulk SMS (LIVE /app/bulk-sms)
+- Same engine/pool/prices/rules as the bots (brand CloudIVR). Wizard numbers→message→test→when+pay (wallet), campaigns with live progress, single texts (free intro → review → $1, one-guard), replies inbox, saved lists, review cards.
+- Web-only scam-text screen added (prize, Interac, CRA/IRS, locked account, parcel fee). Bots still use only the core screen (let the Nov prize scam through) — offer to apply to bots.
+- Not yet: a real paid campaign end-to-end on production (no test account / pool credit low $8.52).

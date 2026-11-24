@@ -3952,3 +3952,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Toll-free inbound per-minute 2Chat costs NOT covered: EE $0.572, UA $0.31, CZ $0.22, AR $0.198, CO/NZ $0.187, KE/HU $0.11.
 - Retell: no removed endpoint used in any prod app (searched all release dirs); live US toll-free search OK. Nothing to change.
 - Broadcast: utils.sendMessageToAllUsers supports opts.reply_markup; new deep link /start open_numbers → "🛒 Get a Plan". Preview sent to admin; text saved /root/.launch_broadcast.json on droplet. NomadlyBot 1661 users / 1570 reachable. NOT SENT — awaiting user go.
+
+## 2026-11-24 — CloudIVR web Bulk SMS (USA/Canada, shared eSIM pool)
+- Backend js/cloudivr-web/bulksms.js (mounted in cloudivr-web/index.js after esim routes; notices loop singletonInterval 'cloudivr-bulksms-notices' 5s). Brand 'CloudIVR' → cid CloudIVR:<webChatId>. Same engine (bulk-esim/core), prices, limits, review/one-guard rules as bots. Wallet = CloudIVR web wallet (walletOps) + logTransaction bulksms-payment/refund.
+- Routes: GET /bulksms; POST /bulksms/contacts; /lists/:id/rename; /content; /campaigns; GET /campaigns/:id; POST /campaigns/:id/test, /test-feedback; GET /campaigns/:id/when; POST /campaigns/:id/replies; GET /availability; POST /campaigns/:id/book; /bookings/:id/pay; /bookings/:id/cancel; /send-one; GET /conversations(/:id); POST /conversations/:id/reply; POST /reviews/:id.
+- Extra web-only scam screen (prize/giveaway, Interac/e-Transfer, CRA/IRS refunds, locked accounts, parcel fees) — core screenContent let the Nov prize scam through; bots NOT changed.
+- Frontend pages/BulkSms.js + pages/bulksms/{ReviewCards,Wizard,StepNumbers,StepMessage,StepTest,StepWhen,CampaignList,SingleText,Inbox}.js; route /app/bulk-sms; nav "Bulk SMS" under Calls & campaigns.
+- Test js/tests/test_web_bulksms.js 25/25 (throwaway DB, no real sends).
