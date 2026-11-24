@@ -15,7 +15,7 @@ const TYPES = { local: 'local', mobile: 'mobile', national: 'national', toll_fre
 const COUNTRIES = {
   GB: ['local', 'mobile', 'toll_free'], IL: ['local', 'mobile', 'national', 'toll_free'], CO: ['local', 'mobile', 'toll_free'],
   BR: ['local'], PA: ['local'], SV: ['local'], GT: ['local'], IS: ['local'], VN: ['local', 'toll_free'], KE: ['local', 'toll_free'],
-  DO: ['toll_free'], MX: ['toll_free'], AR: ['toll_free'], LT: ['national', 'toll_free'], PE: ['mobile'], NL: ['mobile'], DK: ['mobile'],
+  MX: ['toll_free'], AR: ['toll_free'], LT: ['national', 'toll_free'], PE: ['mobile'], NL: ['mobile'], DK: ['mobile'],
   BO: ['national'], CZ: ['toll_free'], HU: ['toll_free'], RS: ['toll_free'], EE: ['toll_free'], UA: ['toll_free'], CY: ['toll_free'],
   KR: ['toll_free'], UG: ['toll_free'], NZ: ['toll_free'],
 }

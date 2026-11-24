@@ -9,7 +9,7 @@ const studio = require('./channel-ads-studio')
 
 // Canonical schedule (UTC). "HH:MM/brand" picks the ad brand for a slot; no suffix = the channel's own brand.
 // CHANNEL_ADS_TARGETS can override, but any override is logged loudly on startup (see init).
-const DEFAULT_TARGETS = '@Hostbay=10:00,13:00/cloudivr,16:00,22:00;@CloudIVRNet=10:00,13:00/nomadly,16:00,22:00'
+const DEFAULT_TARGETS = '@Hostbay=16:00/nomadly;@CloudIVRNet=16:00/cloudivr'
 const homeBrand = (chat) => (/hostbay/i.test(chat) ? 'nomadly' : 'cloudivr')
 const parseTargets = (str) => String(str).split(';')
   .map(s => { const [chat, slots = ''] = s.split('='); return { chat: chat.trim(), slots: slots.split(',').map(x => x.trim()).filter(Boolean).map(x => { const [hm, b] = x.split('/'); return { hm, brand: b === 'nomadly' || b === 'cloudivr' ? b : homeBrand(chat) } }) } })

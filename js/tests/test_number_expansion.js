@@ -4,7 +4,7 @@
 const { MongoClient } = require('mongodb')
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
 Object.assign(process.env, { NUMBER_PROVIDERS: 'retell,infobip,2chat', INFOBIP_API_KEY: 'x', TWOCHAT_API_KEY: 'x', RETELL_API_KEY: 'x',
-  INFOBIP_SELL_COUNTRIES: 'AR,AT,CL,FR,HR,LT,MX,MY,PL,PR,RO,UA,ES,DO,PE,CR,EC,PY,AU,DK,SE,DE' })
+  INFOBIP_SELL_COUNTRIES: 'AR,AT,CL,FR,HR,LT,MX,MY,PL,PR,RO,UA,ES,PE,CR,EC,PY,AU,DK,SE,DE' })
 const axios = require('axios')
 const groups = {
   'IL|mobile': [{ id: 'g-il', prefix: '+972 (55)', location: 'Mobile', price: { monthly_price: '6.00', setup_price: '0.00' }, requirements: [], features: ['voice', 'sms_in'] }],
@@ -34,12 +34,12 @@ ib.http = () => ({
   ok(cat.best('US', 'local')?.provider === 'retell' && cat.best('US', 'toll_free')?.provider === 'retell' && cat.best('CA', 'local')?.provider === 'retell', 'USA + Canada stay with Retell')
   ok(!cat.best('CA', 'toll_free') && !cat.sold().CA?.includes('toll_free') && !cat.sold().US?.includes('mobile'), 'nobody else sells other types in USA / Canada')
   ok(cat.best('MX', 'local')?.provider === 'infobip' && cat.best('MX', 'toll_free')?.provider === '2chat', 'Mexico: local from Infobip, toll-free from 2Chat')
-  ok(cat.best('DO', 'local')?.provider === 'ibreq' && cat.best('DO', 'toll_free')?.provider === '2chat' && cat.best('PE', 'local')?.provider === 'ibreq' && cat.best('PE', 'mobile')?.provider === '2chat', 'DR / Peru: local assigned by Infobip, other types from 2Chat')
+  ok(!cat.best('DO', 'local') && !cat.best('DO', 'toll_free') && cat.best('PE', 'local')?.provider === 'ibreq' && cat.best('PE', 'mobile')?.provider === '2chat', 'Dominican Republic not sold; Peru local assigned by Infobip, mobile from 2Chat')
   ok(['AU', 'DK', 'SE', 'DE', 'CR', 'EC', 'PY'].every(cc => cat.best(cc, 'local')?.provider === 'ibreq') && !cat.best('CY', 'local'), 'Infobip on-request countries listed, Cyprus left out')
-  ok(cat.best('AU', 'local').sms && cat.best('AT', 'local').sms && !cat.best('DO', 'local').sms, 'texting flags: Australia + Austria yes, Dominican Republic no')
+  ok(cat.best('AU', 'local').sms && cat.best('AT', 'local').sms && !cat.best('PE', 'local').sms, 'texting flags: Australia + Austria yes, Peru no')
   const s = cat.sold()
   ok(s.IL?.join() === 'local,mobile,national,toll_free' && s.GB?.length === 3 && s.NZ?.join() === 'toll_free' && s.ES?.includes('local'), 'Israel 4 types, UK 3, New Zealand toll-free, Spain listed')
-  ok(Object.keys(tc.COUNTRIES).length === 27 && !tc.sellsType('MX', 'local') && !tc.sellsType('US', 'toll_free'), '2Chat: 27 countries, never where Infobip / Retell sell the type')
+  ok(Object.keys(tc.COUNTRIES).length === 26 && !tc.sellsType('MX', 'local') && !tc.sellsType('US', 'toll_free'), '2Chat: 27 countries, never where Infobip / Retell sell the type')
   ok(tx.list().some(o => o.iso === 'AT') || process.env.TEXTING_PROVIDERS === 'multitel', 'Austria in the calls + texting list (when Infobip texting is on)')
 
   console.log('2Chat search')
@@ -83,13 +83,13 @@ ib.http = () => ({
 
   console.log('No details needed / declined')
   ibState.status = 'IN_PROGRESS'; ibState.posts.length = 0
-  const [dr] = ir.searchNumbers('DO', 'local'), dro = await ir.buyNumber(dr.phone_number)
-  ok(dro._pending && dro._meta.requestId === 'R-DO' && ibState.posts[0]?.body.countryCode === 'DO' && !ibState.posts[0].body.requirements.length, 'Dominican Republic: submitted straight away, no details')
+  const [dr] = ir.searchNumbers('PE', 'local'), dro = await ir.buyNumber(dr.phone_number)
+  ok(dro._pending && dro._meta.requestId === 'R-PE' && ibState.posts[0]?.body.countryCode === 'PE' && !ibState.posts[0].body.requirements.length, 'Peru: submitted straight away, no details')
   await po.enqueue({ chatId: 5002, phoneNumber: dr.phone_number, order: dro, amount: 50 })
   ibState.status = 'REJECTED'
   ;[w] = (await po.waiting('ibreq')).filter(o => o.chatId === 5002)
   await db.collection('pendingNumberOrders').updateOne({ _id: w._id }, { $set: { nextTryAt: new Date(0) } }); await po.tick()
-  ok(credited.includes(50) && told.some(t => /couldn't set up your Dominican Republic number/.test(t)), 'declined by Infobip → refunded and told')
+  ok(credited.includes(50) && told.some(t => /couldn't set up your Peru number/.test(t)), 'declined by Infobip → refunded and told')
   const [se] = ir.searchNumbers('SE', 'local'), seo = await ir.buyNumber(se.phone_number)
   await po.enqueue({ chatId: 5003, phoneNumber: se.phone_number, order: seo, amount: 60 })
   await po.setDetails(5003, se.phone_number, { companyName: 'Nordic AB' }); await wait(300); await po.tick()

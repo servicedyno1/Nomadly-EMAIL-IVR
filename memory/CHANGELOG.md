@@ -3944,3 +3944,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Live proofs: 2Chat Israel buy OK → +97233741505 (Tel Aviv, $5/mo) on our 2Chat account, unassigned (user to decide keep/release). Infobip DO request 4a214332-c89f-4255-ae49-6b18fc370c43 PENDING (manual test, will add an unassigned DO number when filled).
 - Tests: js/tests/test_number_expansion.js 29/29; twochat orders/setup/credit, order_queue_funds, retell_bird_link, texting suites green; number_requests_multitel updated (DK now ibreq). test_infobip_adapter 1 failure pre-existing (fails on old code too).
 - Pricing unchanged (plan + add-on; non-included countries $25 base). Costly 2Chat ones (EE tf $50+$47, BO $46, NZ/VN tf $28+$32, RS $29) may sell near/below cost; toll-free inbound per-minute (MX $0.076, DO $0.11) not passed on.
+
+## 2026-11-24 09:42Z — Ads 1/day, price add-ons, DR off, Retell check, launch broadcast prepared (LIVE 09652573)
+- Channel ads: DEFAULT_TARGETS '@Hostbay=16:00/nomadly;@CloudIVRNet=16:00/cloudivr' (was 4 slots/day, ~3 posting).
+- Dominican Republic removed: twochat COUNTRIES (DO toll-free) + shared env INFOBIP_SELL_COUNTRIES (DO). 43 countries. Infobip DO test request 4a214332… PENDING_REVIEW — API cancel refused (RR-INVALID-STATUS400); must cancel in Infobip portal/support. If it fills, release the number.
+- Price add-ons (appSettings numberAddons; replaces the $25 non-included base): IL tf 35, CO mob 30, CO tf 40, VN tf 65, KE tf 60, AR tf 55, LT tf 65, BO nat 50, CZ tf 65, HU tf 35, EE tf 100, UA tf 60, KR tf 60, UG tf 65, NZ tf 65, AT local 85 (+ existing GB tf 50). Rule: first-month cost (monthly+setup+$2 landing) > $25 → ceil to $5. Serbia tf now needs ID at 2Chat → auto-hidden.
+- Toll-free inbound per-minute 2Chat costs NOT covered: EE $0.572, UA $0.31, CZ $0.22, AR $0.198, CO/NZ $0.187, KE/HU $0.11.
+- Retell: no removed endpoint used in any prod app (searched all release dirs); live US toll-free search OK. Nothing to change.
+- Broadcast: utils.sendMessageToAllUsers supports opts.reply_markup; new deep link /start open_numbers → "🛒 Get a Plan". Preview sent to admin; text saved /root/.launch_broadcast.json on droplet. NomadlyBot 1661 users / 1570 reachable. NOT SENT — awaiting user go.

@@ -15616,12 +15616,13 @@ All verified numbers generated during sourcing.`))
       emailval: () => _synthMenuTap(user.emailValidation),
       emailblast: () => _synthMenuTap(user.emailBlast),
       refer: () => _synthMenuTap(user.referEarn),
+      numbers: () => _synthMenuTap(phoneConfig.getBtn('en').buyPhoneNumber, a.submenu5), // one tap → pick a plan + any country
       // Web-app ads (channel posts / old keyboards): the invite card with the website button.
       web_hosta: () => (webAccess.websiteUrl() ? send(chatId, webAccess.webAccessMessage(info?.userLanguage || 'en').text, webAccess.webAccessMessage(info?.userLanguage || 'en').opts) : goto.displayMainMenuButtons()),
       web_cloudivr: () => (webAccess.cloudivrUrl() ? send(chatId, webAccess.cloudivrWebMessage(info?.userLanguage || 'en').text, webAccess.cloudivrWebMessage(info?.userLanguage || 'en').opts) : goto.displayMainMenuButtons()),
     }[_hub]
-    async function _synthMenuTap(label) {
-      await set(state, chatId, 'action', 'none')
+    async function _synthMenuTap(label, inAction = 'none') {
+      await set(state, chatId, 'action', inAction)
       return bot.processUpdate({
         update_id: Date.now(),
         message: { message_id: (msg?.message_id || 0) + 1, from: msg?.from, chat: msg?.chat, date: Math.floor(Date.now() / 1000), text: label },
