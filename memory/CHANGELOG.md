@@ -3968,3 +3968,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Fixed `utils.js` admin broadcast: `opts` was undefined inside `_executeBroadcast` (every send would throw); reply_markup now passed + persisted for crash recovery.
 - `scripts/numbers_launch_announce.js` (idempotent, `announcements` id `numbers-40-countries-2026-11`, 5 languages, inline "🌍 Get my number" → `t.me/NomadlyBot?start=open_numbers`). SENT 2026-11-24: 1265 delivered, 307 failed (dead chats), 92 skipped.
 - API docs rebuilt (`pages/ApiDocs.js` + `pages/apidocs/*`): sidebar scroll-spy, mobile chip nav, endpoint cards with cURL/Node/Python tabs + copy, pricing table, webhook signature verify snippets, full error table. Campaign status `texts` now returns volume.
+
+## 2026-11-25 — eSIM: late-funds refund bug, white-label emails, provider never gets customer email
+- BUG: retryAwaitingFunds kept the old provisionStartedAt → pollOne refunded instantly (>24 h) while Spenza was still creating it. Fixed (fresh window). Repaired es_d5b7200a7bae (@motionhavin1, +18053317408): re-charged $50, delivered QR.
+- Bot buyers' eSIM emails (QR, renewal receipt, reminders) now come from the bot's own brand (`CHAT_BOT_BRAND` <MAIL_SENDER>, bot logo/footer, "in Nomadly on Telegram") via `sendMail(..., { brand })`; web buyers keep CloudIVR.
+- `spenzaUser()` always uses private `u<chatId>@users.cloudivr.net` (provider can't email customers). Migrated 4 live lines via /sims/{iccid}/assign; legal names re-synced.
+- qr(): only `LPA:` strings count as a manual code (Spenza returns an S3 image URL containing "spenzaJ").

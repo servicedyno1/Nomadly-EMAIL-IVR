@@ -117,13 +117,14 @@ const privateEmail = (chatId) => `u${chatId}@users.${String(process.env.CLOUDIVR
 // Bot buyers have no web account: the email they gave at checkout (if any) is their Spenza user email.
 async function spenzaUser(chatId, botEmail) {
   const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(chatId), Number(chatId)] } }, { projection: { email: 1, name: 1, phone: 1, legalProfile: 1 } })
-  const email = acc?.email || botEmail || privateEmail(chatId)
+  // Always a private address: the provider never gets the customer's real email, so it can't mail them directly.
+  const email = privateEmail(chatId)
   // Legal holder from the customer's profile (business name or full legal name); US street address when it is in the USA.
   const lp = acc?.legalProfile?.completedAt ? acc.legalProfile : null
   const holder = lp ? String(lp.type === 'business' ? lp.companyName : lp.fullName || '').trim() : ''
   const a = lp?.address?.countryCode === 'US' ? lp.address : null
   const addr = a ? { address: [a.line1, a.line2].filter(Boolean).join(', '), city: a.city, ...(a.region ? { state: a.region } : {}) } : {}
-  return { email, name: holder || String(acc?.name || '').trim() || 'CloudIVR customer', private: !acc?.email && !botEmail, ...(acc?.phone ? { phoneNumber: acc.phone.replace(/^\+1/, '').replace(/\D/g, '') } : {}), addr }
+  return { email, name: holder || String(acc?.name || '').trim() || 'CloudIVR customer', private: true, ...(acc?.phone ? { phoneNumber: acc.phone.replace(/^\+1/, '').replace(/\D/g, '') } : {}), addr }
 }
 const botEmailOf = (d) => d.source === 'telegram' ? d.qrEmail || null : null
 // Assign one line's SIM to its owner's Spenza user (creates the user if new). Recorded on the line and the account.
@@ -361,6 +362,13 @@ async function pollOne(d) {
   }
 }
 
+// Customer mail: bot buyers get it from their own bot's brand (Nomadly, PROSHOP…), web buyers from CloudIVR.
+function mail(d, to, subject, html, attachments) {
+  const B = require('./sms-app-brand')
+  const brand = d.source === 'telegram' ? { name: B.brandName(), logo: B.logoUrl(), href: B.botUrl(), why: `You get this email because you ordered an eSIM in ${B.brandName()} on Telegram.` } : null
+  return require('./cloudivr-web/auth').sendMail(to, subject, html, attachments, brand ? { brand } : undefined)
+}
+const botWhere = () => `${require('./sms-app-brand').brandName()} on Telegram`
 // The QR code goes only to the app (or the bot chat) and to the email given at checkout.
 const INSTALL = 'On the phone that will use it: Settings → Mobile / Cellular → Add eSIM → Use QR code, then scan the QR code. Keep the phone on Wi-Fi while it installs. Each QR code can be installed once.'
 async function qrPng(d) {
@@ -388,8 +396,8 @@ async function emailQr(d) {
   if (!q) return false
   const { code, png } = q
   const bot = d.source === 'telegram'
-  const html = `<p>Your ${bot ? 'USA T-Mobile' : 'CloudIVR'} eSIM${d.phoneNumber ? ` for <b>${d.phoneNumber}</b>` : ''} is ready.</p><p>${INSTALL.replace('scan the QR code', 'scan the attached QR code')}</p><p>Once installed, the line has two-way SMS on that phone: send and receive texts, plus calls and USA data.</p>${code ? `<p>Manual code: <code>${code}</code></p>` : ''}<p>${bot ? 'You can also see the QR code any time in the Telegram bot: Digital Products → USA T-Mobile eSIM → My eSIMs.' : 'You can also open the QR code any time in the CloudIVR app under CloudIVR eSIM.'}</p>`
-  const ok = await require('./cloudivr-web/auth').sendMail(d.qrEmail, bot ? 'Your eSIM QR code' : 'Your CloudIVR eSIM QR code', html, [{ filename: 'esim-qr.png', content: png, contentType: 'image/png' }]).catch(e => { S.log(`[eSIM] QR email ${d._id}: ${e.message}`); return false })
+  const html = `<p>Your ${bot ? 'USA T-Mobile' : 'CloudIVR'} eSIM${d.phoneNumber ? ` for <b>${d.phoneNumber}</b>` : ''} is ready.</p><p>${INSTALL.replace('scan the QR code', 'scan the attached QR code')}</p><p>Once installed, the line has two-way SMS on that phone: send and receive texts, plus calls and USA data.</p>${code ? `<p>Manual code: <code>${code}</code></p>` : ''}<p>${bot ? `You can also see the QR code any time in ${botWhere()}: Digital Products → USA T-Mobile eSIM → My eSIMs.` : 'You can also open the QR code any time in the CloudIVR app under CloudIVR eSIM.'}</p>`
+  const ok = await mail(d, d.qrEmail, bot ? `Your ${require('./sms-app-brand').brandName()} eSIM QR code` : 'Your CloudIVR eSIM QR code', html, [{ filename: 'esim-qr.png', content: png, contentType: 'image/png' }]).catch(e => { S.log(`[eSIM] QR email ${d._id}: ${e.message}`); return false })
   await S.col.updateOne({ _id: d._id }, { $set: { qrEmailedAt: ok ? new Date() : null } })
   return ok
 }
@@ -407,9 +415,10 @@ async function resendQr(chatId, id, email) {
 async function qr(chatId, id) {
   const d = await mine(chatId, id)
   if (!d || d.kind === 'mobile') return { error: 'Not found.' }
-  if (d.qrCode && (d.simulated || !d.iccid)) return { qrCode: d.qrCode }
+  const lpa = (v) => (typeof v === 'string' && /^LPA:/i.test(v) ? v : null) // an image URL is never shown as a "code"
+  if (lpa(d.qrCode) && (d.simulated || !d.iccid)) return { qrCode: d.qrCode }
   if (!d.iccid) return { error: 'The eSIM is still being created.' }
-  try { const r = await call('get', `/api/v1.1/esim/${encodeURIComponent(d.iccid)}/qr`); const q = typeof r?.data?.activationCode === 'string' ? r.data.activationCode : r?.data?.qrCode || null; if (q) await S.col.updateOne({ _id: d._id }, { $set: { qrCode: q } }); if (q) return { qrCode: q }; const u = r?.data?.qrCodeUrl; if (!u) return { qrCode: null }; const img = await axios.get(u, { responseType: 'arraybuffer', timeout: 15000 }); return { image: `data:${img.headers['content-type'] || 'image/png'};base64,${Buffer.from(img.data).toString('base64')}` } } catch (e) { return errOf(e) }
+  try { const r = await call('get', `/api/v1.1/esim/${encodeURIComponent(d.iccid)}/qr`); const q = lpa(r?.data?.activationCode) || lpa(r?.data?.qrCode); if (q) await S.col.updateOne({ _id: d._id }, { $set: { qrCode: q } }); if (q) return { qrCode: q }; const u = r?.data?.qrCodeUrl; if (!u) return { qrCode: null }; const img = await axios.get(u, { responseType: 'arraybuffer', timeout: 15000 }); return { image: `data:${img.headers['content-type'] || 'image/png'};base64,${Buffer.from(img.data).toString('base64')}` } } catch (e) { return errOf(e) }
 }
 async function lineUsage(chatId, id) { const d = await mine(chatId, id); if (!d?.iccid) return { usage: null }; return d.simulated ? { usage: { simulated: true } } : usage(d.iccid) }
 
@@ -441,10 +450,10 @@ async function receipt(d, until) {
   if (isBot(d.chatId)) await say(d.chatId, bt(d, 'receipt', d.phoneNumber, Number(d.price).toFixed(2), day(until), bal))
   if (!to) return false
   const row = (k, v) => `<tr><td style="padding:4px 16px 4px 0;color:#64748b">${k}</td><td style="padding:4px 0"><b>${v}</b></td></tr>`
-  const html = `<p>Your ${what} renewed. Here’s your receipt.</p><table style="border-collapse:collapse;font-size:14px">${row('Line', `${what}${d.phoneNumber ? ` ${d.phoneNumber}` : ''}`)}${row('Paid', `$${Number(d.price).toFixed(2)} from your wallet`)}${row('Date', day(new Date()))}${row('Now active until', day(until))}${row('Wallet balance', `$${bal}`)}${row('Reference', d._id)}</table><p>Auto-renew stays on. You can turn it off any time ${d.source === 'telegram' ? 'in the Telegram bot under My eSIMs' : 'under Numbers → eSIM &amp; mobile numbers'}.</p>`
+  const html = `<p>Your ${what} renewed. Here’s your receipt.</p><table style="border-collapse:collapse;font-size:14px">${row('Line', `${what}${d.phoneNumber ? ` ${d.phoneNumber}` : ''}`)}${row('Paid', `$${Number(d.price).toFixed(2)} from your wallet`)}${row('Date', day(new Date()))}${row('Now active until', day(until))}${row('Wallet balance', `$${bal}`)}${row('Reference', d._id)}</table><p>Auto-renew stays on. You can turn it off any time ${d.source === 'telegram' ? `in ${botWhere()} under My eSIMs` : 'under Numbers → eSIM &amp; mobile numbers'}.</p>`
   const at = new Date()
   await S.col.updateOne({ _id: d._id }, { $push: { receipts: { $each: [{ at, amount: d.price, until, emailed: null }], $slice: -24 } } })
-  const ok = await require('./cloudivr-web/auth').sendMail(to, `Receipt: your ${d.source === 'telegram' ? '' : 'CloudIVR '}${what} renewed`, html).catch(() => false)
+  const ok = await mail(d, to, `Receipt: your ${d.source === 'telegram' ? `${require('./sms-app-brand').brandName()} ` : 'CloudIVR '}${what} renewed`, html).catch(() => false)
   await S.col.updateOne({ _id: d._id }, { $set: { 'receipts.$[r].emailed': !!ok } }, { arrayFilters: [{ 'r.at': at }] })
   return ok
 }
@@ -502,7 +511,8 @@ async function remind(d) {
   const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [d.chatId, Number(d.chatId)] } }, { projection: { email: 1, phone: 1 } })
   const cta = renews && short > 0 && link && !isBot(d.chatId)
   const to = acc?.email || botEmailOf(d)
-  if (to) await require('./cloudivr-web/auth').sendMail(to, renews ? `Your ${d.source === 'telegram' ? '' : 'CloudIVR '}line renews on ${end}` : `Your ${d.source === 'telegram' ? '' : 'CloudIVR '}line ends on ${end}`, `<p>${text}</p>${cta ? `<p><a href="${link}" style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Top up $${Math.ceil(short)} now</a></p>` : ''}<p>${d.source === 'telegram' ? 'Manage it in the Telegram bot: Digital Products → USA T-Mobile eSIM → My eSIMs.' : 'Manage it in CloudIVR under Numbers → eSIM &amp; mobile numbers.'}</p>`).catch(e => S.log(`[Spenza] reminder email ${d._id}: ${e.message}`))
+  const who = d.source === 'telegram' ? `${require('./sms-app-brand').brandName()} ` : 'CloudIVR '
+  if (to) await mail(d, to, renews ? `Your ${who}line renews on ${end}` : `Your ${who}line ends on ${end}`, `<p>${text}</p>${cta ? `<p><a href="${link}" style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Top up $${Math.ceil(short)} now</a></p>` : ''}<p>${d.source === 'telegram' ? `Manage it in ${botWhere()}: Digital Products → USA T-Mobile eSIM → My eSIMs.` : 'Manage it in CloudIVR under Numbers → eSIM &amp; mobile numbers.'}</p>`).catch(e => S.log(`[Spenza] reminder email ${d._id}: ${e.message}`))
   else if (acc?.phone) await require('./cloudivr-web/phone-auth').sendText(acc.phone, `CloudIVR: ${text}${cta ? ` Top up: ${link}` : ''}`).catch(e => S.log(`[Spenza] reminder text ${d._id}: ${e.message}`))
 }
 async function setAutoRenew(chatId, id, on) {
