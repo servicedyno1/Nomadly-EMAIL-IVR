@@ -79,7 +79,8 @@ let mailer = null
 // cloudivr.net mails go out from its own address (CLOUDIVR_MAIL_SENDER) through js/mailer.js: MailerSend once the
 // sender's domain is verified there, otherwise the Brevo API (and, without an own sender, the SMTP relay) as before.
 // Plain transactional HTML (<p>… fragments) gets the shared light-card layout: logo, short title, one button.
-function brandedHtml(subject, html) {
+// `brand` = { name, logo, href, why }: mail for a Telegram bot's customers carries that bot's name, never CloudIVR.
+function brandedHtml(subject, html, brand) {
   if (/<html/i.test(html) || /^DID registration documents/.test(subject)) return html
   const L = require('./email-layout'), FONT = "'Helvetica Neue',Helvetica,Arial,sans-serif"
   const base = String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')
@@ -88,6 +89,7 @@ function brandedHtml(subject, html) {
     .replace(/<p>/g, `<p style="margin:0 0 16px;font:16px/1.6 ${FONT};color:#334155">`)
     .replace(/<a href=(?![^>]*style=)/g, '<a style="color:#4f46e5;font-weight:600" href=')
   const preheader = String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 110)
+  if (brand) return L.layout({ title: subject, preheader, body, brand, foot: { why: brand.why, support: brand.href ? ['Get help', brand.href] : null } })
   return L.layout({ title: subject, preheader, body, base, foot: { why: 'You get this email because you have a CloudIVR account.', support: ['Get help', `${base}/app/support`] } })
 }
 
@@ -95,13 +97,16 @@ function sendMail(to, subject, html, attachments, extra) {
   // Customers never see carrier or server names; the admin team's alerts and mail to the carrier itself keep them.
   const internal = [...adminEmails(), process.env.CIVR_ADMIN_EMAIL, process.env.MULTITEL_DOCS_EMAIL || 'support@multitel.net'].map(e => String(e || '').toLowerCase())
   if (!internal.includes(String(to || '').toLowerCase())) { const { scrubProviderNames, scrubProviderHtml } = require('../sanitize-provider'); subject = scrubProviderNames(subject); html = scrubProviderHtml(html) }
-  html = brandedHtml(subject, html)
+  const { brand: botBrand, ...rest } = extra || {}
+  extra = rest
+  html = brandedHtml(subject, html, botBrand)
   const own = process.env.CLOUDIVR_MAIL_SENDER
   // Test fixtures (e2e-*@…, @example.*) never get mail: their inboxes bounce or auto-reply into the support inbox.
   if (/^e2e-|@example\.(com|org|net)$/i.test(String(to || ''))) return Promise.resolve(false)
   // RFC 3834: tells helpdesks / out-of-office bots not to auto-reply to our automated mail.
   const headers = { 'Auto-Submitted': 'auto-generated', ...(extra?.headers || {}) }
   const mail = { to, subject, html, ...(attachments ? { attachments } : {}), ...(extra || {}), headers }
+  if (botBrand && process.env.MAIL_SENDER) return require('../mailer').send({ ...mail, from: { name: botBrand.name, email: process.env.MAIL_SENDER } }).then(() => true)
   if (own && process.env.BREVO_API_KEY) return require('../mailer').send({ ...mail, from: { name: 'CloudIVR', email: own } }).then(() => true)
   if (!process.env.MAIL_DOMAIN && !own) return Promise.resolve(false)
   if (!mailer) {
