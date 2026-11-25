@@ -9,11 +9,13 @@ const API = 'https://api.spenza.com'
 const dry = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const MAX_ACCOUNTS = 9
 const env = (name, n) => process.env[`${name}${n === 1 ? '' : `_${n}`}`]
+// Pool user email on Spenza: a made-up Gmail derived from the account key (Spenza emails are global and unverified; never our domain).
+const poolEmail = (key) => { const h = require('crypto').createHash('sha256').update(`pool:${key}`).digest('hex'); return `textpool.${h.slice(0, 10)}@gmail.com` }
 // Accounts present in the environment, in order. In preview without keys: one (or BULK_ESIM_FAKE_ACCOUNTS) simulated account(s).
 function accounts() {
   const out = []
-  for (let n = 1; n <= MAX_ACCOUNTS; n++) { const key = env('SPENZA_BULK_API_KEY', n), secret = env('SPENZA_BULK_API_SECRET', n); if (key && secret) out.push({ id: `spenza${n}`, n, key, secret, imei: env('SPENZA_BULK_IMEI', n) || process.env.SPENZA_BULK_IMEI || '', email: env('SPENZA_BULK_EMAIL', n) || process.env.SPENZA_BULK_EMAIL || 'bulksms@cloudivr.net' }) }
-  if (dry()) { const want = Math.max(out.length, Number(process.env.BULK_ESIM_FAKE_ACCOUNTS || 1)); for (let n = out.length + 1; n <= want; n++) out.push({ id: `spenza${n}`, n, key: `preview-key-${n}`, secret: 'preview', imei: '', email: 'bulksms@cloudivr.net' }) }
+  for (let n = 1; n <= MAX_ACCOUNTS; n++) { const key = env('SPENZA_BULK_API_KEY', n), secret = env('SPENZA_BULK_API_SECRET', n); if (key && secret) out.push({ id: `spenza${n}`, n, key, secret, imei: env('SPENZA_BULK_IMEI', n) || process.env.SPENZA_BULK_IMEI || '', email: env('SPENZA_BULK_EMAIL', n) || poolEmail(key) }) }
+  if (dry()) { const want = Math.max(out.length, Number(process.env.BULK_ESIM_FAKE_ACCOUNTS || 1)); for (let n = out.length + 1; n <= want; n++) out.push({ id: `spenza${n}`, n, key: `preview-key-${n}`, secret: 'preview', imei: '', email: poolEmail(`preview-key-${n}`) }) }
   return out
 }
 const configured = () => dry() || accounts().length > 0

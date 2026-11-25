@@ -113,7 +113,14 @@ async function mine(chatId, id) { return S.col.findOne({ _id: String(id), chatId
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 // Each CloudIVR buyer is a Spenza user (end user) holding their lines. Spenza needs an email: the account's,
 // or a private CloudIVR address for phone-only accounts (swapped for the real one once they add it).
-const privateEmail = (chatId) => `u${chatId}@users.${String(process.env.CLOUDIVR_WEB_DOMAIN || '').trim().toLowerCase() || 'cloudivr.net'}`
+// Stable made-up Gmail per customer (never our own domain): HMAC(chatId) → e.g. "lena.ortiz.k7q2x9@gmail.com".
+const FIRST = ['alex', 'sam', 'jordan', 'taylor', 'casey', 'morgan', 'riley', 'jamie', 'drew', 'quinn', 'avery', 'blake', 'reese', 'lena', 'nico', 'maya', 'eli', 'tess', 'owen', 'iris']
+const LAST = ['reyes', 'ortiz', 'hayes', 'bennett', 'carter', 'brooks', 'foster', 'griffin', 'hughes', 'jensen', 'kemp', 'lowell', 'marsh', 'nolan', 'pierce', 'quill', 'rowan', 'shaw', 'turner', 'walsh']
+const privateEmail = (chatId) => {
+  const h = require('crypto').createHmac('sha256', String(process.env.SPENZA_API_KEY)).update(`spenza-user:${chatId}`).digest()
+  const tail = h.subarray(2, 8).toString('base64').replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 6)
+  return `${FIRST[h[0] % FIRST.length]}.${LAST[h[1] % LAST.length]}.${tail}@gmail.com`
+}
 // Bot buyers have no web account: the email they gave at checkout (if any) is their Spenza user email.
 async function spenzaUser(chatId, botEmail) {
   const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(chatId), Number(chatId)] } }, { projection: { email: 1, name: 1, phone: 1, legalProfile: 1 } })
@@ -760,4 +767,5 @@ function init({ db, log = console.log, tell }) {
 }
 
 const api = { retryAwaitingFunds, init, setBot, sendBotQr, tick, syncUser, syncProfile, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE, MOBILE_TEXT_PRICE, creditBalance }
+api.privateEmail = privateEmail
 module.exports = api
