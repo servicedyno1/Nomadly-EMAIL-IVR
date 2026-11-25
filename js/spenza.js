@@ -213,7 +213,8 @@ async function retryAwaitingFunds() {
       continue
     }
     if (require('./provider-health').isLow('spenza')) return
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'provisioning', updatedAt: new Date() } })
+    // fresh 24 h poll window: the old provisionStartedAt (from before the wait) would make the poller refund at once
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'provisioning', provisionStartedAt: new Date(), updatedAt: new Date() } })
     await provision({ ...d, status: 'provisioning' }).catch(e => S.log(`[eSIM] retry ${d._id}: ${e.message}`))
   }
 }
