@@ -60,4 +60,26 @@ async function post(bot, db, r) {
   return text
 }
 
-module.exports = { post, write, mask, positive, html }
+// Completed campaign → stats post (no customer, bot, text, numbers or links — only counts and timing).
+const dur = (min) => (min < 60 ? `${Math.max(1, Math.round(min))} min` : `${Math.floor(min / 60)} h${Math.round(min % 60) ? ` ${Math.round(min % 60)} min` : ''}`)
+function campaignText(s) {
+  const pct = s.sent >= s.total ? 100 : Math.floor((s.sent / s.total) * 1000) / 10
+  return ['📣 <b>Another bulk SMS campaign just finished</b>', '',
+    `✅ <b>${s.sent.toLocaleString('en-US')} texts sent</b> — ${s.sent.toLocaleString('en-US')} of ${s.total.toLocaleString('en-US')} went through (${pct}%)`,
+    ...(s.minutes != null ? [`⏱ Finished in <b>${dur(s.minutes)}</b>`] : []),
+    ...(s.replies ? [`💬 <b>${s.replies.toLocaleString('en-US')} ${s.replies === 1 ? 'reply' : 'replies'}</b> came back`] : []),
+    '🇺🇸🇨🇦 USA &amp; Canada mobiles', '',
+    'Real mobile numbers, no sender registration, results in minutes, not days.', '',
+    'From <b>$0.10 a text</b>, 500 minimum, and the first test text is free.'].join('\n')
+}
+async function postCampaign(bot, db, s) {
+  if (!s?.id || !(s.sent > 0) || !(s.total > 0)) return null
+  const col = db.collection('reviewPosts')
+  if (await col.findOne({ campaignId: String(s.id) })) return null
+  const text = campaignText(s)
+  const msg = await bot.sendMessage(CHANNEL(), text, { parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: { inline_keyboard: [[{ text: '🚀 Start a campaign', url: `https://t.me/${BOT()}?start=open_bulksms` }]] } })
+  await col.insertOne({ campaignId: String(s.id), kind: 'campaign_done', channel: CHANNEL(), text, messageId: msg?.message_id, at: new Date() })
+  return text
+}
+
+module.exports = { post, write, mask, positive, html, campaignText, postCampaign }
