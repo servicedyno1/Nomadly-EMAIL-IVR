@@ -3974,3 +3974,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Bot buyers' eSIM emails (QR, renewal receipt, reminders) now come from the bot's own brand (`CHAT_BOT_BRAND` <MAIL_SENDER>, bot logo/footer, "in Nomadly on Telegram") via `sendMail(..., { brand })`; web buyers keep CloudIVR.
 - `spenzaUser()` always uses private `u<chatId>@users.cloudivr.net` (provider can't email customers). Migrated 4 live lines via /sims/{iccid}/assign; legal names re-synced.
 - qr(): only `LPA:` strings count as a manual code (Spenza returns an S3 image URL containing "spenzaJ").
+
+## 2026-11-25 — BulkSMS Spenza account swap
+- Old BulkSMS Spenza creds invalid (pool paused 17:31 UTC). New SPENZA_BULK_API_KEY/SECRET written to /opt/nomadly/shared/{app-main,app-proshop,app-voodoo,app-wl}/backend.env (backups *.bak-<ts>); engine retired 8 old lines.
+- BUG: provider-spenza plan() took the FIRST plan/SIM (new account lists "Travel eSIM Starter | 1GB" + esim_1GB_7D_AX_V2) → now prefers SPENZA_001 + SIM_J (env SPENZA_BULK_PLAN_ID / SPENZA_BULK_SIM_ID override). Hot-patched into live releases.
+- Spenza user emails are global: bulksms@cloudivr.net belongs to the old account → every purchase "INTERNAL_ERROR". Set SPENZA_BULK_EMAIL="bulksms-pool@cloudivr.net" in all 4 shared envs.
+- New lines: ESIM-0085 tester +16316901311, ESIM-0088 +16316870925, ESIM-0089 +16317904236 (new account credit left $9.38). Voodoo booking bk_548367fca640 (999) starts 2026-11-26 09:00 UTC.

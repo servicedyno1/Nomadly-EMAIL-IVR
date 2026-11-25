@@ -67,7 +67,10 @@ const credit = async (account) => {
 async function plan(account) {
   if (dry()) return { planId: 'SPENZA_001', simId: 'SIM_J', cost: 10 }
   const [p, s] = await Promise.all([call('get', '/api/v1.1/plans?page=1&pageSize=100', undefined, {}, account), call('get', '/api/v1.1/sim-products?page=1&pageSize=100', undefined, {}, account)])
-  const pl = items(p)[0], sim = items(s)[0]
+  // USA line plan only (accounts can also list travel-data plans/SIMs, which can't text): SPENZA_001 + the SpenzaJ (T-Mobile) eSIM
+  const want = process.env.SPENZA_BULK_PLAN_ID || 'SPENZA_001', P = items(p), Sx = items(s)
+  const pl = P.find(x => x.productId === want) || P.find(x => !/travel/i.test(`${x.productId} ${x.description || ''}`))
+  const sim = Sx.find(x => x.simId === (process.env.SPENZA_BULK_SIM_ID || 'SIM_J')) || Sx.find(x => x.isEsim && /spenzaj/i.test(x.operator || '')) || Sx.find(x => !/^esim_\d+GB/i.test(x.simId || ''))
   return pl ? { planId: pl.productId, simId: sim?.simId || null, cost: (pl.price || 0) + (sim?.price || 0) } : null
 }
 // New line: Spenza needs a device IMEI (the platform's own handset, SPENZA_BULK_IMEI[_n]) and a user email.
