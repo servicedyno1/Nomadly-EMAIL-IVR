@@ -1,6 +1,6 @@
 'use strict'
-// Automatic posts to Telegram channels, 4/day each: the home brand 3×, the other brand 1× (crossover).
-// @Hostbay: Nomadlybot ads + 1 CloudIVR ad. @CloudIVRNet: CloudIVR ads + 1 Nomadlybot ad.
+// Automatic posts to Telegram channels, 2/day each (10:00 + 16:00 UTC), each channel's own brand.
+// @Hostbay: Nomadlybot ads. @CloudIVRNet: CloudIVR ads.
 // Every post gets a new visual (live screens, AI artwork, phone clips) and a punchy caption.
 const fs = require('fs')
 const crypto = require('crypto')
@@ -9,7 +9,7 @@ const studio = require('./channel-ads-studio')
 
 // Canonical schedule (UTC). "HH:MM/brand" picks the ad brand for a slot; no suffix = the channel's own brand.
 // CHANNEL_ADS_TARGETS can override, but any override is logged loudly on startup (see init).
-const DEFAULT_TARGETS = '@Hostbay=16:00/nomadly;@CloudIVRNet=16:00/cloudivr'
+const DEFAULT_TARGETS = '@Hostbay=10:00/nomadly,16:00/nomadly;@CloudIVRNet=10:00/cloudivr,16:00/cloudivr'
 const homeBrand = (chat) => (/hostbay/i.test(chat) ? 'nomadly' : 'cloudivr')
 const parseTargets = (str) => String(str).split(';')
   .map(s => { const [chat, slots = ''] = s.split('='); return { chat: chat.trim(), slots: slots.split(',').map(x => x.trim()).filter(Boolean).map(x => { const [hm, b] = x.split('/'); return { hm, brand: b === 'nomadly' || b === 'cloudivr' ? b : homeBrand(chat) } }) } })
