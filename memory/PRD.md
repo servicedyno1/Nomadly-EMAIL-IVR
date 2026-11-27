@@ -864,3 +864,5 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - 2026-11-24: Bulk SMS launch placements live (dashboard banner, landing ribbon in nav header, product tile, pricing line) + CRM API SMS endpoints (/v1/sms, /v1/sms/campaigns, GET status). API SMS not yet exercised with a real key (no test account with API access).
 
 - 2026-11-27: Retell unblocked; all 3 web toll-free numbers for 5000000000000143 active + Bird verified.
+
+- 2026-11-27: Redis layer live on all 4 bots (shared Bird lookup lane, AWS lookup fallback, shared provider search maps, job locks/heartbeats/wake, /jobs + /retryorders admin cmds, stuck-job alerts). Deploy lock bug fixed (drain watcher held flock). Save to GitHub needed to make WL overlay permanent (sync dry-run clean).

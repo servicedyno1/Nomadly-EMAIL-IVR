@@ -759,7 +759,7 @@ function init({ db, log = console.log, tell }) {
   S = { db, col: db.collection('esimLines'), w: walletOps(db), log, tell }
   S.col.createIndex({ chatId: 1, status: 1 }).catch(() => {})
   S.col.createIndex({ phoneNumber: 1 }).catch(() => {})
-  setInterval(() => tick().catch(() => {}), 15000).unref?.()
+  require('./active-slot').singletonInterval('esim-tick', () => tick().catch(() => {}), 15000).unref?.()
   const pl2 = () => prelink().then(toMobile).catch(e => log(`[eSIM] prelink: ${e.message}`))
   pl2(); setInterval(pl2, 10 * 60000).unref?.()
   defaultPrice().then(priceLinked).catch(e => log(`[eSIM] default price: ${e.message}`))

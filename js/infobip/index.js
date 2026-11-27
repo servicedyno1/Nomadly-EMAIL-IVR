@@ -183,7 +183,7 @@ async function createOutboundCall(from, to, webhookUrl, connectionId, options = 
 }
 
 // ── Numbers ──
-const searched = new Map() // e164 → numberKey
+const searched = require('../redis').sharedMap('infobip:searched') // e164 → numberKey
 // Infobip ignores area codes and rate-limits hard, so its list is fetched at most once a minute per country and filtered here.
 const avail = new Map()
 async function available(params) {

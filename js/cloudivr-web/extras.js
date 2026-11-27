@@ -328,11 +328,13 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
   async function announceCoupon() {
     if (!offers) return
     const day = today()
+    // One read for today's markers (was one findOne per account per minute — millions of queries).
+    const done = new Set((await notices.find({ _id: { $regex: `^offer:${day}:` } }, { projection: { _id: 1 } }).toArray()).map(x => x._id))
     const accounts = await db.collection('webAccounts').find({}, { projection: { _id: 1 } }).toArray()
     let sent = 0
     for (const a of accounts) {
       const id = String(a._id)
-      if (await notices.findOne({ _id: `offer:${day}:${id}` }, { projection: { _id: 1 } })) continue
+      if (done.has(`offer:${day}:${id}`)) continue
       const o = await offers.current(id)
       try { await notices.insertOne({ _id: `offer:${day}:${id}`, offer: o._id, at: new Date() }) } catch (e) { if (e.code === 11000) continue; throw e }
       if (o.used) continue
@@ -346,9 +348,9 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     announceCoupon().catch(e => log(`[CloudIVR-Web] offer notice: ${e.message}`))
     offers?.payBonuses((id, text) => notify.push(id, text, null, { kind: 'coupon', meta: { offer: 'bonus', used: true } })).catch(e => log(`[CloudIVR-Web] top-up bonus: ${e.message}`))
   }
-  const timer = setInterval(tick, 60000)
+  const timer = require('../active-slot').singletonInterval('cloudivr-daily-offer', tick, 60000)
   if (timer.unref) timer.unref()
-  setTimeout(tick, 20000).unref?.()
+  setTimeout(require('../active-slot').singleton('cloudivr-daily-offer', tick), 20000).unref?.()
 
   // ── Campaign CSV report (same file the bot sends at the end) ──
   router.get('/campaigns/:id/report.csv', h(async (req, res) => {

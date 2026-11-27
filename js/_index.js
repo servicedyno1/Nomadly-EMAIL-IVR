@@ -9430,6 +9430,25 @@ bot?.on('message', msg => {
   }
 
 
+  // /retryorders: retry every waiting number order now (after a provider top-up). /jobs: background jobs' last runs.
+  if (isAdmin(chatId) && message === '/retryorders') {
+    try {
+      const r = await db.collection('pendingNumberOrders').updateMany({ status: 'waiting' }, { $unset: { nextTryAt: '' } })
+      if (await require('./redis').wake('pending-number-orders') === null) require('./pending-orders').tick().catch(() => {})
+      return send(chatId, `🔁 Retrying ${r.modifiedCount} waiting order(s) now — completed ones are announced here.`)
+    } catch (e) { return send(chatId, '❌ Error: ' + e.message) }
+  }
+  if (isAdmin(chatId) && message === '/jobs') {
+    try {
+      const all = await require('./redis').jobs()
+      if (!all) return send(chatId, 'Job heartbeats need Redis (REDIS_ENABLED).')
+      const stuck = new Set((await require('./active-slot').stuckJobs()).map(j => j.label))
+      const ago = (t) => (t ? `${Math.round((Date.now() - t) / 60000)}m ago` : '—')
+      const rows = Object.entries(all).filter(([, j]) => j).sort(([a], [b]) => a.localeCompare(b))
+        .map(([l, j]) => `${stuck.has(l) ? '⚠️' : j.err ? '❗' : '✅'} <code>${l}</code> ${j.running ? `running ${ago(j.start)}` : `ran ${ago(j.end)} (${Math.round((j.end - j.start) / 100) / 10}s)`}${j.err ? ` — ${String(j.err).slice(0, 60).replace(/</g, '&lt;')}` : ''}`)
+      return send(chatId, `<b>Background jobs</b> (${rows.length}, ${stuck.size} stuck)\n${rows.join('\n')}`.slice(0, 4000), { parse_mode: 'HTML' })
+    } catch (e) { return send(chatId, '❌ Error: ' + e.message) }
+  }
   // ── Admin: Reset dead users list ──
   if (isAdmin(chatId) && message === '/resetdead') {
     try {

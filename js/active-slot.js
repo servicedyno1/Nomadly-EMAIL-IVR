@@ -54,13 +54,45 @@ function singleton(label, fn) {
   }
 }
 
-// Drop-in for setInterval(fn, ms) → singletonInterval('label', fn, ms)
+// Drop-in for setInterval(fn, ms) → singletonInterval('label', fn, ms). With Redis (redis.js): a run is skipped while the
+// previous one (either slot) is still going, each run leaves a heartbeat for the stuck-job check, and
+// redis.wake(label) runs it right away on the active slot.
+const R = () => require('./redis')
+const STUCK_MIN_MS = 15 * 60000
 function singletonInterval(label, fn, ms, ...rest) {
-  return setInterval(singleton(label, fn), ms, ...rest)
+  const run = async () => {
+    if (!isActiveSlot()) { _logSkip(label); return }
+    if (!R().enabled()) return fn(...rest)
+    const token = await R().lock(`job:${label}`, Math.max(2 * ms, 120000))
+    if (token === false) return
+    const start = Date.now(), slot = slotInfo().name || null
+    R().beat(label, { start, every: ms, running: true, slot })
+    let err = null
+    try { return await fn(...rest) } catch (e) { err = String(e?.message || e).slice(0, 200); throw e } finally {
+      R().unlock(`job:${label}`, token)
+      R().beat(label, { start, end: Date.now(), every: ms, running: false, err, slot })
+    }
+  }
+  const go = () => { Promise.resolve().then(run).catch(e => console.log(`[Job] ${label}: ${e?.message || e}`)) }
+  R().onWake(label, go)
+  return setInterval(go, ms)
+}
+
+// Jobs whose run has been going (or not happened) for 3× their interval, min 15 min → [{ label, why, ... }]
+async function stuckJobs(now = Date.now()) {
+  const all = await R().jobs()
+  if (!all) return []
+  return Object.entries(all).filter(([, j]) => j && j.every).map(([label, j]) => {
+    const limit = Math.max(3 * j.every, STUCK_MIN_MS)
+    if (j.running && now - j.start > limit) return { label, why: `running for ${Math.round((now - j.start) / 60000)} min`, ...j }
+    if (!j.running && now - (j.end || j.start) > limit) return { label, why: `last ran ${Math.round((now - (j.end || j.start)) / 60000)} min ago`, ...j }
+    return null
+  }).filter(Boolean)
 }
 
 // node-schedule crons fire at the same wall-clock second on every slot → always singleton.
 // Patches the shared module object once; supports (spec, fn[, cb]) and (name, spec, fn[, cb]).
+let cronSeq = 0
 function patchNodeSchedule(schedule) {
   if (!schedule || schedule.__activeSlotPatched) return schedule
   const orig = schedule.scheduleJob.bind(schedule)
@@ -68,11 +100,14 @@ function patchNodeSchedule(schedule) {
     const fnIdx = a.findIndex((x, i) => i >= 1 && typeof x === 'function')
     if (fnIdx === -1) return orig(...a)
     const label = fnIdx === 2 && typeof a[0] === 'string' ? a[0] : `cron ${String(a[fnIdx - 1])} ${a[fnIdx].name || ''}`.trim()
-    a[fnIdx] = singleton(label, a[fnIdx])
+    const job = singleton(label, a[fnIdx])
+    // One run per fire across slots even if both briefly think they are active (Redis; else as before).
+    const key = `cron:${++cronSeq}:${label}` // registration order is the same on both slots → unique, matching keys
+    a[fnIdx] = async function (...args) { if (await R().once(`${key}:${Math.floor(Date.now() / 30000)}`, 120000) === false) return; return job.apply(this, args) }
     return orig(...a)
   }
   schedule.__activeSlotPatched = true
   return schedule
 }
 
-module.exports = { isActiveSlot, describe, singleton, singletonInterval, patchNodeSchedule, _slotInfo: slotInfo, UPSTREAMS_FILE }
+module.exports = { isActiveSlot, describe, singleton, singletonInterval, stuckJobs, patchNodeSchedule, _slotInfo: slotInfo, UPSTREAMS_FILE }

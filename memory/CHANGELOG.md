@@ -4001,3 +4001,15 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 ## 2026-11-27 19:10 UTC — Retell landing-failure handling
 - +18556742555 etc. were similar-number fallbacks of the same (now completed) order; no other customers affected.
 - retell/index.js: landing (Infobip) buy failure now marks noFunds (skips useless similar-number attempt) + one admin alert per 6h. Deployed app-main 9ed4d0e.
+
+## 2026-11-27 ~20:00 UTC — Redis layer (all 3 phases) + deploy lock fix
+- REDIS_URL (Railway proxy, ~3 ms from droplet) + REDIS_ENABLED=true + AWS_ACCESS_KEY_ID/SECRET/REGION written to /opt/nomadly/shared/{app-main,app-wl,app-voodoo,app-proshop}/backend.env (backups *.bak-redis-*). Redis is OFF unless REDIS_ENABLED=true (preview shares DB_NAME "test" with prod → must never share keys/locks).
+- js/redis.js: fail-open helpers — gate (shared lane), pushBack, take (fixed window), once/forget, lock/unlock, beat/jobs/dropJob (job heartbeats hash nomadly:<DB>:jobs), wake/onWake (pub/sub nomadly:<DB>:bus), sharedMap (provider "searched" maps survive restarts + shared by both slots; loads only after SUBSCRIBE confirmed).
+- Bird lookups: one lane for all 4 bots (7.5 s gap, 2/min single allowance, 429 pushes everyone back). Bulk screening (core.checkNumbers) uses Bird only if a turn is free now (maxWait 0) else falls through to SignalWire → AWS → Infobip. Root cause of unchecked lists: 3,829 Bird 429s (4 bots × 20 parallel lookups vs 10/min) + AWS keys never reached prod. AWS Pinpoint verified (mobile/landline/toll-free correct). kind() counts 'landline'.
+- active-slot.singletonInterval: Redis lock per job (no overlap across slots), heartbeat, wake; patchNodeSchedule: one run per fire (key cron:<registration#>:<label>:<30s bucket>). stuckJobs() → provider-health alerts once/6h, forgets jobs silent >2 days. Admin bot: /jobs, /retryorders.
+- Wasteful reads: cloudivr-web/extras.js daily-offer loop did 1 findOne per account per minute on both slots (6.5M queries) → one regex query per run + singleton. spenza.js 15 s tick → singletonInterval('esim-tick').
+- Retell alerts dedupe shared via Redis once().
+- Tests: js/tests/test_redis_layer.js 19/19 (real Redis, throwaway scope). Pre-existing failures unchanged: test_bird_routing 7, test_bulk_esim_engine 4, test_deploy_pipeline 8.
+- DEPLOY FAILURE RCA (GitHub run 46054309178): "another deploy of app-main is still running" — retire_when_idle background watcher inherited flock fds 8/9 and held both locks up to 30 min after DONE. Fix: `exec 8>&- 9>&-` in the watcher; same-app wait 900→2700 s. Installed on droplet (backup deploy.sh.bak-20261127-lockfd).
+- Sync dry-run (workspace snapshot → WhiteLabel): clean, 17 files, _index.js 3-way merged. WL bots got the overlay now via /opt/nomadly/wl_redis_deploy.sh (live release + overlay, ioredis added to package.json, deploy_wlr.sh = deploy.sh tarball variant).
+- Verified 20:08 UTC: all 4 bots healthy + Redis connected; bulk lookup → Bird turn (mobile) then lane busy → AWS (landline); no deploy lock holders.
