@@ -174,7 +174,7 @@ async function creditWatch() {
 
 async function tick() {
   if (!D) return
-  await creditWatch().catch(e => log('credit watch:', errOf(e)))
+  if (enabled()) await creditWatch().catch(e => log('credit watch:', errOf(e)))
   const col = D.db.collection('phoneNumbersOf'), vcol = D.db.collection('birdCallerIdVerify')
   // Any 2Chat number (web or bot purchase) not yet confirmed forwarding is held as "setting up" until it is.
   const waiting = (x) => x.provider === '2chat' && !x.forwardSetup?.doneAt && ['active', 'provisioning'].includes(x.status)
