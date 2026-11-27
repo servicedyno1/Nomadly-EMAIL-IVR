@@ -94,6 +94,14 @@ function lowFunds(phoneNumber, why) {
   lowAlertAt = Date.now()
   require('../provider-health').alert(`🚨 [Providers] Retell wallet too low — it refused to buy ${phoneNumber} (${why.slice(0, 120)}). Paid orders wait and complete on their own after the top-up (Retell dashboard → Billing). US/Canada numbers can't be bought until then.`)
 }
+// Infobip refusing to sell landing numbers ("Something went wrong") has meant a low Infobip balance; a similar number can't help.
+let landingAlertAt = 0
+function landingDown(phoneNumber) {
+  noFunds.add(phoneNumber)
+  if (Date.now() - landingAlertAt < 6 * 3600000) return
+  landingAlertAt = Date.now()
+  require('../provider-health').alert(`🚨 [Providers] Infobip won't sell landing numbers, so Retell can't buy ${phoneNumber} — usually a low Infobip balance. Paid orders wait and complete on their own after the top-up.`)
+}
 // Buy → { id: 'rt:+1…', _provider: 'retell', _landingNumber } | null (nothing is left half-bought).
 async function buyNumber(phoneNumber) {
   if (!selling()) return null
@@ -105,12 +113,13 @@ async function buyNumber(phoneNumber) {
     const got = e164(r.phone_number)
     if (got !== phoneNumber) log(`asked ${phoneNumber}, Retell gave ${got}`)
     if (r.fallback_number !== landing.number || r.inbound_fallback_enabled !== true) await http().patch(`/update-phone-number/${encodeURIComponent(got)}`, { fallback_number: landing.number, inbound_fallback_enabled: true })
-    searched.delete(phoneNumber); bought.add(got); noFunds.delete(phoneNumber); lowAlertAt = 0
+    searched.delete(phoneNumber); bought.add(got); noFunds.delete(phoneNumber); lowAlertAt = 0; landingAlertAt = 0
     log(`Bought ${got} → forwards to landing ${landing.number}`)
     return { id: `rt:${got}`, status: 'success', requirements_met: true, phone_numbers: [{ id: `rt:${got}`, phone_number: got, status: 'success' }], _provider: 'retell', _landingNumber: landing.number, ...(got !== phoneNumber ? { _retriedNumber: got } : {}) }
   } catch (e) {
     log(`buy ${phoneNumber}:`, errOf(e))
-    if (landing && (e.response?.status === 402 || LOW_FUNDS.test(errOf(e)))) lowFunds(phoneNumber, errOf(e))
+    if (!landing) landingDown(phoneNumber)
+    else if (e.response?.status === 402 || LOW_FUNDS.test(errOf(e))) lowFunds(phoneNumber, errOf(e))
     else noFunds.delete(phoneNumber)
     // Keep the landing for the next try (a waiting order retries every few minutes) instead of buying a new one each time.
     if (landing) spare.keep(landing)

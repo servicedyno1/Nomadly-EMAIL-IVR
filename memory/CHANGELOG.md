@@ -3997,3 +3997,7 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-11-27 18:46 UTC — +18555260730 completed
 - Blocked by Infobip low balance (landing-number buy "Something went wrong"); after top-up queue bought it, Bird VERIFIED 18:49. Queue now empty.
+
+## 2026-11-27 19:10 UTC — Retell landing-failure handling
+- +18556742555 etc. were similar-number fallbacks of the same (now completed) order; no other customers affected.
+- retell/index.js: landing (Infobip) buy failure now marks noFunds (skips useless similar-number attempt) + one admin alert per 6h. Deployed app-main 9ed4d0e.
