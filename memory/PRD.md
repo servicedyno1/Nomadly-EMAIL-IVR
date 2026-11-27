@@ -866,3 +866,5 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - 2026-11-27: Retell unblocked; all 3 web toll-free numbers for 5000000000000143 active + Bird verified.
 
 - 2026-11-27: Redis layer live on all 4 bots (shared Bird lookup lane, AWS lookup fallback, shared provider search maps, job locks/heartbeats/wake, /jobs + /retryorders admin cmds, stuck-job alerts). Deploy lock bug fixed (drain watcher held flock). Save to GitHub needed to make WL overlay permanent (sync dry-run clean).
+
+- 2026-11-27: Railway bill RCA ($86.38 open invoice, PAST_DUE): Dynopay Redis live replica of price ticks (~320 GB/mo) → switched to 10-min key copy; Mongo cache capped on 4 DBs.

@@ -100,3 +100,10 @@ RESOLVED 2026-10-20: the 2-min full dumps (~9 TB/month egress) were replaced by 
   (To get realtime like the bots: convert each source to single-node RS (railway_convert.py, ~30 s downtime) + `systemctl enable --now dr-mongo-tail@<name>`.)
 - Hourly PIT (`mongo_local_archive.sh`, keep 24) picks them up automatically from the conf. `monitor_dr.sh` checks `mongo:hosta` / `mongo:bozzmail` freshness (420 s). `compare.sh` now strips any path/query from the source URI.
 - Verified 2026-10-23 07:08Z: snapshot OK, compare hosta 54 colls/2547 docs mismatched=0, bozzmail 2 colls mismatched=0, PIT archives written, restore drill into a scratch DB OK (54 colls), health STATUS OK.
+
+## 2026-11-27 — Railway bill reduction
+- Railway DB account (database@dyno.pt, workspace 1f92ee03…) invoice Oct18–Nov18 = $86.38 OPEN/PAST_DUE: RAM $39.26, egress 557 GB $28.51, plan $5, CPU/disk ~$2.5.
+- Dynopay Redis REPLICAOF streamed ~10.6 GB/day (offset 376 GB total) — almost all `dynopay:ws:kline:*`/`dynopay:ws:prices` HSETs (live price ticks). REPLICAOF DISABLED (conf line now `# dr_source host port`, backup dr-replica.conf.bak-20261127). New `/opt/dr/bin/redis_sync.py` (cron 5-59/10): DUMP/RESTORE every key except dynopay:ws:* into local redis, deletes vanished keys; ~17.7 MB/run ≈ 77 GB/mo. State /opt/dr/state/redis_sync.{json,ok}; monitor_dr.sh checks redis:sync age (backup .bak-20261127). Hourly would be ~13 GB/mo.
+- Mongo WiredTiger cache capped via Railway startCommand (`--wiredTigerCacheSizeGB`): Nomadly 1.0, Vland/SMADAV/PROSHOP 0.25 (backups /tmp/startcmd_*.bak in pod only). Resident before: 1930/405/502/392 MB; after (cold): 420/270/261/246 MB. All bots reconnected, tailers in sync.
+- Not touched: Hosta/Nameword DB, SMOOTH, Bozzmail, Lockbay, Hostbay. Pre-existing DR problem: mongo:bozzmail tailer STALE.
+- RAILWAY_DB_ACCOUNT_TOKEN / RAILWAY_ACCOUNT_TOKEN renewed 2026-11-27 (env-injected, not in backend/.env; old .env values are dead).
