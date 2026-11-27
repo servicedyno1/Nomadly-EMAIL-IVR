@@ -16054,8 +16054,10 @@ All verified numbers generated during sourcing.`))
   // When admin has taken over (via /reply), AI stays silent
   // ═══════════════════════════════════════════════════
   // Missed-question catch: a typed question within 10 min of an admin closing the chat reopens support (AI answers).
+  // Only from the idle main menu: inside a menu/flow (e.g. "📧 Zoho Mail Account — $150") a tap is a button, not a question.
   if (action !== a.supportChat && !isAdmin(chatId) && info?.supportClosedAt && Date.now() - info.supportClosedAt < 10 * 60e3
-      && typeof message === 'string' && !message.startsWith('/') && !Object.values(user).includes(message)
+      && (!action || action === 'none') && typeof message === 'string' && !message.startsWith('/') && !Object.values(user).includes(message)
+      && !/^\p{Extended_Pictographic}/u.test(message.trim())
       && (message.trim().length >= 12 || message.includes('?'))) {
     await set(state, chatId, 'supportClosedAt', null)
     await set(supportSessions, chatId, Date.now())
