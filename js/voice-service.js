@@ -4256,7 +4256,7 @@ async function birdAutoLinkTick() {
   for (const f of await _db.collection('faxNumbers').find({ provider: 'infobip_fax', status: 'active' }, { projection: { _id: 1 } }).toArray()) numbers.add(f._id)
   // Retell numbers are customer numbers too (bought on Retell, so not in the Infobip/MultiTEL lists).
   for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1, 'val.numbers.capabilities': 1, 'val.numbers.provider': 1 } }).toArray())
-    for (const n of d.val?.numbers || []) if ((sw.has(n.phoneNumber) || n.provider === 'retell' || (n.provider === '2chat' && n.status === 'active')) && n.capabilities?.voice !== false && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
+    for (const n of d.val?.numbers || []) if ((sw.has(n.phoneNumber) || (n.provider === 'retell' && n.status !== 'provisioning') || (n.provider === '2chat' && n.status === 'active')) && n.capabilities?.voice !== false && !/released|expired|cancel|provisioning|failed/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
   const wanted = [...require('./signalwire').birdWanted].filter(n => sw.has(n))
   const onGiveUp = (n, why) => {
     const msg = `🚨 [Bird] ${n} still can't show as caller ID on outgoing calls after ${BIRD_LINK_ROUNDS} tries (${why || 'no code'}). Calls in work; calls out show "pending". Check Bird → Verified numbers.`
