@@ -19,6 +19,18 @@ const sellsType = (cc, type) => (cc === 'US' && ['local', 'toll_free'].includes(
 const searched = new Map() // e164 → { cc, type }
 const bought = new Set() // bought by this process (routing needs no Telnyx step)
 const owns = (n) => bought.has(e164(n))
+// Numbers on the Retell account (current API: POST /v2/list-phone-numbers, paginated) → also fills `bought` after a restart.
+async function listOwned() {
+  const out = []
+  for (let key = null, i = 0; i < 50; i++) {
+    const d = (await http().post('/v2/list-phone-numbers', { filter_criteria: {}, ...(key ? { pagination_key: key } : {}) })).data || {}
+    out.push(...(d.items || []))
+    if (!d.has_more || !d.pagination_key) break
+    key = d.pagination_key
+  }
+  for (const n of out) bought.add(e164(n.phone_number))
+  return out
+}
 async function searchNumbers(countryCode, numberType = 'local', areaCode = null, limit = 5) {
   const cc = String(countryCode || 'US').toUpperCase(), type = numberType || 'local'
   if (!selling() || !sellsType(cc, type)) return []
@@ -115,4 +127,4 @@ async function releaseNumber(id) {
   } catch (e) { log(`release ${num}:`, errOf(e)); return false }
 }
 
-module.exports = { owns, enabled, selling, sellsType, isRt, searchNumbers, isRtSearched, remember, searchedMeta, buyNumber, releaseNumber, wasNoFunds, COST, buyLanding, releaseLanding }
+module.exports = { owns, listOwned, enabled, selling, sellsType, isRt, searchNumbers, isRtSearched, remember, searchedMeta, buyNumber, releaseNumber, wasNoFunds, COST, buyLanding, releaseLanding }
