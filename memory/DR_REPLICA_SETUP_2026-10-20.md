@@ -107,3 +107,10 @@ RESOLVED 2026-10-20: the 2-min full dumps (~9 TB/month egress) were replaced by 
 - Mongo WiredTiger cache capped via Railway startCommand (`--wiredTigerCacheSizeGB`): Nomadly 1.0, Vland/SMADAV/PROSHOP 0.25 (backups /tmp/startcmd_*.bak in pod only). Resident before: 1930/405/502/392 MB; after (cold): 420/270/261/246 MB. All bots reconnected, tailers in sync.
 - Not touched: Hosta/Nameword DB, SMOOTH, Bozzmail, Lockbay, Hostbay. Pre-existing DR problem: mongo:bozzmail tailer STALE.
 - RAILWAY_DB_ACCOUNT_TOKEN / RAILWAY_ACCOUNT_TOKEN renewed 2026-11-27 (env-injected, not in backend/.env; old .env values are dead).
+
+## 2026-11-27 21:06 — Railway egress: compression + change-only Nameword dumps
+- All MONGO_URL + BULK_ESIM_MONGO_URL in /opt/nomadly/shared/*/backend.env now end with `&compressors=zlib` (backups .bak-zlib-*). Node driver 5.9 zlib built-in; measured 1108 KB → 152 KB on 3,000 phoneLogs (-86%); live 30 s: main 2908→719 KB, WL ~150→50 KB. Bots redeployed (main 9a33bb9 workspace, WL via wl_redis_deploy.sh overlay on 6eb5d10).
+- DR tailers: mongo_tail.py SRC_URI adds compressors=zlib (backup .bak-zlib); mongo_sources.conf URIs have compressors=zlib (backup .bak-zlib).
+- mongodump 100.19 IGNORES compressors (2.2 MB raw per Nameword dump, 720/day ≈ 43 GB/mo). mongo_snapshot.sh now asks dbhash.py (server-side dbHash per collection) → SAME (skip) / PART <colls> (dump+restore only those) / FULL (no state, all changed, or minute<2 each hour). Nameword: only `api_keys` (15 docs, last-used stamps) changes → PART every 2 min. Backup .bak-dbhash. NOTE: the hosta .archive.gz is refreshed hourly; local mongod is current.
+- Dynopay Postgres: DR logical subscription is small (~150k row changes/mo); its 43 GB is Dynopay's own app reads — Postgres wire protocol has no compression. Not changed.
+- Bozzmail Mongo (Railway project 3bff219a, service 35c0ffea): NO deployments on Railway; dumps DUMP_FAIL since 2026-11-27T19:26Z; last good DR copy 19:24Z. Left for user decision.
