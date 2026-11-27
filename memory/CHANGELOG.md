@@ -3994,3 +3994,6 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-11-27 16:56 UTC — Retell unblocked
 - Both waiting toll-free orders bought (+18886135293, +18669932636), active, forwarded, Bird VERIFIED (16:59 / 17:02).
+
+## 2026-11-27 18:46 UTC — +18555260730 completed
+- Blocked by Infobip low balance (landing-number buy "Something went wrong"); after top-up queue bought it, Bird VERIFIED 18:49. Queue now empty.
