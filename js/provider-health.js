@@ -89,7 +89,15 @@ async function birdExtras() {
   } catch (_) { /* no voice settings → nothing to report */ }
 }
 
-const tick = () => Promise.all([...Object.keys(CHECKS).map(check), birdExtras()])
+// Background jobs stuck or silent (Redis heartbeats): one alert per job per 6 h; a job silent for 2 days is forgotten (removed code).
+async function stuckJobs() {
+  const R = require('./redis')
+  for (const j of await require('./active-slot').stuckJobs()) {
+    if (Date.now() - (j.end || j.start) > 2 * 86400000) { await R.dropJob(j.label); continue }
+    if (await R.once(`alert:job:${j.label}`, 6 * 3600000)) alert(`⚠️ [Jobs] "${j.label}" looks stuck — ${j.why} (runs every ${Math.round(j.every / 60000) || '<1'} min).${j.err ? `\nLast error: ${j.err}` : ''}`)
+  }
+}
+const tick = () => Promise.all([...Object.keys(CHECKS).map(check), birdExtras(), stuckJobs().catch(() => {})])
 const hardDown = (p) => !!state[p]?.down || (p === 'multitel' && require('./multitel').isBlocked())
 const isLow = (p) => STOP[p] != null && Number.isFinite(state[p]?.balance) && state[p].balance < STOP[p]
 // Low balance hides a number provider only while the other one can still sell (never hide both).

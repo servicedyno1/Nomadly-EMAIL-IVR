@@ -309,7 +309,7 @@ function wrap(t) {
 }
 
 // Number lookup for list screening: SignalWire → Bird → AWS → Infobip → Telnyx fax account → { type, carrier } | null
-const lookup = async (e164) => (await bird.lookup(e164)) || (swOn() ? await rest.lookup(e164) : null) || (await aws.lookup(e164)) || (await ib.lookup(e164))
+const lookup = async (e164, opts) => (await bird.lookup(e164, opts)) || (swOn() ? await rest.lookup(e164) : null) || (await aws.lookup(e164)) || (await ib.lookup(e164))
 
 // Texts: SignalWire when it owns the sending number, else null (caller keeps its Telnyx path).
 async function sendSms(from, to, text, mediaUrls = []) {

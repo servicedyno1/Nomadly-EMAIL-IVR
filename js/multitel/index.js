@@ -47,7 +47,7 @@ async function areas(cc) {
   return list
 }
 
-const searched = new Map() // e164 → { priceId, features, needsReg, monthly }
+const searched = require('../redis').sharedMap('multitel:searched') // e164 → { priceId, features, needsReg, monthly }
 // Waiting orders keep the search details so the buy can run after a restart.
 const searchedMeta = (n) => searched.get(n) || null
 const remember = (n, meta) => { if (meta) searched.set(n, meta) }

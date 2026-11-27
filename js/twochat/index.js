@@ -25,7 +25,7 @@ const mine = new Set() // numbers bought on our 2Chat account (they forward to a
 const owns = (n) => mine.has(String(n || ''))
 const isTc = (id) => String(id || '').startsWith('tc:')
 
-const searched = new Map() // placeholder (bare prefix, e.g. +4420) → { cc, type, groupId, label }
+const searched = require('../redis').sharedMap('twochat:searched') // placeholder (bare prefix, e.g. +4420) → { cc, type, groupId, label }
 const digits = (x) => String(x || '').replace(/\D/g, '')
 // 2Chat picks the exact number inside a location group, so results are the groups themselves (like MultiTEL's
 // order-only prefixes): phone_number is the bare prefix and the bought number comes back as _retriedNumber.

@@ -48,7 +48,7 @@ P="[deploy $APP]"
 mkdir -p "$RELEASES" "$ROOT/current" "$LOG_DIR"
 exec > >(tee -a -p "$LOG_DIR/deploy-$APP.log") 2>&1
 exec 9>"$ROOT/.deploy-$APP.lock"
-flock -w 900 9 || { echo "$P ERROR: another deploy of $APP is still running"; exit 1; }
+flock -w 2700 9 || { echo "$P ERROR: another deploy of $APP ran for 45 min"; exit 1; }
 # Box-wide lock: deploys of different apps queue here (one build at a time on the 2-vCPU droplet,
 # and only one writer of the shared nginx upstreams file). GitHub no longer serialises them.
 exec 8>"$ROOT/.deploy-box.lock"
@@ -139,7 +139,9 @@ except Exception:
 retire_when_idle() {
   local name="$1" port="$2"
   echo "$P old slot $name keeps its live calls; it stops by itself when they end (cap $((DRAIN_MAX_SECONDS/60))m)"
-  ( trap '' HUP; deadline=$((SECONDS + DRAIN_MAX_SECONDS)); sleep 3
+  # Close the deploy locks (fds 8/9) in this background watcher, or it holds them for up to DRAIN_MAX_SECONDS and
+  # every queued deploy (GitHub) waits behind a deploy that already finished.
+  ( exec 8>&- 9>&-; trap '' HUP; deadline=$((SECONDS + DRAIN_MAX_SECONDS)); sleep 3
     while [ "$SECONDS" -lt "$deadline" ]; do
       live="$(curl -s -m 5 "http://127.0.0.1:$port/health" 2>/dev/null | python3 -c 'import sys,json
 try:

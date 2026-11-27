@@ -896,10 +896,10 @@ const setLookup = (fn) => { lookupHook = fn }
 const swLookup = () => require('../signalwire')
 const lookupLive = () => (swLookup().enabled() || require('../telnyx-fax-account').enabled()) && (!P.dry() || process.env.BULK_ESIM_LOOKUP_LIVE === 'true')
 // Bird lookup first (then SignalWire / AWS / Infobip) — Telnyx removed.
-async function lookupOne(p) {
+async function lookupOne(p, opts) {
   if (lookupHook) return lookupHook(p)
   if (!lookupLive()) { const n = Number(p.slice(-4)); return { type: n >= 9900 && n < 9950 ? 'fixed line' : n >= 9950 ? 'voip' : 'mobile', simulated: true } }
-  const sw = await swLookup().lookup(p)
+  const sw = await swLookup().lookup(p, opts)
   if (sw) return { type: sw.valid === false ? 'invalid' : sw.type, carrier: sw.carrier && sw.carrier !== 'unknown' ? sw.carrier : null }
   throw new Error('number lookup unavailable')
 }
@@ -910,11 +910,11 @@ async function checkNumbers(cid, list) {
   const todo = list.filter(p => !res.has(p))
   for (let i = 0; i < todo.length; i += 20) {
     await Promise.all(todo.slice(i, i + 20).map(async (p) => {
-      try { const r = await lookupOne(p), doc = { _id: p, type: r.type, carrier: r.carrier || null, at: new Date() }; res.set(p, doc); if (!r.simulated) { looked++; await C('bsLookups').replaceOne({ _id: p }, doc, { upsert: true }) } } catch (e) { failed++; why ||= `${e.response?.status || e.code || ''} ${e.response?.data?.errors?.[0]?.detail || e.message}`.trim() }
+      try { const r = await lookupOne(p, { bulk: true, maxWait: 0 }), doc = { _id: p, type: r.type, carrier: r.carrier || null, at: new Date() }; res.set(p, doc); if (!r.simulated) { looked++; await C('bsLookups').replaceOne({ _id: p }, doc, { upsert: true }) } } catch (e) { failed++; why ||= `${e.response?.status || e.code || ''} ${e.response?.data?.errors?.[0]?.detail || e.message}`.trim() }
     }))
   }
-  if (failed && await once(`lookupdown:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Number check: ${failed} of ${todo.length} number lookups failed — those numbers were kept (not skipped).${why ? `\nProvider said: <code>${esc(String(why).slice(0, 160))}</code>` : ''}\nCheck the SignalWire (and Telnyx backup) account / balance / API key.`)
-  const kind = (t) => (t === 'fixed line' ? 'landline' : t === 'voip' ? 'voip' : t === 'invalid' ? 'invalid' : 'other')
+  if (failed && await once(`lookupdown:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Number check: ${failed} of ${todo.length} number lookups failed — those numbers were kept (not skipped).${why ? `\nProvider said: <code>${esc(String(why).slice(0, 160))}</code>` : ''}\nCheck the Bird / AWS lookup accounts (balance, keys).`)
+  const kind = (t) => (t === 'fixed line' || t === 'landline' ? 'landline' : t === 'voip' ? 'voip' : t === 'invalid' ? 'invalid' : 'other')
   const skip = list.filter(p => res.has(p) && !SENDABLE.includes(res.get(p).type)), counts = { landline: 0, voip: 0, invalid: 0, other: 0 }
   for (const p of skip) counts[kind(res.get(p).type)]++
   const cost = Math.round(looked * c.lookupCost * 10000) / 10000

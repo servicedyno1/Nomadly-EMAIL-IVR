@@ -28,35 +28,49 @@ const all = async (url) => {
   return out
 }
 
-// Bird rate-limits lookups (429 / E01003): wait Retry-After (max 5s) and try again, up to 4 times.
-// Lookups share one Bird rate-limit group (policy "lookup";q=10;w=60 → 10 requests a minute).
-// Bulk runs use their own lane, one request every 6.5s, so single lookups keep some room; any 429 waits for
-// Retry-After (up to 65s) and tries again (single: 3 times, bulk: 10 times).
+// Bird rate-limits lookups (429 / E01003): one group for all four bots (policy "lookup";q=10;w=60 → 10 a minute).
+// With Redis every bot shares one lane: single lookups (calls, checks) get 2 a minute straight away, then queue for
+// a turn on the lane (one every 7.5s) for at most `maxWait`; no turn → the caller moves on to the next provider.
+// Without Redis each process only spaces its own bulk lookups (old behaviour). Any 429 pushes everyone back.
+const LANE = 'bird:lookup', LANE_GAP_MS = 7500, SINGLE_WAIT_MS = 8000
 const BULK_GAP_MS = 6500
 let nextBulk = 0
-const bulkSlot = () => { const t = Math.max(Date.now(), nextBulk); nextBulk = t + BULK_GAP_MS; return new Promise(r => setTimeout(r, t - Date.now())) }
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+const bulkSlot = () => { const t = Math.max(Date.now(), nextBulk); nextBulk = t + BULK_GAP_MS; return sleep(t - Date.now()) }
 const waitOf = (e) => { const h = e.response?.headers || {}; const t = Number((String(h.ratelimit || '').match(/t=(\d+)/) || [])[1]) || Number(h['retry-after']) || 6; return Math.min(65, t) * 1000 + Math.random() * 500 }
-async function limited(fn, bulk = false) {
+const laneFull = () => Object.assign(new Error('Bird lookup lane full'), { laneFull: true })
+async function turn(bulk, maxWait) {
+  const R = require('../redis')
+  if (!R.enabled()) return bulk ? bulkSlot() : undefined
+  if (!bulk && await R.take('bird:single', 2, 60000)) return
+  const w = await R.gate(LANE, LANE_GAP_MS, maxWait ?? (bulk ? 65000 : SINGLE_WAIT_MS))
+  if (w === null) return bulk ? bulkSlot() : undefined
+  if (w < 0) throw laneFull()
+  if (w > 0) await sleep(w)
+}
+async function limited(fn, bulk = false, maxWait) {
   for (let i = 0; ; i++) {
-    if (bulk) await bulkSlot()
+    await turn(bulk, maxWait)
     try { return await fn() } catch (e) {
       const busy = e.response?.status === 429 || e.response?.data?.code === 'E01003' || e.response?.data?.error?.code === 'E01003'
       if (!busy || i >= (bulk ? 10 : 3)) throw e
-      await new Promise(r => setTimeout(r, waitOf(e)))
+      const w = waitOf(e)
+      if (await require('../redis').pushBack(LANE, w) === null) await sleep(w)
     }
   }
 }
 
 // ── Lookup → { valid, type, carrier, country } | null when unavailable ──
 const LINE = { mobile: 'mobile', fixed_line: 'landline', voip: 'voip', toll_free: 'toll_free' }
-async function lookup(number, { bulk = false } = {}) {
+async function lookup(number, { bulk = false, maxWait } = {}) {
   if (!enabled()) return null
   const n = e164(number)
   try {
-    const r = await limited(() => req('post', '/lookup/phone-number', { phone_number: n }, { 'Idempotency-Key': `lk-${n}-${new Date().toISOString().slice(0, 10)}` }), bulk)
+    const r = await limited(() => req('post', '/lookup/phone-number', { phone_number: n }, { 'Idempotency-Key': `lk-${n}-${new Date().toISOString().slice(0, 10)}` }), bulk, maxWait)
     require('../bird-spend').lookup()
     return { valid: r.line_type !== 'unknown' || !!r.network_info?.carrier_name, country: r.country_code || 'unknown', carrier: r.network_info?.carrier_name || 'unknown', type: LINE[r.line_type] || r.line_type || 'unknown', ported: (r.flags || []).includes('ported'), _provider: 'bird' }
   } catch (e) {
+    if (e.laneFull) return null
     if (e.response?.data?.error?.code === 'E22000') return { valid: false, country: 'unknown', carrier: 'unknown', type: 'invalid', _provider: 'bird' }
     log('lookup:', errOf(e)); return null
   }
@@ -87,7 +101,7 @@ async function lookupEmails(emails) {
 }
 
 // ── Numbers ──
-const searched = new Map() // e164 → search row
+const searched = require('../redis').sharedMap('bird:searched') // e164 → search row (shared by both deploy slots)
 async function searchNumbers(countryCode, numberType, areaCode, limit = 5, { allowPaperwork = false } = {}) {
   if (!enabled()) return []
   try {

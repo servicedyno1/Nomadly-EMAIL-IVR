@@ -16,7 +16,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 const call = async (fn) => { for (let i = 0; ; i++) { try { return await fn() } catch (e) { if (e.response?.status !== 429 || i >= 4) throw e; await sleep(1500 * (i + 1)) } } }
 const sellsType = (cc, type) => (cc === 'US' && ['local', 'toll_free'].includes(type)) || (cc === 'CA' && type === 'local')
 
-const searched = new Map() // e164 → { cc, type }
+const searched = require('../redis').sharedMap('retell:searched') // e164 → { cc, type } (shared by both deploy slots)
 const bought = new Set() // bought by this process (routing needs no Telnyx step)
 const owns = (n) => bought.has(e164(n))
 // Numbers on the Retell account (current API: POST /v2/list-phone-numbers, paginated) → also fills `bought` after a restart.
@@ -88,17 +88,20 @@ const LOW_FUNDS = /balance|credit|insufficient|fund|payment|billing|top.?up/i
 const noFunds = new Set()
 let lowAlertAt = 0
 const wasNoFunds = (n) => noFunds.has(n)
-function lowFunds(phoneNumber, why) {
+const R = require('../redis')
+// One alert per 6 h across both deploy slots (Redis), else per process.
+const firstIn6h = async (name, at) => (Date.now() - at >= 6 * 3600000) && (await R.once(name, 6 * 3600000)) !== false
+async function lowFunds(phoneNumber, why) {
   noFunds.add(phoneNumber)
-  if (Date.now() - lowAlertAt < 6 * 3600000) return
+  if (!(await firstIn6h('alert:retell-lowfunds', lowAlertAt))) return
   lowAlertAt = Date.now()
   require('../provider-health').alert(`🚨 [Providers] Retell wallet too low — it refused to buy ${phoneNumber} (${why.slice(0, 120)}). Paid orders wait and complete on their own after the top-up (Retell dashboard → Billing). US/Canada numbers can't be bought until then.`)
 }
 // Infobip refusing to sell landing numbers ("Something went wrong") has meant a low Infobip balance; a similar number can't help.
 let landingAlertAt = 0
-function landingDown(phoneNumber) {
+async function landingDown(phoneNumber) {
   noFunds.add(phoneNumber)
-  if (Date.now() - landingAlertAt < 6 * 3600000) return
+  if (!(await firstIn6h('alert:retell-landing', landingAlertAt))) return
   landingAlertAt = Date.now()
   require('../provider-health').alert(`🚨 [Providers] Infobip won't sell landing numbers, so Retell can't buy ${phoneNumber} — usually a low Infobip balance. Paid orders wait and complete on their own after the top-up.`)
 }
@@ -113,13 +116,13 @@ async function buyNumber(phoneNumber) {
     const got = e164(r.phone_number)
     if (got !== phoneNumber) log(`asked ${phoneNumber}, Retell gave ${got}`)
     if (r.fallback_number !== landing.number || r.inbound_fallback_enabled !== true) await http().patch(`/update-phone-number/${encodeURIComponent(got)}`, { fallback_number: landing.number, inbound_fallback_enabled: true })
-    searched.delete(phoneNumber); bought.add(got); noFunds.delete(phoneNumber); lowAlertAt = 0; landingAlertAt = 0
+    searched.delete(phoneNumber); bought.add(got); noFunds.delete(phoneNumber); lowAlertAt = 0; landingAlertAt = 0; R.forget('alert:retell-lowfunds'); R.forget('alert:retell-landing')
     log(`Bought ${got} → forwards to landing ${landing.number}`)
     return { id: `rt:${got}`, status: 'success', requirements_met: true, phone_numbers: [{ id: `rt:${got}`, phone_number: got, status: 'success' }], _provider: 'retell', _landingNumber: landing.number, ...(got !== phoneNumber ? { _retriedNumber: got } : {}) }
   } catch (e) {
     log(`buy ${phoneNumber}:`, errOf(e))
-    if (!landing) landingDown(phoneNumber)
-    else if (e.response?.status === 402 || LOW_FUNDS.test(errOf(e))) lowFunds(phoneNumber, errOf(e))
+    if (!landing) await landingDown(phoneNumber)
+    else if (e.response?.status === 402 || LOW_FUNDS.test(errOf(e))) await lowFunds(phoneNumber, errOf(e))
     else noFunds.delete(phoneNumber)
     // Keep the landing for the next try (a waiting order retries every few minutes) instead of buying a new one each time.
     if (landing) spare.keep(landing)
