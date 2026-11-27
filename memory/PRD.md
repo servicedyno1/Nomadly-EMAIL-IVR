@@ -862,3 +862,5 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Web-only scam-text screen added (prize, Interac, CRA/IRS, locked account, parcel fee). Bots still use only the core screen (let the Nov prize scam through) — offer to apply to bots.
 - Not yet: a real paid campaign end-to-end on production (no test account / pool credit low $8.52).
 - 2026-11-24: Bulk SMS launch placements live (dashboard banner, landing ribbon in nav header, product tile, pricing line) + CRM API SMS endpoints (/v1/sms, /v1/sms/campaigns, GET status). API SMS not yet exercised with a real key (no test account with API access).
+
+- 2026-11-27: Retell blocked (402 payment overdue); 2 web toll-free orders waiting in pending queue.
