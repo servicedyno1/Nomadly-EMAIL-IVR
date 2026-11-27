@@ -3991,3 +3991,6 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-11-27 16:46 UTC — Retell rebuy re-triggered
 - Cleared nextTryAt on 2 waiting retell orders (+18886135293, +18669932636); tick retried, Retell still 402 "Payment overdue, service stopped". Number search also failing for all users. Auto-refund at 24h (16:02 UTC 11-28) if not resolved.
+
+## 2026-11-27 16:56 UTC — Retell unblocked
+- Both waiting toll-free orders bought (+18886135293, +18669932636), active, forwarded, Bird VERIFIED (16:59 / 17:02).
