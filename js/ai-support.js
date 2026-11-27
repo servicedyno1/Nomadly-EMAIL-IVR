@@ -222,6 +222,9 @@ ${process.env.PHONE_SERVICE_ON === 'true' ? `${planLines()}
   • Outbound IVR / OTP / Bulk IVR calls: $${process.env.BULK_CALL_RATE_PER_MIN || '0.15'}/min + $${process.env.CALL_CONNECTION_FEE || '0.03'} connection fee per call
   • Call forwarding: $${process.env.CALL_FORWARDING_RATE_MIN || '0.50'}/min
 - Inbound overage (beyond the included monthly minutes): $${process.env.OVERAGE_RATE_MIN || '0.15'}/min · SMS overage: $${process.env.OVERAGE_RATE_SMS || '0.02'}/msg
+- <b>Extra numbers</b>: each extra number (local, toll-free or mobile, USA/Canada) is <b>$${require('./phone-config.js').SUB_NUMBER_BASE_PRICE}/month</b>; some other countries cost more — the exact price shows before payment. "Up to N extra numbers" is how many extra numbers the plan can hold, not free numbers.
+- <b>Texts on plan numbers</b>: every plan RECEIVES texts on its number (forwarded to this Telegram chat; Pro and Business can also forward to email / webhook). Sending texts FROM a plan number (local or toll-free) is NOT offered in the bot. To send texts, point to 📲 BulkSMS 🇺🇸🇨🇦 (single texts or 500+ campaigns). Never say a plan "supports SMS sending".
+- <b>Caller ID</b>: Business shows any number you verified as the caller ID on outbound calls. The caller ID NAME (CNAM) shown on the other phone cannot be set by us — never promise a custom caller name.
 - NEVER tell a user that outbound, IVR, or OTP calls/minutes are "free" or "included" — they are always billed from the wallet. The plan's monthly minutes are an INBOUND allowance only.` : '- Phone service currently unavailable'}
 
 <b>IMPORTANT — Business-only OTP enhancements vs Pro:</b>
@@ -1287,6 +1290,10 @@ async function getUserContext(chatId, userMessage = '') {
           return s
         }).join('\n')
         context.push(`DIGITAL PRODUCT / VIRTUAL CARD ORDERS (most recent first):\n${lines}`)
+        // eSIM orders: "delivered" on the order only means the IMEI was received — the line's own status is the truth.
+        const esims = await _db.collection('esimLines').find({ chatId: { $in: cidVariants.map(String) } }).sort({ createdAt: -1 }).limit(3).project({ status: 1, phoneNumber: 1, createdAt: 1, expiresAt: 1 }).toArray().catch(() => [])
+        const say = { awaiting_funds: 'BEING SET UP (short delay on our side; created automatically, no action needed — the QR code is sent here when ready)', provisioning: 'BEING SET UP (QR code is sent here when ready, usually within minutes)', active: 'ACTIVE — QR code available under My eSIMs', failed: 'FAILED and refunded to the wallet', suspended: 'SUSPENDED (renewal not paid)', expired: 'EXPIRED' }
+        if (esims.length) context.push(`USA eSIM LINES (use THIS status for eSIM questions, not the order status):\n${esims.map(l => `• ${l.phoneNumber || 'number pending'} — ${say[l.status] || String(l.status).toUpperCase()} (ordered ${fmtTs(l.createdAt)}${l.expiresAt ? `, paid until ${fmtTs(l.expiresAt)}` : ''})`).join('\n')}`)
         if (stuck.length) {
           context.push(`🚨 PAID-BUT-UNDELIVERED: order(s) ${stuck.join(', ')} are PAID/CONFIRMED but NOT yet delivered. Virtual cards & digital products are issued MANUALLY by the team — this is NORMAL and does NOT mean the payment failed. Do NOT tell the user the payment didn't go through or to "check your wallet" (crypto payments never show in the wallet balance). Acknowledge the specific order ID + amount, confirm the payment IS received, and ESCALATE so a human issues/delivers it.`)
         }
@@ -1736,7 +1743,7 @@ Open: main menu → <b>${L.home}</b>. Inside: <b>${L.newc}</b>, <b>${L.one}</b>,
 - Pay from the wallet or other bot payment methods; a booking is held ${c.holdMinutes} min for payment.
 
 <b>Limits</b>
-- ${c.minVolume}–${c.maxVolume} numbers per campaign. Default daily allowance: ${c.defaultDailyLimit} SMS per customer (resets ${String(c.resetHourUtc).padStart(2, '0')}:00 UTC).
+- ${c.minVolume}–${c.maxVolume} numbers per campaign. A campaign can NOT be smaller than ${c.minVolume} (so 100 at a time is not possible) — for fewer numbers use single texts (\$1 each after the first 3 free). Answer this in ONE consistent way; never say both "you can" and "you can't". Default daily allowance: ${c.defaultDailyLimit} SMS per customer (resets ${String(c.resetHourUtc).padStart(2, '0')}:00 UTC).
 - USA & Canada mobiles only (no toll-free or Caribbean numbers). Texts are delivered ${c.quietStart}:00–${c.quietEnd}:00 in each recipient's local time; the rest waits for the morning.
 - One SMS per text: up to ${160 - B.OPT.length} characters with the "Reply STOP to opt out" line, 160 without it. Emoji or special characters can cut the limit to 70.
 - The customer must confirm every recipient agreed to receive messages. Anyone who replies STOP is blocked for good.
@@ -1745,7 +1752,7 @@ Open: main menu → <b>${L.home}</b>. Inside: <b>${L.newc}</b>, <b>${L.one}</b>,
 1. Numbers: paste them or upload .txt/.csv. They are checked for free; only active mobiles get the text.
 2. Message: one text, or rotate versions. The customer can write their own, separated by a line with only ---, or let AI suggest 5 to pick from. Each version may use its own link or number. Unsafe links are refused. If a link is later found unsafe during sending, only the versions with that link stop, and those are not refunded.
 3. Test (optional): ${c.testSends ? `the first campaign ever gets 1 free test to any USA/Canada number. After that, tests unlock when the wallet covers the campaign: up to ${c.testSends} per campaign, ${c.testsPerDay} a day, ${c.testsPerWeek} a week. Each costs the SMS price and is refunded when the campaign is booked.` : 'tests are free and not limited — they are for checking the message on the customer\'s own phone(s).'} Changing the text after a test needs a new test. Tests used to reach many different numbers are removed from the account (the campaign can still be sent); never explain how this is detected.
-- <b>${L.one}</b>: ${c.freeOneSends ? `${c.freeOneSends} free single texts per customer.` : 'free single texts for one-to-one messages. People who answer can always be texted. Texting many new numbers the same thing is slowed down, then refused, then turned off — for a list the customer must use a campaign. Never explain how this is detected.'}
+- <b>${L.one}</b>: one text to one number. The first 3 are free; after that each single text costs <b>$1</b> and the wallet must hold at least <b>$20</b> to send. People who answer can always be texted. Texting many new numbers the same thing is slowed down, then refused, then turned off — for a list the customer must use a campaign. Never explain how this is detected. NEVER call single texts "free" beyond the first 3.
 4. When: send now or schedule (−${c.scheduleDiscountPct}%), optionally add replies, then pay.
 - The customer gets a message when the campaign starts and when it finishes (with sent/failed/replies). Texts that fail or never go out are refunded to the wallet automatically. Skipped numbers are not refunded.
 - Cancel from <b>${L.bookings}</b> up to 30 min before the start for a full refund.
